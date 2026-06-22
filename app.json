@@ -3,9 +3,11 @@
     "name": "Food-Delivery-App",
     "slug": "Food-Delivery-App",
     "version": "1.0.0",
+    "scheme": "fooddeliveryapp",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "plugins": ["expo-router", "expo-secure-store"],
     "ios": {
       "supportsTablet": true
     },
@@ -19,7 +21,8 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
     }
   }
 }
