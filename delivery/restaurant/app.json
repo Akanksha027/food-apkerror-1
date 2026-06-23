@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Food-Delivery-App",
-    "slug": "Food-Delivery-App",
+    "name": "Restaurant Portal",
+    "slug": "restaurant-portal",
     "version": "1.0.0",
-    "scheme": "fooddeliveryapp",
+    "scheme": "restaurantportal",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
