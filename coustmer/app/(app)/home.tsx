@@ -1,154 +1,203 @@
-import { Image } from 'expo-image';
+import { StatusBar } from 'expo-status-bar';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { Search, User } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ErrorView, LoadingView } from '@/components/common/StateViews';
+import { BannerCarousel } from '@/components/home/BannerCarousel';
+import { CategoryStrip } from '@/components/home/CategoryStrip';
+import { HomeHeader } from '@/components/home/HomeHeader';
+import { HomeSection } from '@/components/home/HomeSection';
+import { OnboardingCard } from '@/components/home/OnboardingCard';
+import { QuickActions } from '@/components/home/QuickActions';
 import { authTheme } from '@/constants/auth-theme';
-import { resetOnboarding } from '@/lib/onboarding';
+import {
+  useAddFavorite,
+  useCustomerProfile,
+  useHomeFeed,
+  useRecommended,
+  useRemoveFavorite,
+} from '@/lib/customer/hooks';
+import { useNearbyRestaurants } from '@/lib/restaurant/hooks';
 import { useAuthStore } from '@/store/auth-store';
-
-const logoImage = require('@/assets/Logo.png');
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
-  const handleResetOnboarding = async () => {
-    await resetOnboarding();
-    router.replace('/');
-  };
+  const home = useHomeFeed();
+  const recommended = useRecommended();
+  const profile = useCustomerProfile();
+  const addFavorite = useAddFavorite();
+  const removeFavorite = useRemoveFavorite();
+  const nearby = useNearbyRestaurants(
+    coords ? { lat: coords.lat, lng: coords.lng, limit: 10 } : null
+  );
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+      const location = await Location.getCurrentPositionAsync({});
+      setCoords({
+        lat: location.coords.latitude,
+        lng: location.coords.longitude,
+      });
+    })();
+  }, []);
+
+  const favoriteIds = profile.data?.favoriteRestaurants ?? [];
 
   const greeting =
     user?.firstName?.trim() || user?.email?.split('@')[0] || 'there';
 
+  const toggleFavorite = (id: string) => {
+    if (!id) return;
+    if (favoriteIds.includes(id)) {
+      removeFavorite.mutate(id);
+    } else {
+      addFavorite.mutate(id);
+    }
+  };
+
+  const openRestaurant = (id: string) => {
+    router.push({
+      pathname: '/restaurants/[restaurantId]/index' as const,
+      params: { restaurantId: id },
+    });
+  };
+
+  const refreshing = home.isRefetching || recommended.isRefetching || nearby.isRefetching;
+  const onRefresh = () => {
+    home.refetch();
+    recommended.refetch();
+    profile.refetch();
+    nearby.refetch();
+  };
+
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.brandRow}>
-            <Image
-              source={logoImage}
-              style={styles.logo}
-              contentFit="contain"
+    <View style={styles.root}>
+      <StatusBar style="light" />
+
+      {home.isLoading ? (
+        <View style={styles.centered}>
+          <HomeHeader
+            greeting={greeting}
+            tier={profile.data?.tier}
+            loyaltyPoints={profile.data?.loyaltyPoints}
+            topInset={insets.top}
+          />
+          <LoadingView label="Loading your home feed…" />
+        </View>
+      ) : home.isError ? (
+        <View style={styles.centered}>
+          <HomeHeader greeting={greeting} topInset={insets.top} />
+          <ErrorView
+            message={
+              home.error instanceof Error ? home.error.message : 'Failed to load'
+            }
+            onRetry={() => home.refetch()}
+          />
+        </View>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scroll,
+            { paddingBottom: insets.bottom + 28 },
+          ]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={authTheme.brand}
+              progressViewOffset={insets.top + 40}
             />
-            <View>
-              <Text style={styles.brandAccent}>Vibrant</Text>
-              <Text style={styles.brandName}>Cravings</Text>
-            </View>
-          </View>
-          <View style={styles.headerActions}>
-            <Pressable style={styles.iconButton}>
-              <Search color={authTheme.text} size={20} />
-            </Pressable>
-            <Pressable
-              style={styles.iconButton}
-              onPress={() => router.push('/profile')}
-            >
-              <User color={authTheme.text} size={20} />
-            </Pressable>
-          </View>
-        </View>
+          }
+        >
+          <HomeHeader
+            greeting={greeting}
+            tier={profile.data?.tier}
+            loyaltyPoints={profile.data?.loyaltyPoints}
+            topInset={insets.top}
+          />
 
-        <View style={styles.hero}>
-          <Text style={styles.greeting}>Hey {greeting} 👋</Text>
-          <Text style={styles.title}>What are you craving?</Text>
-          <Text style={styles.subtitle}>
-            Browse restaurants, add to cart, and get food delivered fast.
-          </Text>
-        </View>
+          <QuickActions />
 
-        <Pressable onPress={handleResetOnboarding} style={styles.devButton}>
-          <Text style={styles.devButtonText}>Preview welcome screen again</Text>
-        </Pressable>
-      </View>
-    </SafeAreaView>
+          <CategoryStrip />
+
+          <BannerCarousel banners={home.data?.banners ?? []} />
+
+          <OnboardingCard />
+
+          <HomeSection
+            title="Near you"
+            subtitle="Restaurants close to your location"
+            data={nearby.data?.restaurants ?? []}
+            favoriteIds={favoriteIds}
+            onToggleFavorite={toggleFavorite}
+            onRestaurantPress={openRestaurant}
+            emptyLabel="No nearby restaurants yet — explore all restaurants."
+          />
+
+          <HomeSection
+            title="Trending now"
+            subtitle="Most-loved spots this week"
+            data={home.data?.trending ?? []}
+            favoriteIds={favoriteIds}
+            onToggleFavorite={toggleFavorite}
+            onRestaurantPress={openRestaurant}
+            emptyLabel="No trending restaurants yet — check back soon."
+          />
+
+          <HomeSection
+            title="For you"
+            subtitle="Handpicked based on your taste"
+            data={home.data?.forYou ?? []}
+            favoriteIds={favoriteIds}
+            onToggleFavorite={toggleFavorite}
+            onRestaurantPress={openRestaurant}
+            emptyLabel="Personalised picks will appear here."
+          />
+
+          <HomeSection
+            title="Recommended"
+            subtitle="Powered by your activity"
+            data={recommended.data ?? []}
+            favoriteIds={favoriteIds}
+            onToggleFavorite={toggleFavorite}
+            onRestaurantPress={openRestaurant}
+            emptyLabel="We'll recommend restaurants as you order."
+          />
+
+          <HomeSection
+            title="Newly added"
+            subtitle="Fresh kitchens near you"
+            data={home.data?.newlyAdded ?? []}
+            favoriteIds={favoriteIds}
+            onToggleFavorite={toggleFavorite}
+            onRestaurantPress={openRestaurant}
+            emptyLabel="New restaurants are coming soon."
+          />
+        </ScrollView>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
+  root: {
     flex: 1,
     backgroundColor: authTheme.bg,
   },
-  container: {
+  centered: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 8,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  logo: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-  },
-  brandAccent: {
-    color: authTheme.accent,
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  brandName: {
-    color: authTheme.text,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: authTheme.card,
-    borderWidth: 1,
-    borderColor: authTheme.cardBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hero: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingBottom: 80,
-  },
-  greeting: {
-    color: authTheme.textMuted,
-    fontSize: 15,
-    marginBottom: 8,
-  },
-  title: {
-    color: authTheme.text,
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: authTheme.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
-    maxWidth: 300,
-  },
-  devButton: {
-    marginBottom: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: authTheme.cardBorder,
-    paddingVertical: 12,
-  },
-  devButtonText: {
-    textAlign: 'center',
-    color: authTheme.textMuted,
-    fontSize: 13,
+  scroll: {
+    backgroundColor: authTheme.bg,
   },
 });

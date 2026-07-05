@@ -1,0 +1,106 @@
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { AuthMessageBanner } from '@/components/auth/AuthMessageBanner';
+import { ScreenHeader } from '@/components/common/ScreenHeader';
+import { authTheme } from '@/constants/auth-theme';
+
+type Props = {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  banner?: { message: string; type: 'error' | 'success' } | null;
+  onSave?: () => void;
+  saveLabel?: string;
+  saving?: boolean;
+  saveDisabled?: boolean;
+};
+
+export function ProfileFormLayout({
+  title,
+  subtitle,
+  children,
+  banner,
+  onSave,
+  saveLabel = 'Save changes',
+  saving,
+  saveDisabled,
+}: Props) {
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.container}>
+          <ScreenHeader title={title} subtitle={subtitle} />
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scroll}
+          >
+            {banner ? (
+              <AuthMessageBanner message={banner.message} type={banner.type} />
+            ) : null}
+            {children}
+            {onSave ? (
+              <Pressable
+                style={[styles.saveButton, (saving || saveDisabled) && styles.saveDisabled]}
+                onPress={onSave}
+                disabled={saving || saveDisabled}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.saveText}>{saveLabel}</Text>
+                )}
+              </Pressable>
+            ) : null}
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: authTheme.bg,
+  },
+  flex: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  scroll: {
+    paddingBottom: 32,
+  },
+  saveButton: {
+    marginTop: 24,
+    backgroundColor: authTheme.brand,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  saveDisabled: {
+    opacity: 0.6,
+  },
+  saveText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+});
