@@ -3,10 +3,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import {
   Bell,
+  Bookmark,
+  CreditCard,
   Gift,
   KeyRound,
   LogOut,
   Mail,
+  Package,
   Shield,
   Smartphone,
   Trash2,
@@ -28,10 +31,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthMessageBanner } from '@/components/auth/AuthMessageBanner';
 import { ErrorView, LoadingView } from '@/components/common/StateViews';
+import { APP_BOTTOM_NAV_INSET } from '@/components/navigation/AppBottomNav';
 import { ProfileMenuItem } from '@/components/profile/ProfileMenuItem';
 import { ProfileMenuSection } from '@/components/profile/ProfileMenuSection';
 import { authTheme } from '@/constants/auth-theme';
-import { useUserProfile, useWallet } from '@/lib/profile/hooks';
+import { useUserProfile } from '@/lib/profile/hooks';
+import { usePaymentWallet } from '@/lib/payment/hooks';
 import { useAuthStore } from '@/store/auth-store';
 
 type Banner = { message: string; type: 'error' | 'success' } | null;
@@ -45,7 +50,7 @@ export function ProfileHubScreen() {
   const isAuthLoading = useAuthStore((s) => s.isLoading);
 
   const profile = useUserProfile();
-  const wallet = useWallet();
+  const wallet = usePaymentWallet();
 
   const [banner, setBanner] = useState<Banner>(null);
   const [action, setAction] = useState<'logout' | 'logoutAll' | 'resend' | null>(
@@ -207,6 +212,29 @@ export function ProfileHubScreen() {
 
           <ProfileMenuSection title="Account">
             <ProfileMenuItem
+              icon={Bell}
+              label="Notifications"
+              subtitle="Order updates, offers & alerts"
+              onPress={() =>
+                router.push({ pathname: '/notifications' } as import('expo-router').Href)
+              }
+              color="#7A0E22"
+            />
+            <ProfileMenuItem
+              icon={Package}
+              label="My orders"
+              subtitle="Active, scheduled & history"
+              onPress={() => router.push('/orders' as import('expo-router').Href)}
+              color="#EA580C"
+            />
+            <ProfileMenuItem
+              icon={Bookmark}
+              label="Saved carts"
+              subtitle="Restore carts you saved for later"
+              onPress={() => router.push('/cart/saved' as import('expo-router').Href)}
+              color="#7C3AED"
+            />
+            <ProfileMenuItem
               icon={UserPen}
               label="Edit profile"
               subtitle="Name, gender, date of birth"
@@ -231,6 +259,13 @@ export function ProfileHubScreen() {
               color="#16A34A"
             />
             <ProfileMenuItem
+              icon={CreditCard}
+              label="Payments"
+              subtitle="History, cards & UPI"
+              onPress={() => router.push('/payments' as import('expo-router').Href)}
+              color="#2563EB"
+            />
+            <ProfileMenuItem
               icon={Gift}
               label="Refer & earn"
               subtitle="Share your referral code"
@@ -242,8 +277,8 @@ export function ProfileHubScreen() {
           <ProfileMenuSection title="Preferences">
             <ProfileMenuItem
               icon={Bell}
-              label="Preferences"
-              subtitle="Notifications, dietary, language"
+              label="Notification settings"
+              subtitle="Push, email & dietary preferences"
               onPress={() => router.push('/profile/preferences')}
               color="#D97706"
             />
@@ -320,7 +355,7 @@ const styles = StyleSheet.create({
     backgroundColor: authTheme.bg,
   },
   scroll: {
-    paddingBottom: 40,
+    paddingBottom: 40 + APP_BOTTOM_NAV_INSET,
   },
   content: {
     paddingHorizontal: 20,

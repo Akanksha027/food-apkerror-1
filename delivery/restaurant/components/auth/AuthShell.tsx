@@ -20,6 +20,7 @@ type AuthShellProps = {
   children: ReactNode;
   footer?: ReactNode;
   showBack?: boolean;
+  onBackPress?: () => void;
 };
 
 export function AuthShell({
@@ -28,6 +29,7 @@ export function AuthShell({
   children,
   footer,
   showBack,
+  onBackPress,
 }: AuthShellProps) {
   const router = useRouter();
 
@@ -50,7 +52,7 @@ export function AuthShell({
             >
               {showBack ? (
                 <Pressable
-                  onPress={() => router.back()}
+                  onPress={onBackPress ?? (() => router.back())}
                   hitSlop={10}
                   className="mb-4 h-9 w-9 items-center justify-center rounded-full bg-surface"
                 >

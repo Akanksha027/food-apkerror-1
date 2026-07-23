@@ -1,6 +1,11 @@
 import axios, { AxiosHeaders } from 'axios';
 
 import { getToken } from '@/lib/auth/storage';
+import {
+  clearSessionCookies,
+  getStoredSessionCookies,
+  persistSessionCookies,
+} from '@/lib/session-cookies';
 
 /** Cookie session marker stored when API uses Set-Cookie instead of JWT. */
 const SESSION_AUTH_TOKEN = 'session';
@@ -73,6 +78,11 @@ export function clearCsrfToken(): void {
   csrfToken = null;
 }
 
+export async function clearApiSession(): Promise<void> {
+  clearCsrfToken();
+  await clearSessionCookies();
+}
+
 /** Quick connectivity check — call from auth screens on mount. */
 export async function checkApiConnection(): Promise<boolean> {
   try {
@@ -90,9 +100,12 @@ function applyCsrfHeader(headers: AxiosHeaders, token: string) {
 api.interceptors.request.use(async (config) => {
   const headers = AxiosHeaders.from(config.headers);
   const authToken = await getToken();
+  const sessionCookies = await getStoredSessionCookies();
 
   if (authToken && authToken !== SESSION_AUTH_TOKEN) {
     headers.set('Authorization', `Bearer ${authToken}`);
+  } else if (sessionCookies) {
+    headers.set('Cookie', sessionCookies);
   }
 
   const method = config.method?.toLowerCase();
@@ -103,13 +116,24 @@ api.interceptors.request.use(async (config) => {
     applyCsrfHeader(headers, token);
   }
 
+  // Drop default JSON content-type for FormData so RN can set multipart boundary.
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    const contentType = headers.getContentType();
+    if (!contentType || contentType.includes('application/json')) {
+      headers.delete('Content-Type');
+    }
+  }
+
   config.headers = headers;
   config.withCredentials = true;
   return config;
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  async (response) => {
+    await persistSessionCookies(response);
+    return response;
+  },
   async (error) => {
     const original = error.config;
     const message =

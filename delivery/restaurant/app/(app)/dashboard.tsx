@@ -11,14 +11,16 @@ import {
   MonitorSmartphone,
   Settings,
   ShieldCheck,
+  Store,
   Wallet,
 } from 'lucide-react-native';
-import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthBanner } from '@/components/auth/AuthBanner';
 import { heroGradient, theme } from '@/constants/theme';
+import { restaurantOwnerApi } from '@/lib/restaurant/api';
 import { useAuthStore } from '@/store/auth-store';
 
 export default function DashboardScreen() {
@@ -34,12 +36,45 @@ export default function DashboardScreen() {
   } | null>(null);
 
   const isDelivery = user?.role === 'delivery';
+  const [checkingRestaurant, setCheckingRestaurant] = useState(!isDelivery);
+  const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
   const RoleIcon = isDelivery ? Bike : ChefHat;
   const roleLabel = isDelivery ? 'Delivery Partner' : 'Restaurant Partner';
   const displayName =
     [user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
     user?.email ||
     'Partner';
+
+  useEffect(() => {
+    if (!user || isDelivery) return;
+    let active = true;
+    setCheckingRestaurant(true);
+    restaurantOwnerApi
+      .getMyRestaurant()
+      .then((my) => {
+        if (!active) return;
+        setNeedsProfileSetup(!my);
+      })
+      .catch(() => {
+        if (!active) return;
+        setNeedsProfileSetup(false);
+      })
+      .finally(() => {
+        if (!active) return;
+        setCheckingRestaurant(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user, isDelivery]);
+
+  if (checkingRestaurant && !isDelivery) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-surface">
+        <ActivityIndicator color={theme.primary} size="large" />
+      </SafeAreaView>
+    );
+  }
 
   const handleResendVerification = async () => {
     setBanner(null);
@@ -134,6 +169,35 @@ export default function DashboardScreen() {
             <View className="mt-5">
               <AuthBanner type={banner.type} message={banner.message} />
             </View>
+          ) : null}
+
+          {needsProfileSetup ? (
+            <Pressable
+              onPress={() => router.push('/restaurant-setup')}
+              className="mt-5 overflow-hidden rounded-2xl border border-primary/20 bg-white"
+              style={{
+                shadowColor: '#000',
+                shadowOpacity: 0.08,
+                shadowRadius: 12,
+                shadowOffset: { width: 0, height: 4 },
+                elevation: 3,
+              }}
+            >
+              <View className="flex-row items-center gap-3 p-4">
+                <View className="h-12 w-12 items-center justify-center rounded-xl bg-primary">
+                  <Store color="#FFFFFF" size={22} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-bold text-secondary">
+                    Complete restaurant profile
+                  </Text>
+                  <Text className="mt-0.5 text-sm text-secondary-light">
+                    Add logo, address, and location to go live.
+                  </Text>
+                </View>
+                <ChevronRight color={theme.primary} size={20} />
+              </View>
+            </Pressable>
           ) : null}
 
           <Text className="mb-3 mt-6 text-base font-bold text-secondary">

@@ -15,6 +15,7 @@ export const customerKeys = {
   all: ['customer'] as const,
   home: () => [...customerKeys.all, 'home'] as const,
   deals: () => [...customerKeys.all, 'deals'] as const,
+  offers: () => [...customerKeys.all, 'offers'] as const,
   recommended: () => [...customerKeys.all, 'recommended'] as const,
   profile: () => [...customerKeys.all, 'profile'] as const,
   favorites: () => [...customerKeys.all, 'favorites'] as const,
@@ -35,6 +36,15 @@ export function useDeals() {
   return useQuery({
     queryKey: customerKeys.deals(),
     queryFn: customerApi.getDeals,
+  });
+}
+
+/** Home offer ticker — merges banners + deals from multiple customer APIs */
+export function useOffersFeed() {
+  return useQuery({
+    queryKey: customerKeys.offers(),
+    queryFn: customerApi.getOffersFeed,
+    staleTime: 60_000,
   });
 }
 

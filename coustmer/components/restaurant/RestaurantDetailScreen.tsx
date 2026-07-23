@@ -6,11 +6,12 @@ import {
   Clock,
   Heart,
   MapPin,
+  MessageSquareQuote,
   Star,
   Tag,
   UtensilsCrossed,
 } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -22,13 +23,20 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ErrorView, LoadingView } from '@/components/common/StateViews';
+import { CartFloatingBar } from '@/components/order/CartFloatingBar';
 import { MenuItemRow } from '@/components/restaurant/MenuItemRow';
+import { RestaurantReviewsPanel } from '@/components/review/RestaurantReviewsPanel';
 import { authTheme } from '@/constants/auth-theme';
 import {
   useAddFavorite,
   useCustomerProfile,
   useRemoveFavorite,
 } from '@/lib/customer/hooks';
+import { addMenuItemToCart } from '@/lib/order/add-to-cart';
+import {
+  findCategoryBySlug,
+  resolveMenuCategoryId,
+} from '@/lib/restaurant/categories';
 import {
   useFullMenu,
   useRestaurant,
@@ -36,19 +44,29 @@ import {
 } from '@/lib/restaurant/hooks';
 import type { MenuItem } from '@/lib/restaurant/types';
 
-type Tab = 'menu' | 'offers';
+type Tab = 'menu' | 'offers' | 'reviews';
 
 export function RestaurantDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { restaurantId } = useLocalSearchParams<{ restaurantId: string }>();
+  const { restaurantId, category, cuisine } = useLocalSearchParams<{
+    restaurantId: string;
+    category?: string;
+    cuisine?: string;
+  }>();
   const id = String(restaurantId ?? '');
+  const cuisineFilter = String(category ?? cuisine ?? '').trim();
+  const foodCategory = findCategoryBySlug(cuisineFilter);
 
   const [tab, setTab] = useState<Tab>('menu');
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  const appliedCategoryFilter = useRef(false);
 
   const restaurant = useRestaurant(id);
-  const menu = useFullMenu(id);
+  const menu = useFullMenu(id, {
+    name: restaurant.data?.name,
+    cuisines: restaurant.data?.cuisines,
+  });
   const offers = useRestaurantOffers(id);
   const profile = useCustomerProfile();
   const addFavorite = useAddFavorite();
@@ -73,6 +91,25 @@ export function RestaurantDetailScreen() {
     }));
   }, [menu.categories, menu.items]);
 
+  // Apply deep-link / browse cuisine filter once categories load from API.
+  useEffect(() => {
+    if (appliedCategoryFilter.current || !cuisineFilter || categories.length === 0) {
+      return;
+    }
+    const resolved = resolveMenuCategoryId(categories, cuisineFilter);
+    if (resolved) {
+      setActiveCategory(resolved);
+      appliedCategoryFilter.current = true;
+    }
+  }, [categories, cuisineFilter]);
+
+  const activeCategoryLabel =
+    activeCategory === 'all'
+      ? null
+      : categories.find((c) => c.id === activeCategory)?.name ??
+        foodCategory?.label ??
+        null;
+
   const filteredItems = useMemo(() => {
     if (activeCategory === 'all') return menu.items;
     return menu.items.filter(
@@ -82,6 +119,21 @@ export function RestaurantDetailScreen() {
           categories.find((c) => c.id === activeCategory)?.name
     );
   }, [activeCategory, menu.items, categories]);
+
+  const groupedSections = useMemo(() => {
+    if (activeCategory !== 'all') return null;
+    const sections = categories
+      .map((cat) => ({
+        id: cat.id,
+        name: cat.name,
+        items: menu.items.filter(
+          (item) =>
+            item.categoryId === cat.id || item.categoryName === cat.name
+        ),
+      }))
+      .filter((section) => section.items.length > 0);
+    return sections.length > 0 ? sections : null;
+  }, [activeCategory, categories, menu.items]);
 
   const toggleFavorite = () => {
     if (!id) return;
@@ -93,6 +145,13 @@ export function RestaurantDetailScreen() {
     router.push({
       pathname: '/restaurants/[restaurantId]/items/[itemId]',
       params: { restaurantId: id, itemId: item.id },
+    });
+  };
+
+  const addItem = (item: MenuItem) => {
+    addMenuItemToCart(item, {
+      id,
+      name: restaurant.data?.name || 'Restaurant',
     });
   };
 
@@ -171,10 +230,20 @@ export function RestaurantDetailScreen() {
           {cuisines ? <Text style={styles.cuisines}>{cuisines}</Text> : null}
           <View style={styles.metaRow}>
             {typeof r.rating === 'number' ? (
-              <View style={styles.ratingPill}>
+              <Pressable
+                style={styles.ratingPill}
+                onPress={() => setTab('reviews')}
+              >
                 <Star color="#FFFFFF" fill="#FFFFFF" size={12} />
                 <Text style={styles.ratingText}>{r.rating.toFixed(1)}</Text>
-              </View>
+              </Pressable>
+            ) : null}
+            {typeof r.reviewCount === 'number' && r.reviewCount > 0 ? (
+              <Pressable onPress={() => setTab('reviews')}>
+                <Text style={styles.meta}>
+                  {r.reviewCount} review{r.reviewCount === 1 ? '' : 's'}
+                </Text>
+              </Pressable>
             ) : null}
             {r.deliveryTime ? (
               <View style={styles.metaChip}>
@@ -203,7 +272,7 @@ export function RestaurantDetailScreen() {
             onPress={() => setTab('menu')}
           >
             <Text style={[styles.tabText, tab === 'menu' && styles.tabTextActive]}>
-              Menu
+              Menu{menu.items.length ? ` (${menu.items.length})` : ''}
             </Text>
           </Pressable>
           <Pressable
@@ -213,6 +282,20 @@ export function RestaurantDetailScreen() {
             <Tag color={tab === 'offers' ? '#FFFFFF' : authTheme.brand} size={14} />
             <Text style={[styles.tabText, tab === 'offers' && styles.tabTextActive]}>
               Offers
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.tab, tab === 'reviews' && styles.tabActive]}
+            onPress={() => setTab('reviews')}
+          >
+            <MessageSquareQuote
+              color={tab === 'reviews' ? '#FFFFFF' : authTheme.brand}
+              size={14}
+            />
+            <Text
+              style={[styles.tabText, tab === 'reviews' && styles.tabTextActive]}
+            >
+              Reviews
             </Text>
           </Pressable>
         </View>
@@ -231,6 +314,28 @@ export function RestaurantDetailScreen() {
               </View>
             ) : (
               <>
+                {cuisineFilter && activeCategory !== 'all' && activeCategoryLabel ? (
+                  <View style={styles.filterBanner}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.filterTitle}>
+                        Showing {activeCategoryLabel}
+                      </Text>
+                      <Text style={styles.filterSub}>
+                        Filtered from your category pick ·{' '}
+                        {filteredItems.length} item
+                        {filteredItems.length === 1 ? '' : 's'}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => setActiveCategory('all')}
+                      hitSlop={8}
+                      style={styles.clearChip}
+                    >
+                      <Text style={styles.clearChipText}>View full menu</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+
                 {categories.length > 0 ? (
                   <ScrollView
                     horizontal
@@ -275,17 +380,50 @@ export function RestaurantDetailScreen() {
                   </ScrollView>
                 ) : null}
 
-                {filteredItems.map((item) => (
-                  <MenuItemRow
-                    key={item.id}
-                    item={item}
-                    onPress={() => openItem(item)}
-                  />
-                ))}
+                {activeCategory !== 'all' && filteredItems.length === 0 ? (
+                  <View style={styles.emptyMenu}>
+                    <UtensilsCrossed color={authTheme.textDim} size={36} />
+                    <Text style={styles.emptyTitle}>
+                      No {activeCategoryLabel ?? 'items'} right now
+                    </Text>
+                    <Text style={styles.emptySubtitle}>
+                      Try another category or browse the full menu.
+                    </Text>
+                    <Pressable
+                      onPress={() => setActiveCategory('all')}
+                      style={styles.emptyAction}
+                    >
+                      <Text style={styles.emptyActionText}>View full menu</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+
+                {groupedSections
+                  ? groupedSections.map((section) => (
+                      <View key={section.id}>
+                        <Text style={styles.sectionTitle}>{section.name}</Text>
+                        {section.items.map((item) => (
+                          <MenuItemRow
+                            key={item.id}
+                            item={item}
+                            onPress={() => openItem(item)}
+                            onAdd={() => addItem(item)}
+                          />
+                        ))}
+                      </View>
+                    ))
+                  : filteredItems.map((item) => (
+                      <MenuItemRow
+                        key={item.id}
+                        item={item}
+                        onPress={() => openItem(item)}
+                        onAdd={() => addItem(item)}
+                      />
+                    ))}
               </>
             )}
           </View>
-        ) : (
+        ) : tab === 'offers' ? (
           <View style={styles.menuSection}>
             {offers.isLoading ? (
               <LoadingView label="Loading offers…" />
@@ -322,10 +460,13 @@ export function RestaurantDetailScreen() {
               ))
             )}
           </View>
+        ) : (
+          <RestaurantReviewsPanel restaurantId={id} />
         )}
 
-        <View style={{ height: insets.bottom + 24 }} />
+        <View style={{ height: insets.bottom + 88 }} />
       </ScrollView>
+      <CartFloatingBar />
     </View>
   );
 }
@@ -483,6 +624,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
   },
+  filterBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: authTheme.brandSoft,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: authTheme.brandMuted,
+    padding: 12,
+    marginTop: 8,
+  },
+  filterTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: authTheme.text,
+  },
+  filterSub: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: '600',
+    color: authTheme.textMuted,
+  },
+  clearChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: authTheme.brandMuted,
+  },
+  clearChipText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: authTheme.brand,
+  },
+  emptyAction: {
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: authTheme.brand,
+  },
+  emptyActionText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 13,
+  },
   categoryRow: {
     gap: 8,
     paddingVertical: 12,
@@ -506,6 +694,13 @@ const styles = StyleSheet.create({
   },
   categoryTextActive: {
     color: '#FFFFFF',
+  },
+  sectionTitle: {
+    color: authTheme.text,
+    fontSize: 17,
+    fontWeight: '800',
+    marginTop: 8,
+    marginBottom: 4,
   },
   emptyMenu: {
     alignItems: 'center',

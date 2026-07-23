@@ -48,7 +48,10 @@ function normalizeAuthResponse(
     (payload.token as string) ||
     (payload.accessToken as string) ||
     (payload.access_token as string) ||
+    (payload.jwt as string) ||
     (nested?.token as string) ||
+    (nested?.accessToken as string) ||
+    ((nested?.tokens as Record<string, unknown> | undefined)?.accessToken as string) ||
     SESSION_AUTH_TOKEN;
 
   const userSource = (nested?.user ??

@@ -1,8 +1,10 @@
-import * as Location from 'expo-location';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { MapPin, Search, UtensilsCrossed } from 'lucide-react-native';
+import { Search, UtensilsCrossed, X } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -15,142 +17,201 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/common/ScreenHeader';
-import { EmptyView, ErrorView, LoadingView } from '@/components/common/StateViews';
+import { EmptyView, ErrorView } from '@/components/common/StateViews';
+import { APP_BOTTOM_NAV_INSET } from '@/components/navigation/AppBottomNav';
 import { RestaurantListCard } from '@/components/restaurant/RestaurantListCard';
 import { authTheme } from '@/constants/auth-theme';
 import {
+  extractCityFromAddress,
+  normalizeCityName,
+} from '@/lib/location/format';
+import {
   findCategoryBySlug,
   FOOD_CATEGORIES,
-  restaurantMatchesCategory,
 } from '@/lib/restaurant/categories';
-import { useNearbyRestaurants, useRestaurants } from '@/lib/restaurant/hooks';
+import {
+  useRestaurants,
+  useRestaurantsOfferingCategory,
+} from '@/lib/restaurant/hooks';
+import { useDeliveryLocationStore } from '@/store/delivery-location-store';
 
-type Tab = 'all' | 'nearby';
+const BROWSE_CATEGORIES = FOOD_CATEGORIES.filter((c) => c.slug !== 'all');
 
 export function RestaurantBrowseScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ q?: string; cuisine?: string }>();
 
-  const [tab, setTab] = useState<Tab>('all');
   const [search, setSearch] = useState(params.q ?? '');
-  const [selectedCuisine, setSelectedCuisine] = useState(params.cuisine ?? '');
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
+  const [selectedCuisine, setSelectedCuisine] = useState(
+    params.cuisine && params.cuisine !== 'all' ? params.cuisine : ''
+  );
+  const deliveryLocation = useDeliveryLocationStore((s) => s.location);
+
+  const city = useMemo(() => {
+    const raw =
+      deliveryLocation?.city ||
+      (deliveryLocation?.formattedAddress
+        ? extractCityFromAddress(deliveryLocation.formattedAddress)
+        : null);
+    return normalizeCityName(raw);
+  }, [deliveryLocation]);
 
   const activeCategory = findCategoryBySlug(selectedCuisine);
+  const isCategoryMode = Boolean(selectedCuisine && selectedCuisine !== 'all');
 
   useEffect(() => {
     if (params.q) setSearch(params.q);
   }, [params.q]);
 
   useEffect(() => {
-    if (params.cuisine) setSelectedCuisine(params.cuisine);
+    if (params.cuisine && params.cuisine !== 'all') {
+      setSelectedCuisine(params.cuisine);
+    }
   }, [params.cuisine]);
 
-  useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLocationError('Location permission denied');
-        return;
-      }
-      const location = await Location.getCurrentPositionAsync({});
-      setCoords({
-        lat: location.coords.latitude,
-        lng: location.coords.longitude,
-      });
-    })();
-  }, []);
+  const categoryQuery = useRestaurantsOfferingCategory({
+    cuisine: selectedCuisine,
+    city,
+    enabled: isCategoryMode,
+  });
 
   const allQuery = useRestaurants({
     search: search.trim() || undefined,
-    cuisine: selectedCuisine || undefined,
-    limit: 20,
+    city: city || undefined,
+    sort: '-createdAt',
   });
 
-  const nearbyQuery = useNearbyRestaurants(
-    coords ? { lat: coords.lat, lng: coords.lng, limit: 20 } : null
-  );
+  const restaurants = useMemo(() => {
+    if (isCategoryMode) return categoryQuery.data?.restaurants ?? [];
+    return allQuery.data?.restaurants ?? [];
+  }, [isCategoryMode, categoryQuery.data?.restaurants, allQuery.data?.restaurants]);
 
-  const activeQuery = tab === 'nearby' ? nearbyQuery : allQuery;
-  const restaurants = activeQuery.data?.restaurants ?? [];
-
-  const filteredNearby = useMemo(() => {
-    let list = restaurants;
-    if (selectedCuisine) {
-      list = list.filter((r) => restaurantMatchesCategory(r, selectedCuisine));
-    }
-    if (!search.trim()) return list;
+  const filteredList = useMemo(() => {
+    if (!search.trim()) return restaurants;
     const q = search.toLowerCase();
-    return list.filter(
+    return restaurants.filter(
       (r) =>
         r.name.toLowerCase().includes(q) ||
-        r.cuisines?.some((c) => c.toLowerCase().includes(q))
+        r.cuisines?.some((c) => c.toLowerCase().includes(q)) ||
+        r.city?.toLowerCase().includes(q) ||
+        r.address?.toLowerCase().includes(q)
     );
-  }, [restaurants, search, selectedCuisine]);
+  }, [restaurants, search]);
 
-  const displayList = tab === 'nearby' ? filteredNearby : restaurants;
+  const activeQuery = isCategoryMode ? categoryQuery : allQuery;
+
+  const resultCount = isCategoryMode
+    ? (categoryQuery.data?.total ?? filteredList.length)
+    : filteredList.length;
+
+  const subtitle = useMemo(() => {
+    if (activeQuery.isLoading && activeCategory) {
+      return `Finding ${activeCategory.label} near you…`;
+    }
+    if (activeCategory) {
+      if (city) {
+        return `${resultCount} place${resultCount === 1 ? '' : 's'} with ${activeCategory.label} in ${city}`;
+      }
+      return `Restaurants serving ${activeCategory.label}`;
+    }
+    if (city) return `Discover food in ${city}`;
+    return 'Discover food near you';
+  }, [activeQuery.isLoading, activeCategory, city, resultCount]);
 
   const openRestaurant = (id: string) => {
     router.push({
-      pathname: '/restaurants/[restaurantId]/index' as const,
-      params: { restaurantId: id },
+      pathname: '/restaurants/[restaurantId]',
+      params: {
+        restaurantId: id,
+        ...(selectedCuisine ? { category: selectedCuisine } : {}),
+      },
     });
   };
 
-  return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.container}>
-        <ScreenHeader
-          title={activeCategory ? activeCategory.label : 'Restaurants'}
-          subtitle={
+  const clearCuisine = () => setSelectedCuisine('');
+
+  const listHeader = (
+    <View>
+      {activeCategory ? (
+        <LinearGradient
+          colors={['#FFF1F0', '#FFE8E4']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.filterBanner}
+        >
+          {activeCategory.imageUrl ? (
+            <Image
+              source={{ uri: activeCategory.imageUrl }}
+              style={styles.filterThumb}
+              contentFit="cover"
+            />
+          ) : null}
+          <View style={styles.filterCopy}>
+            <Text style={styles.filterTitle}>
+              Showing {activeCategory.label}
+            </Text>
+            <Text style={styles.filterSub}>
+              Open a restaurant to jump to this menu section
+            </Text>
+          </View>
+          <Pressable
+            onPress={clearCuisine}
+            hitSlop={8}
+            style={styles.clearChip}
+            accessibilityLabel="Clear category filter"
+          >
+            <X color={authTheme.brand} size={14} strokeWidth={2.5} />
+            <Text style={styles.clearChipText}>Clear</Text>
+          </Pressable>
+        </LinearGradient>
+      ) : null}
+
+      <View style={styles.searchBar}>
+        <Search color={authTheme.brand} size={18} />
+        <TextInput
+          style={styles.searchInput}
+          value={search}
+          onChangeText={setSearch}
+          placeholder={
             activeCategory
-              ? `${activeCategory.label} restaurants near you`
-              : 'Discover food near you'
+              ? `Search ${activeCategory.label.toLowerCase()} spots`
+              : 'Search restaurants or cuisines'
           }
+          placeholderTextColor={authTheme.textDim}
+          returnKeyType="search"
         />
-
-        <View style={styles.searchBar}>
-          <Search color={authTheme.brand} size={18} />
-          <TextInput
-            style={styles.searchInput}
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search restaurants or cuisines"
-            placeholderTextColor={authTheme.textDim}
-            returnKeyType="search"
-          />
-        </View>
-
-        <View style={styles.tabs}>
-          <Pressable
-            style={[styles.tab, tab === 'all' && styles.tabActive]}
-            onPress={() => setTab('all')}
-          >
-            <Text style={[styles.tabText, tab === 'all' && styles.tabTextActive]}>
-              All restaurants
-            </Text>
+        {search ? (
+          <Pressable onPress={() => setSearch('')} hitSlop={8}>
+            <X color={authTheme.textDim} size={16} />
           </Pressable>
-          <Pressable
-            style={[styles.tab, tab === 'nearby' && styles.tabActive]}
-            onPress={() => setTab('nearby')}
-          >
-            <MapPin color={tab === 'nearby' ? '#FFFFFF' : authTheme.brand} size={14} />
-            <Text style={[styles.tabText, tab === 'nearby' && styles.tabTextActive]}>
-              Nearby
-            </Text>
-          </Pressable>
-        </View>
+        ) : null}
+      </View>
 
+      <View style={styles.categoryRail}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={styles.categoryScroll}
           contentContainerStyle={styles.categoryRow}
         >
           <Pressable
-            style={[styles.categoryChip, !selectedCuisine && styles.categoryChipActive]}
-            onPress={() => setSelectedCuisine('')}
+            style={[
+              styles.categoryChip,
+              !selectedCuisine && styles.categoryChipActive,
+            ]}
+            onPress={clearCuisine}
           >
+            <View
+              style={[
+                styles.categoryDot,
+                !selectedCuisine && styles.categoryDotActive,
+              ]}
+            >
+              <UtensilsCrossed
+                color={!selectedCuisine ? '#FFFFFF' : authTheme.brand}
+                size={12}
+              />
+            </View>
             <Text
               style={[
                 styles.categoryChipText,
@@ -160,64 +221,109 @@ export function RestaurantBrowseScreen() {
               All
             </Text>
           </Pressable>
-          {FOOD_CATEGORIES.map((cat) => (
-            <Pressable
-              key={cat.slug}
-              style={[
-                styles.categoryChip,
-                selectedCuisine === cat.slug && styles.categoryChipActive,
-              ]}
-              onPress={() => setSelectedCuisine(cat.slug)}
-            >
-              <Text
-                style={[
-                  styles.categoryChipText,
-                  selectedCuisine === cat.slug && styles.categoryChipTextActive,
-                ]}
-              >
-                {cat.label}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
 
-        {tab === 'nearby' && locationError ? (
-          <Text style={styles.locationHint}>{locationError}</Text>
-        ) : null}
+          {BROWSE_CATEGORIES.map((cat) => {
+            const selected = selectedCuisine === cat.slug;
+            return (
+              <Pressable
+                key={cat.slug}
+                style={[
+                  styles.categoryChip,
+                  selected && styles.categoryChipActive,
+                ]}
+                onPress={() => setSelectedCuisine(cat.slug)}
+              >
+                <Image
+                  source={{ uri: cat.imageUrl }}
+                  style={styles.categoryThumb}
+                  contentFit="cover"
+                />
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    selected && styles.categoryChipTextActive,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {cat.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {!activeQuery.isLoading && !activeQuery.isError && filteredList.length > 0 ? (
+        <Text style={styles.resultCount}>
+          {filteredList.length} restaurant
+          {filteredList.length === 1 ? '' : 's'}
+          {activeCategory ? ` for ${activeCategory.label}` : ''}
+          {city ? ` in ${city}` : ''}
+        </Text>
+      ) : null}
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <LinearGradient
+        colors={['#FFF8F6', authTheme.bg, authTheme.bg]}
+        locations={[0, 0.22, 1]}
+        style={styles.container}
+      >
+        <ScreenHeader
+          title={activeCategory ? activeCategory.label : 'Restaurants'}
+          subtitle={subtitle}
+        />
 
         {activeQuery.isLoading ? (
-          <LoadingView label="Finding restaurants…" />
+          <View style={styles.flex}>
+            {listHeader}
+            <View style={styles.loadingBlock}>
+              <ActivityIndicator color={authTheme.brand} size="large" />
+              <Text style={styles.loadingLabel}>
+                {activeCategory
+                  ? `Finding ${activeCategory.label} restaurants…`
+                  : 'Finding restaurants…'}
+              </Text>
+            </View>
+          </View>
         ) : activeQuery.isError ? (
-          <ErrorView
-            message={
-              activeQuery.error instanceof Error
-                ? activeQuery.error.message
-                : 'Failed to load'
-            }
-            onRetry={() => activeQuery.refetch()}
-          />
-        ) : displayList.length === 0 ? (
-          <EmptyView
-            icon={<UtensilsCrossed color={authTheme.textDim} size={44} />}
-            title={
-              activeCategory
-                ? `No ${activeCategory.label} restaurants yet`
-                : 'No restaurants yet'
-            }
-            subtitle={
-              activeCategory
-                ? `We're adding ${activeCategory.label.toLowerCase()} partners soon. Try another category or check back later.`
-                : tab === 'nearby'
-                  ? 'No restaurants found near your location. Try All restaurants or check back soon.'
+          <View style={styles.flex}>
+            {listHeader}
+            <ErrorView
+              message={
+                activeQuery.error instanceof Error
+                  ? activeQuery.error.message
+                  : 'Failed to load'
+              }
+              onRetry={() => activeQuery.refetch()}
+            />
+          </View>
+        ) : filteredList.length === 0 ? (
+          <View style={styles.flex}>
+            {listHeader}
+            <EmptyView
+              icon={<UtensilsCrossed color={authTheme.textDim} size={44} />}
+              title={
+                activeCategory
+                  ? `No ${activeCategory.label} restaurants yet`
+                  : 'No restaurants yet'
+              }
+              subtitle={
+                activeCategory
+                  ? `We're adding ${activeCategory.label.toLowerCase()} partners soon. Try another category or check back later.`
                   : 'Restaurants will appear here once partners join the platform.'
-            }
-          />
+              }
+            />
+          </View>
         ) : (
           <FlatList
-            data={displayList}
+            data={filteredList}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.list}
+            ListHeaderComponent={listHeader}
             refreshControl={
               <RefreshControl
                 refreshing={activeQuery.isRefetching}
@@ -233,7 +339,7 @@ export function RestaurantBrowseScreen() {
             )}
           />
         )}
-      </View>
+      </LinearGradient>
     </SafeAreaView>
   );
 }
@@ -241,12 +347,62 @@ export function RestaurantBrowseScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: authTheme.bg,
+    backgroundColor: '#FFF8F6',
   },
   container: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 4,
+  },
+  flex: {
+    flex: 1,
+  },
+  filterBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(122, 14, 34, 0.14)',
+    padding: 12,
+    marginBottom: 14,
+  },
+  filterThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#E5E7EB',
+  },
+  filterCopy: {
+    flex: 1,
+  },
+  filterTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: authTheme.text,
+  },
+  filterSub: {
+    marginTop: 3,
+    fontSize: 12,
+    fontWeight: '600',
+    color: authTheme.textMuted,
+    lineHeight: 16,
+  },
+  clearChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(122, 14, 34, 0.18)',
+  },
+  clearChipText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: authTheme.brand,
   },
   searchBar: {
     flexDirection: 'row',
@@ -258,55 +414,40 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    marginBottom: 14,
+    marginBottom: 12,
+    shadowColor: '#7A0E22',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
     color: authTheme.text,
+    paddingVertical: 0,
   },
-  tabs: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
+  categoryRail: {
+    height: 44,
+    marginBottom: 12,
   },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 11,
-    borderRadius: 14,
-    backgroundColor: authTheme.card,
-    borderWidth: 1.5,
-    borderColor: authTheme.inputBorder,
-  },
-  tabActive: {
-    backgroundColor: authTheme.brand,
-    borderColor: authTheme.brand,
-  },
-  tabText: {
-    color: authTheme.text,
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  tabTextActive: {
-    color: '#FFFFFF',
-  },
-  locationHint: {
-    color: authTheme.textMuted,
-    fontSize: 12,
-    marginBottom: 8,
+  categoryScroll: {
+    flexGrow: 0,
+    height: 44,
   },
   categoryRow: {
+    alignItems: 'center',
     gap: 8,
-    paddingBottom: 14,
+    paddingRight: 8,
   },
   categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 20,
+    height: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingLeft: 6,
+    paddingRight: 12,
+    borderRadius: 999,
     backgroundColor: authTheme.card,
     borderWidth: 1.5,
     borderColor: authTheme.inputBorder,
@@ -315,15 +456,51 @@ const styles = StyleSheet.create({
     backgroundColor: authTheme.brand,
     borderColor: authTheme.brand,
   },
+  categoryThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#E5E7EB',
+  },
+  categoryDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: authTheme.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryDotActive: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
   categoryChipText: {
     color: authTheme.text,
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 13,
   },
   categoryChipTextActive: {
     color: '#FFFFFF',
   },
+  resultCount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: authTheme.textMuted,
+    marginBottom: 10,
+    letterSpacing: 0.2,
+  },
   list: {
-    paddingBottom: 24,
+    paddingBottom: 28 + APP_BOTTOM_NAV_INSET,
+  },
+  loadingBlock: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingBottom: 48 + APP_BOTTOM_NAV_INSET,
+  },
+  loadingLabel: {
+    color: authTheme.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

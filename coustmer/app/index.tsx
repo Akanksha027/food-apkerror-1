@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/auth-store';
 export default function Index() {
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -38,7 +39,7 @@ export default function Index() {
     );
   }
 
-  if (token) {
+  if (token && user) {
     return <Redirect href="/home" />;
   }
 

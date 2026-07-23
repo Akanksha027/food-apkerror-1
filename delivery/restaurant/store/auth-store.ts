@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { clearApiSession } from '@/lib/api';
 import { authApi } from '@/lib/auth/api';
 import {
   clearAuthStorage,
@@ -232,6 +233,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   clearSession: async () => {
     await clearAuthStorage();
+    await clearApiSession();
     set({ user: null, token: null });
   },
 }));

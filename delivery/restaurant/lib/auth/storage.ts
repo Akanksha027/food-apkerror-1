@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
 import type { AuthUser, PartnerRole } from '@/lib/auth/types';
+import { clearSessionCookies } from '@/lib/session-cookies';
 
 const TOKEN_KEY = 'partner_auth_token';
 const USER_KEY = 'partner_auth_user';
@@ -78,5 +79,5 @@ export async function setStoredRole(role: PartnerRole): Promise<void> {
 }
 
 export async function clearAuthStorage(): Promise<void> {
-  await Promise.all([clearToken(), clearStoredUser()]);
+  await Promise.all([clearToken(), clearStoredUser(), clearSessionCookies()]);
 }

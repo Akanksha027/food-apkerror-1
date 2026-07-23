@@ -36,7 +36,9 @@ export function RestaurantListCard({ restaurant, onPress }: Props) {
         ) : null}
         {restaurant.isOpen === false ? (
           <View style={styles.closedOverlay}>
-            <Text style={styles.closedText}>Closed</Text>
+            <View style={styles.closedBadge}>
+              <Text style={styles.closedText}>Closed</Text>
+            </View>
           </View>
         ) : null}
       </View>
@@ -128,14 +130,23 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(15, 23, 42, 0.48)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  closedBadge: {
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   closedText: {
     color: '#FFFFFF',
     fontWeight: '800',
-    fontSize: 13,
+    fontSize: 12,
+    letterSpacing: 0.3,
   },
   body: {
     flex: 1,

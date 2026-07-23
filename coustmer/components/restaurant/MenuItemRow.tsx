@@ -1,18 +1,22 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Plus } from 'lucide-react-native';
+import { Plus, Star } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PriceTag, VegBadge } from '@/components/restaurant/MenuBadges';
 import { authTheme } from '@/constants/auth-theme';
+import { getMenuItemRating } from '@/lib/restaurant/menu-rating';
 import type { MenuItem } from '@/lib/restaurant/types';
 
 type Props = {
   item: MenuItem;
   onPress?: () => void;
+  onAdd?: () => void;
 };
 
-export function MenuItemRow({ item, onPress }: Props) {
+export function MenuItemRow({ item, onPress, onAdd }: Props) {
+  const rating = getMenuItemRating(item);
+
   return (
     <Pressable style={styles.row} onPress={onPress}>
       <View style={styles.textWrap}>
@@ -22,7 +26,15 @@ export function MenuItemRow({ item, onPress }: Props) {
             {item.name}
           </Text>
         </View>
-        <PriceTag price={item.price} />
+        <View style={styles.metaRow}>
+          <PriceTag price={item.price} />
+          {rating != null ? (
+            <View style={styles.ratingPill}>
+              <Star color="#FFFFFF" fill="#FFFFFF" size={10} />
+              <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+            </View>
+          ) : null}
+        </View>
         {item.description ? (
           <Text style={styles.desc} numberOfLines={2}>
             {item.description}
@@ -35,13 +47,26 @@ export function MenuItemRow({ item, onPress }: Props) {
 
       <View style={styles.imageWrap}>
         {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={styles.image} contentFit="cover" />
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={styles.image}
+            contentFit="cover"
+            recyclingKey={item.id}
+            transition={200}
+          />
         ) : (
           <LinearGradient colors={['#FFF7ED', '#FFEDD5']} style={styles.imagePlaceholder} />
         )}
         {item.isAvailable ? (
-          <Pressable style={styles.addButton}>
-            <Plus color={authTheme.brand} size={18} />
+          <Pressable
+            style={styles.addButton}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onAdd?.();
+            }}
+          >
+            <Text style={styles.addLabel}>ADD</Text>
+            <Plus color={authTheme.brand} size={14} />
           </Pressable>
         ) : null}
       </View>
@@ -73,6 +98,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 20,
   },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  ratingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#16A34A',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  ratingText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   desc: {
     color: authTheme.textMuted,
     fontSize: 12,
@@ -84,36 +128,45 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   imageWrap: {
-    width: 118,
-    height: 96,
+    width: 128,
+    height: 108,
     borderRadius: 14,
-    overflow: 'hidden',
+    overflow: 'visible',
     backgroundColor: authTheme.input,
   },
   image: {
     width: '100%',
     height: '100%',
+    borderRadius: 14,
+    overflow: 'hidden',
   },
   imagePlaceholder: {
     width: '100%',
     height: '100%',
+    borderRadius: 14,
   },
   addButton: {
     position: 'absolute',
-    bottom: -1,
+    bottom: -10,
     alignSelf: 'center',
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: authTheme.cardBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: authTheme.brand,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.12,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
+  },
+  addLabel: {
+    color: authTheme.brand,
+    fontSize: 12,
+    fontWeight: '800',
   },
 });

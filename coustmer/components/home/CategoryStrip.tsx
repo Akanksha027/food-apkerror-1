@@ -9,7 +9,7 @@ export function CategoryStrip() {
 
   const openCategory = (slug: string) => {
     router.push({
-      pathname: '/restaurants/index',
+      pathname: '/restaurants',
       params: { cuisine: slug },
     });
   };

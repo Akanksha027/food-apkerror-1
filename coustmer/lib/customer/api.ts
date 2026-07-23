@@ -6,6 +6,7 @@ import type {
   CreateTicketPayload,
   CustomerProfile,
   Deal,
+  HomeBanner,
   HomeFeed,
   OnboardingStatus,
   PaginationMeta,
@@ -15,7 +16,7 @@ import type {
   RestaurantCard,
   SupportTicket,
 } from '@/lib/customer/types';
-
+import { mapRestaurant } from '@/lib/restaurant/mappers';
 const CUSTOMER_BASE = '/api/v1/customer-service/customers';
 
 type Envelope<T> = {
@@ -105,22 +106,145 @@ function mapTicket(data: Record<string, unknown>): SupportTicket {
   };
 }
 
+function unwrapList(payload: unknown): Record<string, unknown>[] {
+  if (Array.isArray(payload)) {
+    return payload as Record<string, unknown>[];
+  }
+  if (!payload || typeof payload !== 'object') return [];
+  const record = payload as Record<string, unknown>;
+  const nested =
+    record.deals ??
+    record.banners ??
+    record.offers ??
+    record.items ??
+    record.results ??
+    record.data;
+  if (Array.isArray(nested)) return nested as Record<string, unknown>[];
+  if (nested && typeof nested === 'object') {
+    const inner = nested as Record<string, unknown>;
+    const list = inner.deals ?? inner.banners ?? inner.offers ?? inner.items;
+    if (Array.isArray(list)) return list as Record<string, unknown>[];
+  }
+  return [];
+}
+
+function mapDeal(raw: Record<string, unknown>): Deal {
+  return {
+    id: String(raw._id ?? raw.id ?? ''),
+    title: String(raw.title ?? raw.name ?? raw.headline ?? 'Special offer'),
+    description:
+      (raw.description as string | undefined) ??
+      (raw.subtitle as string | undefined) ??
+      (raw.details as string | undefined),
+    code:
+      (raw.code as string | undefined) ??
+      (raw.promoCode as string | undefined) ??
+      (raw.couponCode as string | undefined),
+    imageUrl:
+      (raw.imageUrl as string | undefined) ??
+      (raw.image as string | undefined) ??
+      (raw.bannerUrl as string | undefined),
+    ...raw,
+  };
+}
+
+function mapBanner(raw: Record<string, unknown>): HomeBanner {
+  return {
+    id: String(raw._id ?? raw.id ?? ''),
+    title: String(raw.title ?? raw.name ?? raw.headline ?? 'Offer'),
+    imageUrl:
+      (raw.imageUrl as string | undefined) ??
+      (raw.image as string | undefined) ??
+      (raw.bannerUrl as string | undefined),
+    deepLink:
+      (raw.deepLink as string | undefined) ??
+      (raw.link as string | undefined) ??
+      (raw.href as string | undefined),
+  };
+}
+
+function mapRestaurantCard(raw: Record<string, unknown>): RestaurantCard {
+  const mapped = mapRestaurant(raw);
+  return {
+    ...mapped,
+    id: mapped.id,
+    name: mapped.name,
+    imageUrl: mapped.imageUrl || mapped.coverUrl || mapped.logoUrl,
+    rating: mapped.rating,
+    cuisines: mapped.cuisines,
+    deliveryTime: mapped.deliveryTime,
+    priceForTwo: mapped.priceForTwo,
+  };
+}
+
 export const customerApi = {
   /** GET /customers/home */
   getHome: async (): Promise<HomeFeed> => {
-    const res = await request<HomeFeed>(`${CUSTOMER_BASE}/home`);
+    const res = await request<HomeFeed & Record<string, unknown>>(
+      `${CUSTOMER_BASE}/home`
+    );
+    const data = (res.data ?? {}) as Record<string, unknown>;
+    const banners = unwrapList(data.banners).map(mapBanner);
     return {
-      banners: res.data?.banners ?? [],
-      trending: res.data?.trending ?? [],
-      forYou: res.data?.forYou ?? [],
-      newlyAdded: res.data?.newlyAdded ?? [],
+      banners,
+      trending: unwrapList(data.trending).map(mapRestaurantCard),
+      forYou: unwrapList(data.forYou).map(mapRestaurantCard),
+      newlyAdded: unwrapList(data.newlyAdded).map(mapRestaurantCard),
     };
   },
 
-  /** GET /customers/deals */
+  /** GET /customers/deals — also tries /customer-service/deals */
   getDeals: async (): Promise<Deal[]> => {
-    const res = await request<Deal[]>(`${CUSTOMER_BASE}/deals`);
-    return Array.isArray(res.data) ? res.data : [];
+    try {
+      const res = await request<unknown>(`${CUSTOMER_BASE}/deals`);
+      const list = unwrapList(res.data ?? res);
+      if (list.length) return list.map(mapDeal);
+    } catch {
+      // fall through
+    }
+
+    try {
+      const res = await request<unknown>('/api/v1/customer-service/deals');
+      return unwrapList(res.data ?? res).map(mapDeal);
+    } catch {
+      return [];
+    }
+  },
+
+  /** GET /customer-service/banners (optional dedicated banners route) */
+  getBanners: async (): Promise<HomeBanner[]> => {
+    try {
+      const res = await request<unknown>('/api/v1/customer-service/banners');
+      return unwrapList(res.data ?? res).map(mapBanner);
+    } catch {
+      return [];
+    }
+  },
+
+  /** Combined offers for home ticker: banners + deals (deduped). */
+  getOffersFeed: async (): Promise<{ banners: HomeBanner[]; deals: Deal[] }> => {
+    const [home, deals, banners] = await Promise.all([
+      customerApi.getHome().catch(() => ({
+        banners: [] as HomeBanner[],
+        trending: [],
+        forYou: [],
+        newlyAdded: [],
+      })),
+      customerApi.getDeals().catch(() => [] as Deal[]),
+      customerApi.getBanners().catch(() => [] as HomeBanner[]),
+    ]);
+
+    const bannerMap = new Map<string, HomeBanner>();
+    for (const b of [...home.banners, ...banners]) {
+      if (!b.title?.trim()) continue;
+      const key = `${b.id}|${b.title}`.toLowerCase();
+      if (!bannerMap.has(key)) bannerMap.set(key, b);
+    }
+
+    return {
+      banners: [...bannerMap.values()],
+      deals,
+    };
   },
 
   /** GET /customers/recommended */

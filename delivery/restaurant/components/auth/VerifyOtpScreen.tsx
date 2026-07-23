@@ -8,6 +8,9 @@ import { AuthField } from '@/components/auth/AuthField';
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { RoleSelector } from '@/components/auth/RoleSelector';
 import { AuthShell } from '@/components/auth/AuthShell';
+import {
+  resolvePostAuthRoute,
+} from '@/lib/navigation/post-auth';
 import { useAuthStore } from '@/store/auth-store';
 
 export function VerifyOtpScreen() {
@@ -56,7 +59,11 @@ export function VerifyOtpScreen() {
         role,
         purpose: 'login',
       });
-      router.replace('/dashboard');
+      const userRole = useAuthStore.getState().user?.role ?? role;
+      const target = await resolvePostAuthRoute(userRole);
+      router.replace(
+        target === '/restaurant-setup' ? '/restaurant-setup' : '/dashboard'
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'OTP verification failed');
     }

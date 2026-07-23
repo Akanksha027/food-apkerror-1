@@ -1,0 +1,728 @@
+﻿import { LinearGradient } from 'expo-linear-gradient';
+import * as Linking from 'expo-linking';
+import { useRouter } from 'expo-router';
+import { CalendarClock, CreditCard, MapPin, Phone, User, Wallet } from 'lucide-react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { ScreenHeader } from '@/components/common/ScreenHeader';
+import { authTheme } from '@/constants/auth-theme';
+import { useCreateOrder } from '@/lib/order/hooks';
+import { parseDeliveryAddress } from '@/lib/order/parse-address';
+import { isValidIndianPhone, toTenDigitIndianMobile } from '@/lib/order/phone';
+import type { CreateOrderPayload } from '@/lib/order/types';
+import {
+  useInitiatePayment,
+  usePaymentMethods,
+  usePaymentWallet,
+  useVerifyPayment,
+} from '@/lib/payment/hooks';
+import {
+  isPaymentSuccess,
+  needsOnlinePayment,
+} from '@/lib/payment/types';
+import { useUserProfile } from '@/lib/profile/hooks';
+import { useAuthStore } from '@/store/auth-store';
+import { useCartStore } from '@/store/cart-store';
+import { useDeliveryLocationStore } from '@/store/delivery-location-store';
+
+const PAYMENT_METHODS = [
+  { id: 'cod', label: 'Cash on delivery' },
+  { id: 'upi', label: 'UPI' },
+  { id: 'card', label: 'Card' },
+  { id: 'wallet', label: 'Wallet' },
+] as const;
+
+export function CheckoutScreen() {
+  const router = useRouter();
+  const createOrder = useCreateOrder();
+  const initiatePayment = useInitiatePayment();
+  const verifyPayment = useVerifyPayment();
+  const paymentMethods = usePaymentMethods();
+  const wallet = usePaymentWallet();
+  const profile = useUserProfile();
+  const authUser = useAuthStore((s) => s.user);
+
+  const restaurant = useCartStore((s) => s.restaurant);
+  const items = useCartStore((s) => s.items);
+  const tip = useCartStore((s) => s.tip);
+  const specialInstructions = useCartStore((s) => s.specialInstructions);
+  const scheduledFor = useCartStore((s) => s.scheduledFor);
+  const setScheduledFor = useCartStore((s) => s.setScheduledFor);
+  const clearCart = useCartStore((s) => s.clearCart);
+
+  const clearAllCarts = async () => {
+    clearCart();
+    try {
+      const { cartApi } = await import('@/lib/cart/api');
+      await cartApi.clearCart();
+    } catch {
+      // local already cleared
+    }
+  };
+  const subtotal = useCartStore((s) => s.subtotal());
+
+  const location = useDeliveryLocationStore((s) => s.location);
+
+  const [paymentMethod, setPaymentMethod] =
+    useState<(typeof PAYMENT_METHODS)[number]['id']>('cod');
+  const [savedMethodId, setSavedMethodId] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
+  const [scheduleEnabled, setScheduleEnabled] = useState(Boolean(scheduledFor));
+  const [scheduleInput, setScheduleInput] = useState(() => {
+    if (scheduledFor) return scheduledFor.slice(0, 16);
+    const d = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    return d.toISOString().slice(0, 16);
+  });
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const name =
+      profile.data?.displayName ||
+      [profile.data?.firstName, profile.data?.lastName].filter(Boolean).join(' ') ||
+      [authUser?.firstName, authUser?.lastName].filter(Boolean).join(' ') ||
+      authUser?.email?.split('@')[0] ||
+      '';
+    const phone = profile.data?.phone || authUser?.phone || '';
+    setContactName((prev) => prev || name);
+    setContactPhone((prev) => {
+      if (prev) return prev;
+      return toTenDigitIndianMobile(phone) || phone;
+    });
+  }, [profile.data, authUser]);
+
+  useEffect(() => {
+    const defaults = paymentMethods.data ?? [];
+    const match = defaults.find(
+      (m) =>
+        m.isDefault &&
+        (paymentMethod === 'upi'
+          ? m.type === 'upi'
+          : paymentMethod === 'card'
+            ? m.type === 'card'
+            : false)
+    );
+    setSavedMethodId(match?.id ?? null);
+  }, [paymentMethod, paymentMethods.data]);
+
+  const estimatedTotal = subtotal + tip;
+
+  const matchingSavedMethods = useMemo(() => {
+    const all = paymentMethods.data ?? [];
+    if (paymentMethod === 'upi') return all.filter((m) => m.type === 'upi');
+    if (paymentMethod === 'card') return all.filter((m) => m.type === 'card');
+    return [];
+  }, [paymentMethod, paymentMethods.data]);
+
+  const parsedAddress = useMemo(() => {
+    if (!location) return null;
+    return parseDeliveryAddress({
+      formattedAddress: location.formattedAddress,
+      label: location.label,
+      city: location.city,
+      lat: location.lat,
+      lng: location.lng,
+    });
+  }, [location]);
+
+  const canPlace = Boolean(
+    restaurant &&
+      items.length &&
+      parsedAddress &&
+      contactName.trim() &&
+      isValidIndianPhone(contactPhone)
+  );
+
+  const isBusy =
+    paying ||
+    createOrder.isPending ||
+    initiatePayment.isPending ||
+    verifyPayment.isPending;
+
+  const payload = useMemo((): CreateOrderPayload | null => {
+    if (!restaurant || !items.length || !parsedAddress) return null;
+    const phone = toTenDigitIndianMobile(contactPhone);
+    if (!contactName.trim() || !phone) return null;
+
+    return {
+      restaurantId: restaurant.id,
+      restaurantName: restaurant.name,
+      items: items.map((item) => ({
+        menuItemId: item.menuItemId || item.id,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        specialInstructions: item.specialInstructions,
+      })),
+      deliveryAddress: {
+        label: parsedAddress.label,
+        formattedAddress: parsedAddress.formattedAddress,
+        street: parsedAddress.street,
+        area: parsedAddress.area,
+        city: parsedAddress.city,
+        state: parsedAddress.state,
+        pincode: parsedAddress.pincode,
+        contactName: contactName.trim(),
+        contactPhone: phone,
+        lat: parsedAddress.lat,
+        lng: parsedAddress.lng,
+      },
+      paymentMethod,
+      specialInstructions: specialInstructions || undefined,
+      tip: tip > 0 ? tip : undefined,
+      scheduledFor:
+        scheduleEnabled && scheduleInput
+          ? new Date(scheduleInput).toISOString()
+          : undefined,
+    };
+  }, [
+    restaurant,
+    items,
+    parsedAddress,
+    contactName,
+    contactPhone,
+    paymentMethod,
+    specialInstructions,
+    tip,
+    scheduleEnabled,
+    scheduleInput,
+  ]);
+
+  const goToOrder = (orderId: string) => {
+    router.replace({
+      pathname: '/orders/[orderId]',
+      params: { orderId },
+    });
+  };
+
+  const placeOrder = async () => {
+    if (!location || !parsedAddress) {
+      setError('Set a delivery address on the Home screen first.');
+      return;
+    }
+    if (!contactName.trim() || !toTenDigitIndianMobile(contactPhone)) {
+      setError('Enter a valid 10-digit Indian mobile (starts with 6–9).');
+      return;
+    }
+    if (!payload) {
+      setError('Add cart items before placing an order.');
+      return;
+    }
+
+    if (
+      paymentMethod === 'wallet' &&
+      wallet.data &&
+      wallet.data.balance < estimatedTotal
+    ) {
+      setError(
+        `Insufficient wallet balance (₹${wallet.data.balance.toFixed(0)}). Top up or choose another method.`
+      );
+      return;
+    }
+
+    setError(null);
+    setPaying(true);
+    try {
+      const order = await createOrder.mutateAsync(payload);
+      const amount = order.total ?? estimatedTotal;
+
+      if (!needsOnlinePayment(paymentMethod)) {
+        await clearAllCarts();
+        setScheduledFor(null);
+        Alert.alert('Order placed', 'Pay cash on delivery when your order arrives.', [
+          { text: 'Track order', onPress: () => goToOrder(order.id) },
+        ]);
+        return;
+      }
+
+      const payment = await initiatePayment.mutateAsync({
+        orderId: order.id,
+        amount,
+        currency: 'INR',
+        method: paymentMethod,
+        methodId: savedMethodId || undefined,
+        description: `Order ${order.orderNumber || order.id}`,
+      });
+
+      if (payment.paymentUrl) {
+        await Linking.openURL(payment.paymentUrl);
+      }
+
+      let verified = payment;
+      try {
+        if (!isPaymentSuccess(payment.status)) {
+          verified = await verifyPayment.mutateAsync({
+            paymentId: payment.id,
+            orderId: order.id,
+            gatewayPaymentId: payment.gatewayPaymentId,
+            gatewayOrderId: payment.gatewayOrderId ?? payment.razorpayOrderId,
+            razorpay_payment_id: payment.gatewayPaymentId,
+            razorpay_order_id: payment.razorpayOrderId ?? payment.gatewayOrderId,
+            transactionId: payment.gatewayPaymentId,
+            status: paymentMethod === 'wallet' ? 'success' : undefined,
+          });
+        }
+      } catch {
+        verified = payment;
+      }
+
+      await clearAllCarts();
+      setScheduledFor(null);
+
+      const paid = isPaymentSuccess(verified.status);
+      Alert.alert(
+        paid ? 'Payment successful' : 'Order placed',
+        paid
+          ? 'Your payment was confirmed and the order is confirmed.'
+          : `Order created. Payment status: ${verified.status}. You can verify from Payments if needed.`,
+        [
+          {
+            text: paid ? 'Track order' : 'View payment',
+            onPress: () => {
+              if (paid) goToOrder(order.id);
+              else
+                router.replace({
+                  pathname: '/payments/[paymentId]',
+                  params: { paymentId: verified.id },
+                });
+            },
+          },
+          ...(paid
+            ? []
+            : [{ text: 'Track order', onPress: () => goToOrder(order.id) }]),
+        ]
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to place order');
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  if (!restaurant || !items.length) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.pad}>
+          <ScreenHeader title="Checkout" />
+          <Text style={styles.empty}>Your cart is empty.</Text>
+          <Pressable style={styles.linkBtn} onPress={() => router.replace('/cart')}>
+            <Text style={styles.linkText}>Go to cart</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.pad}>
+        <ScreenHeader title="Checkout" subtitle={restaurant.name} />
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+      >
+        <Pressable
+          style={styles.card}
+          onPress={() =>
+            Alert.alert(
+              'Delivery address',
+              'Change your delivery address from the home screen location picker.'
+            )
+          }
+        >
+          <MapPin color={authTheme.brand} size={18} />
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle}>Deliver to</Text>
+            <Text style={styles.cardText}>
+              {location
+                ? location.label + ' · ' + location.formattedAddress
+                : 'Set a delivery address on Home first'}
+            </Text>
+            {parsedAddress ? (
+              <Text style={styles.addressMeta}>
+                {parsedAddress.street}, {parsedAddress.area}, {parsedAddress.city},{' '}
+                {parsedAddress.state} {parsedAddress.pincode}
+              </Text>
+            ) : null}
+          </View>
+        </Pressable>
+
+        <View style={styles.card}>
+          <User color={authTheme.brand} size={18} />
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle}>Contact name</Text>
+            <TextInput
+              style={styles.input}
+              value={contactName}
+              onChangeText={setContactName}
+              placeholder="Receiver name"
+              placeholderTextColor={authTheme.textDim}
+            />
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Phone color={authTheme.brand} size={18} />
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle}>Contact phone</Text>
+            <TextInput
+              style={styles.input}
+              value={contactPhone}
+              onChangeText={(text) =>
+                setContactPhone(text.replace(/[^\d+]/g, '').slice(0, 13))
+              }
+              placeholder="9876543210"
+              placeholderTextColor={authTheme.textDim}
+              keyboardType="phone-pad"
+              maxLength={13}
+            />
+            <Text style={styles.hint}>
+              Enter 10-digit mobile only (example: 9876543210)
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Wallet color={authTheme.brand} size={18} />
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle}>Payment</Text>
+            {wallet.data ? (
+              <Text style={styles.hint}>
+                Wallet balance ₹{wallet.data.balance.toFixed(0)}
+              </Text>
+            ) : null}
+            <View style={styles.payRow}>
+              {PAYMENT_METHODS.map((method) => (
+                <Pressable
+                  key={method.id}
+                  style={[
+                    styles.payChip,
+                    paymentMethod === method.id && styles.payChipActive,
+                  ]}
+                  onPress={() => setPaymentMethod(method.id)}
+                >
+                  <Text
+                    style={[
+                      styles.payChipText,
+                      paymentMethod === method.id && styles.payChipTextActive,
+                    ]}
+                  >
+                    {method.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {matchingSavedMethods.length > 0 ? (
+              <View style={styles.savedBlock}>
+                <Text style={styles.savedLabel}>Saved method</Text>
+                {matchingSavedMethods.map((method) => (
+                  <Pressable
+                    key={method.id}
+                    style={[
+                      styles.savedChip,
+                      savedMethodId === method.id && styles.savedChipActive,
+                    ]}
+                    onPress={() => setSavedMethodId(method.id)}
+                  >
+                    <CreditCard
+                      color={
+                        savedMethodId === method.id
+                          ? '#FFFFFF'
+                          : authTheme.brand
+                      }
+                      size={14}
+                    />
+                    <Text
+                      style={[
+                        styles.savedChipText,
+                        savedMethodId === method.id &&
+                          styles.savedChipTextActive,
+                      ]}
+                    >
+                      {method.label}
+                      {method.isDefault ? ' · Default' : ''}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : paymentMethod === 'upi' || paymentMethod === 'card' ? (
+              <Pressable onPress={() => router.push('/payments/methods')}>
+                <Text style={styles.linkInline}>
+                  Save a {paymentMethod.toUpperCase()} method for faster checkout
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <CalendarClock color={authTheme.brand} size={18} />
+          <View style={styles.cardBody}>
+            <View style={styles.scheduleHeader}>
+              <Text style={styles.cardTitle}>Schedule for later</Text>
+              <Pressable
+                style={[styles.toggle, scheduleEnabled && styles.toggleOn]}
+                onPress={() => {
+                  const next = !scheduleEnabled;
+                  setScheduleEnabled(next);
+                  setScheduledFor(
+                    next ? new Date(scheduleInput).toISOString() : null
+                  );
+                }}
+              >
+                <Text style={styles.toggleText}>
+                  {scheduleEnabled ? 'ON' : 'OFF'}
+                </Text>
+              </Pressable>
+            </View>
+            {scheduleEnabled ? (
+              <TextInput
+                style={styles.input}
+                value={scheduleInput}
+                onChangeText={(v) => {
+                  setScheduleInput(v);
+                  const parsed = new Date(v);
+                  if (!Number.isNaN(parsed.getTime())) {
+                    setScheduledFor(parsed.toISOString());
+                  }
+                }}
+                placeholder="YYYY-MM-DDTHH:mm"
+                placeholderTextColor={authTheme.textDim}
+                autoCapitalize="none"
+              />
+            ) : (
+              <Text style={styles.cardText}>
+                Order will be placed for ASAP delivery
+              </Text>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.summary}>
+          <Text style={styles.summaryTitle}>Order summary</Text>
+          {items.map((item) => (
+            <View key={item.id} style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>
+                {item.quantity}× {item.name}
+              </Text>
+              <Text style={styles.summaryValue}>
+                ₹{(item.price * item.quantity).toFixed(0)}
+              </Text>
+            </View>
+          ))}
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Tip</Text>
+            <Text style={styles.summaryValue}>₹{tip.toFixed(0)}</Text>
+          </View>
+          <View style={[styles.summaryRow, styles.totalRow]}>
+            <Text style={styles.totalLabel}>Estimated total</Text>
+            <Text style={styles.totalValue}>₹{estimatedTotal.toFixed(0)}</Text>
+          </View>
+        </View>
+
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <Pressable
+          disabled={!canPlace || isBusy}
+          onPress={placeOrder}
+          style={[styles.placeBtn, (!canPlace || isBusy) && styles.disabled]}
+        >
+          <LinearGradient
+            colors={[authTheme.brand, authTheme.brandDark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.placeGradient}
+          >
+            {isBusy ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Text style={styles.placeText}>
+                  {needsOnlinePayment(paymentMethod)
+                    ? 'Pay & place order'
+                    : 'Place order'}
+                </Text>
+                <Text style={styles.placeAmount}>
+                  ₹{estimatedTotal.toFixed(0)}
+                </Text>
+              </>
+            )}
+          </LinearGradient>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: authTheme.bg },
+  pad: { paddingHorizontal: 20, paddingTop: 8 },
+  scroll: { paddingHorizontal: 20, paddingBottom: 120, gap: 12 },
+  empty: { color: authTheme.textMuted, marginTop: 24, textAlign: 'center' },
+  linkBtn: {
+    alignSelf: 'center',
+    marginTop: 16,
+    backgroundColor: authTheme.brand,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  linkText: { color: '#FFFFFF', fontWeight: '800' },
+  card: {
+    flexDirection: 'row',
+    gap: 12,
+    backgroundColor: authTheme.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: authTheme.cardBorder,
+    padding: 14,
+  },
+  cardBody: { flex: 1, gap: 8 },
+  cardTitle: { color: authTheme.text, fontWeight: '800', fontSize: 14 },
+  cardText: { color: authTheme.textMuted, fontSize: 13, lineHeight: 18 },
+  addressMeta: {
+    color: authTheme.textDim,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  payRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  payChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: authTheme.cardBorder,
+  },
+  payChipActive: {
+    backgroundColor: authTheme.brand,
+    borderColor: authTheme.brand,
+  },
+  payChipText: { color: authTheme.text, fontWeight: '700', fontSize: 12 },
+  payChipTextActive: { color: '#FFFFFF' },
+  savedBlock: { gap: 8, marginTop: 4 },
+  savedLabel: {
+    color: authTheme.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  savedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: authTheme.cardBorder,
+    backgroundColor: authTheme.surface,
+  },
+  savedChipActive: {
+    backgroundColor: authTheme.brand,
+    borderColor: authTheme.brand,
+  },
+  savedChipText: {
+    color: authTheme.text,
+    fontWeight: '600',
+    fontSize: 12,
+    flex: 1,
+  },
+  savedChipTextActive: { color: '#FFFFFF' },
+  linkInline: {
+    color: authTheme.brand,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  scheduleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  toggle: {
+    backgroundColor: authTheme.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  toggleOn: { backgroundColor: authTheme.brandSoft },
+  toggleText: { color: authTheme.brand, fontWeight: '800', fontSize: 11 },
+  input: {
+    borderWidth: 1.5,
+    borderColor: authTheme.inputBorder,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: authTheme.text,
+  },
+  hint: {
+    color: authTheme.textDim,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  summary: {
+    backgroundColor: authTheme.surface,
+    borderRadius: 16,
+    padding: 14,
+    gap: 8,
+  },
+  summaryTitle: {
+    color: authTheme.text,
+    fontWeight: '900',
+    fontSize: 15,
+    marginBottom: 4,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  summaryLabel: { flex: 1, color: authTheme.textMuted, fontSize: 13 },
+  summaryValue: { color: authTheme.text, fontWeight: '700', fontSize: 13 },
+  totalRow: {
+    borderTopWidth: 1,
+    borderTopColor: authTheme.cardBorder,
+    paddingTop: 10,
+    marginTop: 4,
+  },
+  totalLabel: { color: authTheme.text, fontWeight: '800' },
+  totalValue: { color: authTheme.text, fontWeight: '900', fontSize: 16 },
+  error: { color: authTheme.error, fontWeight: '600', fontSize: 13 },
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 16,
+    backgroundColor: authTheme.bg,
+    borderTopWidth: 1,
+    borderTopColor: authTheme.cardBorder,
+  },
+  placeBtn: { borderRadius: 16, overflow: 'hidden' },
+  disabled: { opacity: 0.6 },
+  placeGradient: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  placeText: { color: '#FFFFFF', fontWeight: '900', fontSize: 15 },
+  placeAmount: { color: '#FFFFFF', fontWeight: '900', fontSize: 15 },
+});

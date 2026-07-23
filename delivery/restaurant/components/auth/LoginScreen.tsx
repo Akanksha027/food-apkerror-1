@@ -1,6 +1,6 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronRight, Lock, Mail } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 
 import { AuthBanner } from '@/components/auth/AuthBanner';
@@ -15,12 +15,19 @@ import { AuthShell } from '@/components/auth/AuthShell';
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { RoleSelector } from '@/components/auth/RoleSelector';
 import { BRAND_NAME } from '@/constants/theme';
+import {
+  resolvePostAuthRoute,
+} from '@/lib/navigation/post-auth';
 import { useAuthStore } from '@/store/auth-store';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginScreen() {
   const router = useRouter();
+  const { registered, email: registeredEmail } = useLocalSearchParams<{
+    registered?: string;
+    email?: string;
+  }>();
   const role = useAuthStore((s) => s.role);
   const setRole = useAuthStore((s) => s.setRole);
   const login = useAuthStore((s) => s.login);
@@ -30,10 +37,20 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
     email?: string;
     password?: string;
   }>({});
+
+  useEffect(() => {
+    if (registered === '1') {
+      setSuccess('Account created successfully. Sign in to complete your restaurant profile.');
+      if (typeof registeredEmail === 'string' && registeredEmail) {
+        setEmail(registeredEmail);
+      }
+    }
+  }, [registered, registeredEmail]);
 
   const validate = () => {
     const next: typeof fieldErrors = {};
@@ -45,10 +62,13 @@ export function LoginScreen() {
 
   const handleLogin = async () => {
     setError(null);
+    setSuccess(null);
     if (!validate()) return;
     try {
       await login({ email: email.trim().toLowerCase(), password, role });
-      router.replace('/dashboard');
+      const userRole = useAuthStore.getState().user?.role ?? role;
+      const target = await resolvePostAuthRoute(userRole);
+      router.replace(target === '/restaurant-setup' ? '/restaurant-setup' : '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     }
@@ -86,6 +106,7 @@ export function LoginScreen() {
     >
       <RoleSelector value={role} onChange={setRole} disabled={isLoading} />
 
+      <AuthBanner type="success" message={success} />
       <AuthBanner type="error" message={error} />
 
       <AuthField

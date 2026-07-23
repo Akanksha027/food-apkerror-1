@@ -13,23 +13,29 @@ import { EmptyView, ErrorView, LoadingView } from '@/components/common/StateView
 import { ProfileFormLayout } from '@/components/profile/ProfileFormLayout';
 import { authTheme } from '@/constants/auth-theme';
 import {
-  useAddWalletMoney,
-  useWallet,
-  useWalletTransactions,
-} from '@/lib/profile/hooks';
+  usePaymentWallet,
+  usePaymentWalletTransactions,
+  useWalletTopup,
+} from '@/lib/payment/hooks';
+import type { Payment, WalletSummary } from '@/lib/payment/types';
+
+function isWalletSummary(value: Payment | WalletSummary): value is WalletSummary {
+  return 'balance' in value && typeof value.balance === 'number';
+}
 
 export function WalletScreen() {
-  const wallet = useWallet();
-  const transactions = useWalletTransactions();
-  const addMoney = useAddWalletMoney();
+  const wallet = usePaymentWallet();
+  const transactions = usePaymentWalletTransactions({ limit: 50 });
+  const topup = useWalletTopup();
 
   const [amount, setAmount] = useState('');
+  const [method, setMethod] = useState<'upi' | 'card'>('upi');
   const [banner, setBanner] = useState<{
     message: string;
     type: 'error' | 'success';
   } | null>(null);
 
-  const handleAddMoney = () => {
+  const handleTopup = () => {
     const value = Number(amount);
     if (!value || value <= 0) {
       setBanner({ message: 'Enter a valid amount', type: 'error' });
@@ -37,19 +43,34 @@ export function WalletScreen() {
     }
 
     setBanner(null);
-    addMoney.mutate(
-      { amount: value },
+    topup.mutate(
+      { amount: value, method },
       {
         onSuccess: (data) => {
           setAmount('');
-          setBanner({
-            message: `Added ₹${value}. New balance: ₹${data.balance}`,
-            type: 'success',
-          });
+          if (isWalletSummary(data)) {
+            setBanner({
+              message: `Added ₹${value}. New balance: ₹${data.balance}`,
+              type: 'success',
+            });
+          } else if (data.paymentUrl) {
+            setBanner({
+              message: `Top-up initiated. Complete payment (₹${value}) then check balance.`,
+              type: 'success',
+            });
+          } else {
+            setBanner({
+              message: `Top-up ${data.status}. ₹${value}`,
+              type: 'success',
+            });
+          }
+          wallet.refetch();
+          transactions.refetch();
         },
         onError: (error) =>
           setBanner({
-            message: error instanceof Error ? error.message : 'Failed to add money',
+            message:
+              error instanceof Error ? error.message : 'Failed to top up wallet',
             type: 'error',
           }),
       }
@@ -59,7 +80,7 @@ export function WalletScreen() {
   return (
     <ProfileFormLayout
       title="Wallet"
-      subtitle="Balance & transactions"
+      subtitle="Balance, top-up & transactions"
       banner={banner}
     >
       {wallet.isLoading ? (
@@ -85,22 +106,41 @@ export function WalletScreen() {
       )}
 
       <AuthInput
-        label="Add money (₹)"
+        label="Top up amount (₹)"
         value={amount}
         onChangeText={setAmount}
         keyboardType="numeric"
         placeholder="500"
       />
 
+      <View style={styles.methodRow}>
+        {(['upi', 'card'] as const).map((id) => (
+          <Pressable
+            key={id}
+            style={[styles.methodChip, method === id && styles.methodChipActive]}
+            onPress={() => setMethod(id)}
+          >
+            <Text
+              style={[
+                styles.methodChipText,
+                method === id && styles.methodChipTextActive,
+              ]}
+            >
+              {id.toUpperCase()}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
       <Pressable
         style={styles.addButton}
-        onPress={handleAddMoney}
-        disabled={addMoney.isPending}
+        onPress={handleTopup}
+        disabled={topup.isPending}
       >
-        {addMoney.isPending ? (
+        {topup.isPending ? (
           <ActivityIndicator color="#FFFFFF" size="small" />
         ) : (
-          <Text style={styles.addButtonText}>Add money</Text>
+          <Text style={styles.addButtonText}>Top up wallet</Text>
         )}
       </Pressable>
 
@@ -116,16 +156,16 @@ export function WalletScreen() {
           }
           onRetry={transactions.refetch}
         />
-      ) : !transactions.data?.data.length ? (
+      ) : !transactions.data?.transactions.length ? (
         <EmptyView
           title="No transactions yet"
-          subtitle="Your wallet activity will appear here."
+          subtitle="Wallet top-ups and payments will appear here."
         />
       ) : (
         <FlatList
-          data={transactions.data.data}
+          data={transactions.data.transactions}
           scrollEnabled={false}
-          keyExtractor={(item, index) => String(item.id ?? index)}
+          keyExtractor={(item, index) => String(item.id || index)}
           contentContainerStyle={styles.txList}
           renderItem={({ item }) => (
             <View style={styles.txRow}>
@@ -139,9 +179,14 @@ export function WalletScreen() {
                   </Text>
                 ) : null}
               </View>
-              {typeof item.amount === 'number' ? (
-                <Text style={styles.txAmount}>₹{item.amount}</Text>
-              ) : null}
+              <Text
+                style={[
+                  styles.txAmount,
+                  item.amount < 0 ? styles.txDebit : null,
+                ]}
+              >
+                {item.amount >= 0 ? '+' : ''}₹{item.amount}
+              </Text>
             </View>
           )}
         />
@@ -173,6 +218,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
+  methodRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  methodChip: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: authTheme.brandSoft,
+    alignItems: 'center',
+  },
+  methodChipActive: { backgroundColor: authTheme.brand },
+  methodChipText: { color: authTheme.brand, fontWeight: '700', fontSize: 12 },
+  methodChipTextActive: { color: '#FFFFFF' },
   addButton: {
     marginTop: 16,
     backgroundColor: authTheme.brand,
@@ -192,9 +248,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 12,
   },
-  txList: {
-    gap: 10,
-  },
+  txList: { gap: 10 },
   txRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -216,8 +270,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   txAmount: {
-    color: authTheme.brand,
+    color: '#16A34A',
     fontSize: 15,
     fontWeight: '800',
   },
+  txDebit: { color: '#DC2626' },
 });

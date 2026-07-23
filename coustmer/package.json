@@ -31,6 +31,7 @@
     "react-native-screens": "^4.25.2",
     "react-native-svg": "15.15.4",
     "react-native-web": "^0.21.2",
+    "react-native-webview": "^13.15.0",
     "react-native-worklets": "0.8.3",
     "zustand": "^5.0.14"
   },
@@ -48,7 +49,11 @@
     "start:android": "adb reverse tcp:8081 tcp:8081 && expo start --clear",
     "android": "adb reverse tcp:8081 tcp:8081 && expo start --android --clear",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "seed:menus": "node ../scripts/seed-restaurant-menus.mjs",
+    "seed:menus:dry": "node ../scripts/seed-restaurant-menus.mjs --dry-run",
+    "backfill:images": "node ../scripts/backfill-menu-images.mjs",
+    "backfill:images:dry": "node ../scripts/backfill-menu-images.mjs --dry-run"
   },
   "private": true
 }

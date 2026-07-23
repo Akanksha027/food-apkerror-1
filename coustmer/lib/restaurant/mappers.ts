@@ -1,3 +1,14 @@
+import {
+  coverFallbackForCuisines,
+  firstImageFromList,
+  resolveMediaUrl,
+} from '@/lib/restaurant/media';
+import { menuItemImageForName } from '@/lib/restaurant/menu-item-images';
+import {
+  getMenuItemRating,
+  getMenuItemReviewCount,
+  getRestaurantRating,
+} from '@/lib/restaurant/menu-rating';
 import type {
   MenuCategory,
   MenuItem,
@@ -6,29 +17,117 @@ import type {
   RestaurantOffer,
 } from '@/lib/restaurant/types';
 
+function parseRating(data: Record<string, unknown>): number | undefined {
+  return getRestaurantRating(data) ?? undefined;
+}
+
+/** Fill missing fields on menu items using the flat /items list. */
+export function enrichMenuItems(
+  primary: MenuItem[],
+  fallbackItems: MenuItem[]
+): MenuItem[] {
+  if (!fallbackItems.length) return primary;
+
+  const fallbackById = new Map(fallbackItems.map((item) => [item.id, item]));
+  return primary.map((item) => {
+    const fallback = fallbackById.get(item.id);
+    if (!fallback) return item;
+
+    const merged: MenuItem = {
+      ...item,
+      tags: item.tags?.length ? item.tags : fallback.tags,
+      rating: item.rating ?? fallback.rating,
+      reviewCount: item.reviewCount ?? fallback.reviewCount,
+      imageUrl: item.imageUrl || fallback.imageUrl,
+      description: item.description || fallback.description,
+      isVeg: item.isVeg ?? fallback.isVeg,
+      isAvailable: item.isAvailable ?? fallback.isAvailable,
+    };
+
+    return {
+      ...merged,
+      rating: getMenuItemRating(merged) ?? undefined,
+      reviewCount: getMenuItemReviewCount(merged) ?? merged.reviewCount,
+    };
+  });
+}
+
 export function mapRestaurant(data: Record<string, unknown>): Restaurant {
-  const cuisines = data.cuisines ?? data.cuisineTypes ?? data.tags;
+  const cuisinesRaw = data.cuisines ?? data.cuisineTypes ?? data.tags;
+  const cuisines = Array.isArray(cuisinesRaw)
+    ? (cuisinesRaw as string[]).map(String).filter(Boolean)
+    : undefined;
+
+  const addressRaw = data.address;
+  let address: string | undefined;
+  let cityFromAddress: string | undefined;
+  if (typeof addressRaw === 'string') {
+    address = addressRaw;
+  } else if (addressRaw && typeof addressRaw === 'object') {
+    const a = addressRaw as Record<string, unknown>;
+    cityFromAddress = a.city ? String(a.city) : undefined;
+    address = [a.street, a.area, a.city, a.state, a.pincode]
+      .filter(Boolean)
+      .map(String)
+      .join(', ');
+  }
+
+  const location = data.location as { coordinates?: number[] } | undefined;
+  const coords = location?.coordinates;
+  const fromImages = firstImageFromList(data.images);
+
+  const logoUrl =
+    resolveMediaUrl(
+      (data.logoUrl as string) ||
+        (data.logo as string) ||
+        (data.logoImage as string)
+    ) || undefined;
+
+  const coverUrl =
+    resolveMediaUrl(
+      (data.coverUrl as string) ||
+        (data.coverImage as string) ||
+        (data.bannerUrl as string) ||
+        (data.banner as string)
+    ) ||
+    fromImages ||
+    undefined;
+
+  const imageUrl =
+    resolveMediaUrl(data.imageUrl as string) ||
+    coverUrl ||
+    logoUrl ||
+    coverFallbackForCuisines(cuisines);
+
+  const prep =
+    typeof data.settings === 'object' && data.settings
+      ? Number((data.settings as Record<string, unknown>).avgPrepTime)
+      : undefined;
+
+  const isPureVeg =
+    typeof data.settings === 'object' && data.settings
+      ? Boolean((data.settings as Record<string, unknown>).isPureVeg)
+      : undefined;
+
   return {
     id: String(data._id ?? data.id ?? ''),
     name: String(data.name ?? data.restaurantName ?? 'Restaurant'),
     description: (data.description as string) || undefined,
-    imageUrl:
-      (data.imageUrl as string) ||
-      (data.coverImage as string) ||
-      (data.coverUrl as string) ||
-      undefined,
-    coverUrl: (data.coverUrl as string) || (data.coverImage as string) || undefined,
-    logoUrl: (data.logoUrl as string) || (data.logo as string) || undefined,
-    rating: typeof data.rating === 'number' ? data.rating : Number(data.rating) || undefined,
+    imageUrl,
+    coverUrl: coverUrl || imageUrl,
+    logoUrl,
+    rating: parseRating(data),
     reviewCount:
       typeof data.reviewCount === 'number'
         ? data.reviewCount
-        : Number(data.totalReviews ?? data.reviews) || undefined,
-    cuisines: Array.isArray(cuisines) ? (cuisines as string[]) : undefined,
+        : Number(data.totalReviews ?? data.reviews ?? data.totalRatings) || undefined,
+    cuisines,
     deliveryTime:
       (data.deliveryTime as string) ||
       (data.avgDeliveryTime as string) ||
-      undefined,
+      (typeof prep === 'number' && Number.isFinite(prep)
+        ? `${prep}–${prep + 10} mins`
+        : '25–35 mins'),
     priceForTwo:
       typeof data.priceForTwo === 'number'
         ? data.priceForTwo
@@ -39,10 +138,19 @@ export function mapRestaurant(data: Record<string, unknown>): Restaurant {
         : Number(data.priceForTwo) || undefined,
     distance:
       typeof data.distance === 'number' ? data.distance : Number(data.distanceKm) || undefined,
-    isOpen: data.isOpen !== undefined ? Boolean(data.isOpen) : undefined,
-    address: (data.address as string) || undefined,
-    city: (data.city as string) || undefined,
+    isOpen:
+      data.isOpen !== undefined
+        ? Boolean(data.isOpen)
+        : data.isOnline !== undefined
+          ? Boolean(data.isOnline)
+          : undefined,
+    address,
+    city: (data.city as string) || cityFromAddress || undefined,
     offer: (data.offer as string) || (data.promoText as string) || undefined,
+    status: (data.status as string) || (data.verificationStatus as string) || undefined,
+    isPureVeg,
+    lat: typeof data.lat === 'number' ? data.lat : coords?.[1],
+    lng: typeof data.lng === 'number' ? data.lng : coords?.[0],
   };
 }
 
@@ -56,20 +164,53 @@ export function mapCategory(data: Record<string, unknown>): MenuCategory {
   };
 }
 
-export function mapMenuItem(data: Record<string, unknown>): MenuItem {
-  return {
-    id: String(data._id ?? data.id ?? ''),
-    name: String(data.name ?? data.title ?? 'Item'),
+export function mapMenuItem(
+  data: Record<string, unknown>,
+  categoryHint?: Pick<MenuCategory, 'id' | 'name'>
+): MenuItem {
+  const categoryObj =
+    data.category && typeof data.category === 'object'
+      ? (data.category as Record<string, unknown>)
+      : undefined;
+
+  const categoryIdRaw =
+    data.categoryId ?? categoryObj?._id ?? categoryObj?.id ?? categoryHint?.id;
+
+  const categoryName =
+    (data.categoryName as string) ||
+    (categoryObj?.name as string) ||
+    categoryHint?.name;
+
+  const imageFromList = firstImageFromList(data.images);
+  const itemName = String(data.name ?? data.title ?? 'Item');
+  const itemId = String(data._id ?? data.id ?? '');
+
+  const apiImage =
+    resolveMediaUrl(
+      (data.imageUrl as string) || (data.image as string) || imageFromList
+    ) || undefined;
+
+  const tags = Array.isArray(data.tags)
+    ? (data.tags as unknown[]).map(String).filter(Boolean)
+    : undefined;
+
+  const mapped: MenuItem = {
+    id: itemId,
+    name: itemName,
     description: (data.description as string) || undefined,
     price: Number(data.price ?? data.basePrice ?? 0),
-    imageUrl: (data.imageUrl as string) || (data.image as string) || undefined,
-    categoryId: String(data.categoryId ?? data.category ?? '') || undefined,
-    categoryName: (data.categoryName as string) || undefined,
+    imageUrl: apiImage || menuItemImageForName(itemId || itemName),
+    categoryId: categoryIdRaw ? String(categoryIdRaw) : undefined,
+    categoryName,
     isVeg: data.isVeg !== undefined ? Boolean(data.isVeg) : undefined,
     isAvailable:
       data.isAvailable !== undefined ? Boolean(data.isAvailable) : true,
-    rating: typeof data.rating === 'number' ? data.rating : undefined,
+    tags,
+    rating: getMenuItemRating({ ...data, tags }) ?? undefined,
+    reviewCount: getMenuItemReviewCount({ ...data, tags }) ?? undefined,
   };
+
+  return mapped;
 }
 
 export function mapOffer(data: Record<string, unknown>): RestaurantOffer {
@@ -92,6 +233,10 @@ export function mapOffer(data: Record<string, unknown>): RestaurantOffer {
   };
 }
 
+function isNestedMenuGroup(row: Record<string, unknown>): boolean {
+  return Array.isArray(row.items);
+}
+
 export function normalizeMenu(data: unknown): RestaurantMenu {
   if (!data || typeof data !== 'object') {
     return { categories: [], items: [] };
@@ -111,6 +256,31 @@ export function normalizeMenu(data: unknown): RestaurantMenu {
   }
 
   if (Array.isArray(data)) {
+    if (data.length === 0) {
+      return { categories: [], items: [] };
+    }
+
+    const first = data[0] as Record<string, unknown>;
+    if (isNestedMenuGroup(first)) {
+      const categories: MenuCategory[] = [];
+      const items: MenuItem[] = [];
+
+      for (const group of data as Record<string, unknown>[]) {
+        const catRaw = (group.category ?? group) as Record<string, unknown>;
+        const category = mapCategory(catRaw);
+        categories.push(category);
+
+        const groupItems = Array.isArray(group.items) ? group.items : [];
+        for (const rawItem of groupItems) {
+          items.push(
+            mapMenuItem(rawItem as Record<string, unknown>, category)
+          );
+        }
+      }
+
+      return { categories, items };
+    }
+
     return {
       categories: [],
       items: data.map((i) => mapMenuItem(i as Record<string, unknown>)),
@@ -128,4 +298,20 @@ export function toList<T>(
     return data.map((row) => mapper(row as Record<string, unknown>));
   }
   return [];
+}
+
+/** Map restaurant-service model to customer home card shape. */
+export function restaurantToCard(restaurant: Restaurant) {
+  return {
+    id: restaurant.id,
+    name: restaurant.name,
+    imageUrl: restaurant.imageUrl ?? restaurant.coverUrl ?? restaurant.logoUrl,
+    rating: restaurant.rating,
+    cuisines: restaurant.cuisines,
+    deliveryTime: restaurant.deliveryTime,
+    priceForTwo: restaurant.priceForTwo ?? restaurant.costForTwo,
+    city: restaurant.city,
+    offer: restaurant.offer,
+    status: restaurant.status,
+  };
 }

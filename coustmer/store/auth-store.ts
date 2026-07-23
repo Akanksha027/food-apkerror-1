@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { authApi } from '@/lib/auth/api';
+import { authApi, SESSION_AUTH_TOKEN } from '@/lib/auth/api';
 import {
   clearAuthStorage,
   getStoredUser,
@@ -18,8 +18,11 @@ import type {
   RegisterPayload,
   ResetPasswordPayload,
 } from '@/lib/auth/types';
+import { setUnauthorizedHandler } from '@/lib/auth/unauthorized';
 import { getApiErrorMessage } from '@/lib/errors';
 import { completeOnboarding } from '@/lib/onboarding';
+import { getStoredSessionCookies } from '@/lib/session-cookies';
+import { useDeliveryLocationStore } from '@/store/delivery-location-store';
 
 type AuthState = {
   user: AuthUser | null;
@@ -59,17 +62,53 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     try {
       const [token, user] = await Promise.all([getToken(), getStoredUser()]);
-      set({ token, user });
+
+      if (!token || !user) {
+        useDeliveryLocationStore.getState().unbindUser();
+        set({ token: null, user: null, isHydrated: true });
+        return;
+      }
+
+      // Cookie sessions need stored cookies — otherwise treat as logged out.
+      if (token === SESSION_AUTH_TOKEN) {
+        const cookies = await getStoredSessionCookies();
+        if (!cookies) {
+          await clearAuthStorage();
+          useDeliveryLocationStore.getState().unbindUser();
+          set({ token: null, user: null, isHydrated: true });
+          return;
+        }
+      }
+
+      useDeliveryLocationStore.getState().bindUser(user.id);
+      set({ token, user, isHydrated: true });
     } catch {
-      set({ token: null, user: null });
-    } finally {
-      set({ isHydrated: true });
+      await clearAuthStorage();
+      useDeliveryLocationStore.getState().unbindUser();
+      set({ token: null, user: null, isHydrated: true });
     }
   },
 
   setSession: async (token, user) => {
     await persistSession(token, user);
     set({ token, user });
+    useDeliveryLocationStore.getState().bindUser(user.id);
+    // Merge guest cart into authenticated cart (best-effort)
+    try {
+      const { cartApi } = await import('@/lib/cart/api');
+      const { applyServerCartToStore } = await import('@/lib/cart/sync');
+      const merged = await cartApi.merge();
+      applyServerCartToStore(merged);
+    } catch {
+      try {
+        const { cartApi } = await import('@/lib/cart/api');
+        const { applyServerCartToStore } = await import('@/lib/cart/sync');
+        const cart = await cartApi.getCart();
+        applyServerCartToStore(cart);
+      } catch {
+        // keep local cart
+      }
+    }
   },
 
   register: async (payload) => {
@@ -213,7 +252,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearSession: async () => {
+    useDeliveryLocationStore.getState().unbindUser();
     await clearAuthStorage();
     set({ user: null, token: null });
   },
 }));
+
+setUnauthorizedHandler(() => useAuthStore.getState().clearSession());

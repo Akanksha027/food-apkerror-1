@@ -1,26 +1,47 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams } from 'expo-router';
-import { Plus } from 'lucide-react-native';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Plus, Star } from 'lucide-react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ErrorView, LoadingView } from '@/components/common/StateViews';
 import { PriceTag, VegBadge } from '@/components/restaurant/MenuBadges';
 import { ScreenHeader } from '@/components/common/ScreenHeader';
 import { authTheme } from '@/constants/auth-theme';
-import { useMenuItem } from '@/lib/restaurant/hooks';
+import { addMenuItemToCart } from '@/lib/order/add-to-cart';
+import { getMenuItemRating } from '@/lib/restaurant/menu-rating';
+import { useMenuItem, useRestaurant } from '@/lib/restaurant/hooks';
 
 export function MenuItemDetailScreen() {
+  const router = useRouter();
   const { restaurantId, itemId } = useLocalSearchParams<{
     restaurantId: string;
     itemId: string;
   }>();
 
+  const rid = String(restaurantId ?? '');
+  const restaurant = useRestaurant(rid);
   const { data: item, isLoading, isError, error, refetch } = useMenuItem(
-    String(restaurantId ?? ''),
+    rid,
     String(itemId ?? '')
   );
+
+  const rating = item ? getMenuItemRating(item) : null;
+
+  const handleAdd = () => {
+    if (!item) return;
+    const ok = addMenuItemToCart(item, {
+      id: rid,
+      name: restaurant.data?.name || 'Restaurant',
+    });
+    if (ok) {
+      Alert.alert('Added to cart', item.name, [
+        { text: 'Keep browsing', style: 'cancel' },
+        { text: 'View cart', onPress: () => router.push('/cart') },
+      ]);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -41,7 +62,13 @@ export function MenuItemDetailScreen() {
           >
             <View style={styles.imageWrap}>
               {item.imageUrl ? (
-                <Image source={{ uri: item.imageUrl }} style={styles.image} contentFit="cover" />
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  style={styles.image}
+                  contentFit="cover"
+                  recyclingKey={item.id}
+                  transition={200}
+                />
               ) : (
                 <LinearGradient colors={['#FFF7ED', '#FFEDD5']} style={styles.image} />
               )}
@@ -52,7 +79,15 @@ export function MenuItemDetailScreen() {
                 <VegBadge isVeg={item.isVeg} />
                 <Text style={styles.name}>{item.name}</Text>
               </View>
-              <PriceTag price={item.price} />
+              <View style={styles.metaRow}>
+                <PriceTag price={item.price} />
+                {rating != null ? (
+                  <View style={styles.ratingPill}>
+                    <Star color="#FFFFFF" fill="#FFFFFF" size={12} />
+                    <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+                  </View>
+                ) : null}
+              </View>
               {item.description ? (
                 <Text style={styles.description}>{item.description}</Text>
               ) : null}
@@ -65,7 +100,7 @@ export function MenuItemDetailScreen() {
             </View>
 
             {item.isAvailable ? (
-              <Pressable style={styles.addButton}>
+              <Pressable style={styles.addButton} onPress={handleAdd}>
                 <Plus color="#FFFFFF" size={20} />
                 <Text style={styles.addText}>Add to cart</Text>
               </Pressable>
@@ -115,6 +150,25 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     lineHeight: 30,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  ratingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#16A34A',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  ratingText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   description: {
     color: authTheme.textMuted,

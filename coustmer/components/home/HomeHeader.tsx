@@ -1,19 +1,74 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { ChevronDown, MapPin, Search, User } from 'lucide-react-native';
+import { type Href, useRouter } from 'expo-router';
+import {
+  Bell,
+  ChevronDown,
+  MapPin,
+  Mic,
+  Package,
+  Search,
+  ShoppingBag,
+  User,
+} from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { authTheme } from '@/constants/auth-theme';
+import { useUnreadNotificationCount } from '@/lib/notification/hooks';
+import { useCartStore } from '@/store/cart-store';
 
-type Props = {
+type HeaderProps = {
   greeting: string;
   tier?: string;
   loyaltyPoints?: number;
   topInset?: number;
+  deliveryTitle?: string;
+  deliverySubtitle?: string;
+  deliveryLine?: string;
+  isDetectingLocation?: boolean;
+  onLocationPress?: () => void;
+  /** When false, search lives in the sticky chrome instead. */
+  showSearch?: boolean;
 };
 
-export function HomeHeader({ greeting, tier, loyaltyPoints, topInset = 0 }: Props) {
+export function HomeSearchBar({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
+
+  return (
+    <Pressable
+      style={[styles.searchBar, compact && styles.searchBarCompact]}
+      onPress={() => router.push('/restaurants')}
+    >
+      <Search color={authTheme.brand} size={18} />
+      <Text style={styles.searchPlaceholder} numberOfLines={1}>
+        Search for restaurants & dishes
+      </Text>
+      <View style={styles.micWrap}>
+        <Mic color={authTheme.brand} size={18} />
+      </View>
+    </Pressable>
+  );
+}
+
+export function HomeHeader({
+  greeting,
+  tier,
+  loyaltyPoints,
+  topInset = 0,
+  deliveryTitle,
+  deliverySubtitle,
+  deliveryLine = 'Set delivery address',
+  isDetectingLocation = false,
+  onLocationPress,
+  showSearch = true,
+}: HeaderProps) {
+  const router = useRouter();
+  const cartCount = useCartStore((s) => s.totalItems());
+  const unreadNotifications = useUnreadNotificationCount({
+    refetchInterval: 12_000,
+  });
+  const unreadCount = unreadNotifications.data ?? 0;
+  const title = deliveryTitle || deliveryLine;
+  const subtitle = deliverySubtitle?.trim() || '';
 
   return (
     <LinearGradient
@@ -26,39 +81,75 @@ export function HomeHeader({ greeting, tier, loyaltyPoints, topInset = 0 }: Prop
         <Pressable
           style={styles.locationWrap}
           hitSlop={6}
-          onPress={() => router.push('/restaurants/index')}
+          onPress={onLocationPress ?? (() => {})}
         >
           <View style={styles.pinCircle}>
             <MapPin color="#FFFFFF" size={16} />
           </View>
-          <View>
+          <View style={styles.locationTextWrap}>
             <View style={styles.locationLabelRow}>
               <Text style={styles.locationLabel}>Deliver to</Text>
               <ChevronDown color="rgba(255,255,255,0.85)" size={13} />
             </View>
-            <Text style={styles.locationValue} numberOfLines={1}>
-              Home · Set your address
-            </Text>
+            {isDetectingLocation ? (
+              <Text style={styles.locationValue} numberOfLines={1}>
+                Detecting your location…
+              </Text>
+            ) : (
+              <>
+                <Text style={styles.locationValue} numberOfLines={1}>
+                  {title}
+                </Text>
+                {subtitle ? (
+                  <Text style={styles.locationSubtitle} numberOfLines={2}>
+                    {subtitle}
+                  </Text>
+                ) : null}
+              </>
+            )}
           </View>
         </Pressable>
 
-        <Pressable style={styles.avatar} onPress={() => router.push('/profile')}>
-          <User color="#FFFFFF" size={20} />
-        </Pressable>
+        <View style={styles.rightActions}>
+          <Pressable
+            style={styles.iconBtn}
+            onPress={() =>
+              router.push({ pathname: '/notifications' } as Href)
+            }
+            accessibilityLabel="Notifications"
+          >
+            <Bell color="#FFFFFF" size={18} />
+            {unreadCount > 0 ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
+          <Pressable style={styles.iconBtn} onPress={() => router.push('/orders' as Href)}>
+            <Package color="#FFFFFF" size={18} />
+          </Pressable>
+          <Pressable style={styles.iconBtn} onPress={() => router.push('/cart')}>
+            <ShoppingBag color="#FFFFFF" size={18} />
+            {cartCount > 0 ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {cartCount > 9 ? '9+' : cartCount}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
+          <Pressable style={styles.avatar} onPress={() => router.push('/profile')}>
+            <User color="#FFFFFF" size={20} />
+          </Pressable>
+        </View>
       </View>
 
       <Text style={styles.greeting}>Hey {greeting} 👋</Text>
       <Text style={styles.tagline}>What are you craving today?</Text>
 
-      <Pressable
-        style={styles.searchBar}
-        onPress={() => router.push('/restaurants/index')}
-      >
-        <Search color={authTheme.brand} size={18} />
-        <Text style={styles.searchPlaceholder}>
-          Search for restaurants & dishes
-        </Text>
-      </Pressable>
+      {showSearch ? <HomeSearchBar /> : null}
 
       {tier ? (
         <View style={styles.loyaltyRow}>
@@ -77,20 +168,25 @@ export function HomeHeader({ greeting, tier, loyaltyPoints, topInset = 0 }: Prop
 const styles = StyleSheet.create({
   wrap: {
     paddingHorizontal: 20,
-    paddingBottom: 34,
+    paddingBottom: 22,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
   topRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
   locationWrap: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 10,
     flex: 1,
+    marginRight: 12,
+  },
+  locationTextWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   pinCircle: {
     width: 34,
@@ -99,6 +195,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 2,
   },
   locationLabelRow: {
     flexDirection: 'row',
@@ -114,9 +211,16 @@ const styles = StyleSheet.create({
   },
   locationValue: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     marginTop: 1,
+  },
+  locationSubtitle: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
+    lineHeight: 16,
   },
   avatar: {
     width: 42,
@@ -127,6 +231,36 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.25)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FF6B35',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
   },
   greeting: {
     color: 'rgba(255,255,255,0.85)',
@@ -146,7 +280,7 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 14,
     marginTop: 18,
     shadowColor: '#000000',
@@ -155,10 +289,26 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  searchBarCompact: {
+    marginTop: 0,
+    marginHorizontal: 16,
+    marginBottom: 4,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E5E7EB',
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   searchPlaceholder: {
     color: authTheme.textMuted,
     fontSize: 14,
     fontWeight: '500',
+    flex: 1,
+  },
+  micWrap: {
+    paddingLeft: 4,
   },
   loyaltyRow: {
     flexDirection: 'row',

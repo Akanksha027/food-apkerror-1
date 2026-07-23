@@ -45,18 +45,24 @@ export function RegisterScreen() {
   const handleRegister = async () => {
     setError(null);
     if (!validate()) return;
+
+    const normalizedEmail = email.trim().toLowerCase();
+
     try {
       await register({
         firstName: firstName.trim(),
         lastName: lastName.trim() || undefined,
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         phone: phone.trim() || undefined,
         password,
         confirmPassword,
         role,
       });
-      // Session is stored on success → jump straight into the portal.
-      router.replace('/dashboard');
+      await useAuthStore.getState().clearSession();
+      router.replace({
+        pathname: '/login',
+        params: { registered: '1', email: normalizedEmail },
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     }

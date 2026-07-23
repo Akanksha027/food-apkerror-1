@@ -11,6 +11,12 @@
       "expo-router",
       "expo-secure-store",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Food Delivery to access your location to set your delivery address and find restaurants near you."
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {

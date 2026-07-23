@@ -24,6 +24,10 @@ export type Restaurant = {
   address?: string;
   city?: string;
   offer?: string;
+  status?: string;
+  isPureVeg?: boolean;
+  lat?: number;
+  lng?: number;
   [key: string]: unknown;
 };
 
@@ -46,6 +50,8 @@ export type MenuItem = {
   isVeg?: boolean;
   isAvailable?: boolean;
   rating?: number;
+  reviewCount?: number;
+  tags?: string[];
   [key: string]: unknown;
 };
 
@@ -72,7 +78,10 @@ export type RestaurantListParams = {
   limit?: number;
   search?: string;
   cuisine?: string;
+  city?: string;
   sort?: string;
+  /** When true, fetches every page until hasNext is false. */
+  fetchAll?: boolean;
 };
 
 export type NearbyParams = {
@@ -81,4 +90,17 @@ export type NearbyParams = {
   radius?: number;
   page?: number;
   limit?: number;
+};
+
+/** Dish shown on home “trending” rails with its restaurant. */
+export type TrendingDish = {
+  id: string;
+  name: string;
+  price: number;
+  imageUrl?: string;
+  isVeg?: boolean;
+  rating?: number;
+  restaurantId: string;
+  restaurantName: string;
+  restaurantImageUrl?: string;
 };

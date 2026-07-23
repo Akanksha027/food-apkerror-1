@@ -1,0 +1,207 @@
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+
+import { paymentApi } from '@/lib/payment/api';
+import type {
+  InitiatePaymentPayload,
+  RequestRefundPayload,
+  SavePaymentMethodPayload,
+  VerifyPaymentPayload,
+  WalletTopupPayload,
+} from '@/lib/payment/types';
+
+export const paymentKeys = {
+  all: ['payment'] as const,
+  history: (params?: { page?: number; limit?: number }) =>
+    [...paymentKeys.all, 'history', params ?? {}] as const,
+  detail: (id: string) => [...paymentKeys.all, 'detail', id] as const,
+  methods: () => [...paymentKeys.all, 'methods'] as const,
+  wallet: () => [...paymentKeys.all, 'wallet'] as const,
+  walletTx: (params?: { page?: number; limit?: number }) =>
+    [...paymentKeys.all, 'wallet-tx', params ?? {}] as const,
+  refund: (id: string) => [...paymentKeys.all, 'refund', id] as const,
+  orderRefunds: (orderId: string) =>
+    [...paymentKeys.all, 'order-refunds', orderId] as const,
+};
+
+function invalidatePaymentQueries(
+  queryClient: ReturnType<typeof useQueryClient>,
+  extras?: { paymentId?: string; orderId?: string; refundId?: string }
+) {
+  queryClient.invalidateQueries({ queryKey: paymentKeys.all });
+  if (extras?.paymentId) {
+    queryClient.invalidateQueries({
+      queryKey: paymentKeys.detail(extras.paymentId),
+    });
+  }
+  if (extras?.orderId) {
+    queryClient.invalidateQueries({
+      queryKey: paymentKeys.orderRefunds(extras.orderId),
+    });
+  }
+  if (extras?.refundId) {
+    queryClient.invalidateQueries({
+      queryKey: paymentKeys.refund(extras.refundId),
+    });
+  }
+}
+
+/** GET /payments/history */
+export function usePaymentHistory(params?: { page?: number; limit?: number }) {
+  return useQuery({
+    queryKey: paymentKeys.history(params),
+    queryFn: () => paymentApi.getHistory(params),
+  });
+}
+
+/** GET /payments/:paymentId */
+export function usePayment(paymentId: string) {
+  return useQuery({
+    queryKey: paymentKeys.detail(paymentId),
+    queryFn: () => paymentApi.getPayment(paymentId),
+    enabled: Boolean(paymentId),
+  });
+}
+
+/** GET /payments/methods */
+export function usePaymentMethods() {
+  return useQuery({
+    queryKey: paymentKeys.methods(),
+    queryFn: paymentApi.getMethods,
+  });
+}
+
+/** GET /payments/wallet */
+export function usePaymentWallet() {
+  return useQuery({
+    queryKey: paymentKeys.wallet(),
+    queryFn: paymentApi.getWallet,
+  });
+}
+
+/** GET /payments/wallet/transactions */
+export function usePaymentWalletTransactions(params?: {
+  page?: number;
+  limit?: number;
+}) {
+  return useQuery({
+    queryKey: paymentKeys.walletTx(params),
+    queryFn: () => paymentApi.getWalletTransactions(params),
+  });
+}
+
+/** GET /payments/refunds/:refundId */
+export function useRefund(refundId: string) {
+  return useQuery({
+    queryKey: paymentKeys.refund(refundId),
+    queryFn: () => paymentApi.getRefund(refundId),
+    enabled: Boolean(refundId),
+  });
+}
+
+/** GET /payments/:orderId/refunds */
+export function useOrderRefunds(orderId: string) {
+  return useQuery({
+    queryKey: paymentKeys.orderRefunds(orderId),
+    queryFn: () => paymentApi.getOrderRefunds(orderId),
+    enabled: Boolean(orderId),
+  });
+}
+
+/** POST /payments/initiate */
+export function useInitiatePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: InitiatePaymentPayload) =>
+      paymentApi.initiate(payload),
+    onSuccess: (payment) => {
+      invalidatePaymentQueries(queryClient, {
+        paymentId: payment.id,
+        orderId: payment.orderId,
+      });
+    },
+  });
+}
+
+/** POST /payments/verify */
+export function useVerifyPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: VerifyPaymentPayload) => paymentApi.verify(payload),
+    onSuccess: (payment) => {
+      invalidatePaymentQueries(queryClient, {
+        paymentId: payment.id,
+        orderId: payment.orderId,
+      });
+      queryClient.invalidateQueries({ queryKey: paymentKeys.wallet() });
+      queryClient.invalidateQueries({ queryKey: ['order'] });
+    },
+  });
+}
+
+/** POST /payments/methods */
+export function useSavePaymentMethod() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: SavePaymentMethodPayload) =>
+      paymentApi.saveMethod(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: paymentKeys.methods() });
+    },
+  });
+}
+
+/** DELETE /payments/methods/:methodId */
+export function useDeletePaymentMethod() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (methodId: string) => paymentApi.deleteMethod(methodId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: paymentKeys.methods() });
+    },
+  });
+}
+
+/** PUT /payments/methods/:methodId/default */
+export function useSetDefaultPaymentMethod() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (methodId: string) => paymentApi.setDefaultMethod(methodId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: paymentKeys.methods() });
+    },
+  });
+}
+
+/** POST /payments/wallet/topup */
+export function useWalletTopup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: WalletTopupPayload) => paymentApi.topupWallet(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: paymentKeys.wallet() });
+      queryClient.invalidateQueries({ queryKey: [...paymentKeys.all, 'wallet-tx'] });
+      queryClient.invalidateQueries({ queryKey: paymentKeys.history() });
+    },
+  });
+}
+
+/** POST /payments/refunds/request */
+export function useRequestRefund() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: RequestRefundPayload) =>
+      paymentApi.requestRefund(payload),
+    onSuccess: (refund) => {
+      invalidatePaymentQueries(queryClient, {
+        orderId: refund.orderId,
+        refundId: refund.id,
+        paymentId: refund.paymentId,
+      });
+      queryClient.invalidateQueries({ queryKey: ['order'] });
+    },
+  });
+}
