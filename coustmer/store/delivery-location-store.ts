@@ -9,6 +9,8 @@ export type DeliveryLocation = {
   lat: number;
   lng: number;
   source: 'gps' | 'search' | 'saved';
+  /** When set, checkout can send addressId to order-service. */
+  savedAddressId?: string;
   updatedAt: number;
 };
 

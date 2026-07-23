@@ -1,5 +1,6 @@
+import { useRouter } from 'expo-router';
 import { Clock, Search } from 'lucide-react-native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/common/ScreenHeader';
@@ -13,6 +14,7 @@ import { authTheme } from '@/constants/auth-theme';
 import { useRecentActivity } from '@/lib/customer/hooks';
 
 export default function RecentScreen() {
+  const router = useRouter();
   const { data, isLoading, isError, error, refetch } = useRecentActivity();
 
   const hasSearches = (data?.recentSearches.length ?? 0) > 0;
@@ -47,10 +49,19 @@ export default function RecentScreen() {
                 <Text style={styles.sectionTitle}>Recent searches</Text>
                 <View style={styles.chipRow}>
                   {data!.recentSearches.map((term, index) => (
-                    <View key={`${term}-${index}`} style={styles.chip}>
+                    <Pressable
+                      key={`${term}-${index}`}
+                      style={styles.chip}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/search',
+                          params: { q: term },
+                        })
+                      }
+                    >
                       <Search color={authTheme.textMuted} size={14} />
                       <Text style={styles.chipText}>{term}</Text>
-                    </View>
+                    </Pressable>
                   ))}
                 </View>
               </View>

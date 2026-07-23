@@ -10,6 +10,7 @@ import {
   ShoppingBag,
   User,
 } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { authTheme } from '@/constants/auth-theme';
@@ -30,18 +31,39 @@ type HeaderProps = {
   showSearch?: boolean;
 };
 
+const SEARCH_HINTS = [
+  'Search for “biryani”',
+  'Search for “pizza”',
+  'Search for “Molecule”',
+  'Search for restaurants',
+  'Search for dishes',
+  'Search for “burger”',
+];
+
 export function HomeSearchBar({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
+  const [hintIndex, setHintIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setHintIndex((i) => (i + 1) % SEARCH_HINTS.length);
+    }, 2800);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <Pressable
       style={[styles.searchBar, compact && styles.searchBarCompact]}
-      onPress={() => router.push('/restaurants')}
+      onPress={() => router.push('/search')}
+      accessibilityRole="search"
+      accessibilityLabel="Search for restaurants and dishes"
     >
-      <Search color={authTheme.brand} size={18} />
-      <Text style={styles.searchPlaceholder} numberOfLines={1}>
-        Search for restaurants & dishes
-      </Text>
+      <Search color={authTheme.brand} size={18} strokeWidth={2.4} />
+      <View style={styles.searchCopy}>
+        <Text style={styles.searchPlaceholder} numberOfLines={1}>
+          {SEARCH_HINTS[hintIndex]}
+        </Text>
+      </View>
       <View style={styles.micWrap}>
         <Mic color={authTheme.brand} size={18} />
       </View>
@@ -305,10 +327,15 @@ const styles = StyleSheet.create({
     color: authTheme.textMuted,
     fontSize: 14,
     fontWeight: '500',
+  },
+  searchCopy: {
     flex: 1,
+    minWidth: 0,
   },
   micWrap: {
-    paddingLeft: 4,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: '#E5E7EB',
+    paddingLeft: 10,
   },
   loyaltyRow: {
     flexDirection: 'row',

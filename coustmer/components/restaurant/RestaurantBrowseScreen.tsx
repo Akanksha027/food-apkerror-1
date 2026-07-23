@@ -33,7 +33,15 @@ import {
   useRestaurants,
   useRestaurantsOfferingCategory,
 } from '@/lib/restaurant/hooks';
-import { useDeliveryLocationStore } from '@/store/delivery-location-store';
+import type { Restaurant } from '@/lib/restaurant/types';
+import {
+  useDebouncedValue,
+  useSearchRestaurants,
+} from '@/lib/search/hooks';
+import {
+  useDeliveryCoords,
+  useDeliveryLocationStore,
+} from '@/store/delivery-location-store';
 
 const BROWSE_CATEGORIES = FOOD_CATEGORIES.filter((c) => c.slug !== 'all');
 
@@ -46,6 +54,8 @@ export function RestaurantBrowseScreen() {
     params.cuisine && params.cuisine !== 'all' ? params.cuisine : ''
   );
   const deliveryLocation = useDeliveryLocationStore((s) => s.location);
+  const coords = useDeliveryCoords();
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
 
   const city = useMemo(() => {
     const raw =
@@ -58,6 +68,7 @@ export function RestaurantBrowseScreen() {
 
   const activeCategory = findCategoryBySlug(selectedCuisine);
   const isCategoryMode = Boolean(selectedCuisine && selectedCuisine !== 'all');
+  const isTextSearch = !isCategoryMode && debouncedSearch.length >= 2;
 
   useEffect(() => {
     if (params.q) setSearch(params.q);
@@ -75,18 +86,58 @@ export function RestaurantBrowseScreen() {
     enabled: isCategoryMode,
   });
 
+  const searchQuery = useSearchRestaurants(
+    {
+      q: debouncedSearch,
+      lat: coords?.lat,
+      lng: coords?.lng,
+      sort: '-createdAt',
+      limit: 40,
+    },
+    { enabled: isTextSearch }
+  );
+
   const allQuery = useRestaurants({
-    search: search.trim() || undefined,
+    search: undefined,
     city: city || undefined,
     sort: '-createdAt',
   });
 
-  const restaurants = useMemo(() => {
+  const restaurants = useMemo((): Restaurant[] => {
     if (isCategoryMode) return categoryQuery.data?.restaurants ?? [];
+    if (isTextSearch) {
+      return (searchQuery.data?.restaurants ?? []).map((r) => ({
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        imageUrl: r.imageUrl,
+        coverUrl: r.coverUrl,
+        rating: r.rating,
+        reviewCount: r.reviewCount,
+        cuisines: r.cuisines,
+        deliveryTime: r.deliveryTime,
+        priceForTwo: r.priceForTwo,
+        distance: r.distance,
+        isOpen: r.isOpen,
+        address: r.address,
+        city: r.city,
+        offer: r.offer,
+        isPureVeg: r.isPureVeg,
+        lat: r.lat,
+        lng: r.lng,
+      }));
+    }
     return allQuery.data?.restaurants ?? [];
-  }, [isCategoryMode, categoryQuery.data?.restaurants, allQuery.data?.restaurants]);
+  }, [
+    isCategoryMode,
+    isTextSearch,
+    categoryQuery.data?.restaurants,
+    searchQuery.data?.restaurants,
+    allQuery.data?.restaurants,
+  ]);
 
   const filteredList = useMemo(() => {
+    if (isTextSearch) return restaurants;
     if (!search.trim()) return restaurants;
     const q = search.toLowerCase();
     return restaurants.filter(
@@ -96,13 +147,19 @@ export function RestaurantBrowseScreen() {
         r.city?.toLowerCase().includes(q) ||
         r.address?.toLowerCase().includes(q)
     );
-  }, [restaurants, search]);
+  }, [restaurants, search, isTextSearch]);
 
-  const activeQuery = isCategoryMode ? categoryQuery : allQuery;
+  const activeQuery = isCategoryMode
+    ? categoryQuery
+    : isTextSearch
+      ? searchQuery
+      : allQuery;
 
   const resultCount = isCategoryMode
     ? (categoryQuery.data?.total ?? filteredList.length)
-    : filteredList.length;
+    : isTextSearch
+      ? (searchQuery.data?.meta?.total ?? filteredList.length)
+      : filteredList.length;
 
   const subtitle = useMemo(() => {
     if (activeQuery.isLoading && activeCategory) {
@@ -114,9 +171,19 @@ export function RestaurantBrowseScreen() {
       }
       return `Restaurants serving ${activeCategory.label}`;
     }
+    if (isTextSearch && debouncedSearch) {
+      return `${resultCount} result${resultCount === 1 ? '' : 's'} for “${debouncedSearch}”`;
+    }
     if (city) return `Discover food in ${city}`;
     return 'Discover food near you';
-  }, [activeQuery.isLoading, activeCategory, city, resultCount]);
+  }, [
+    activeQuery.isLoading,
+    activeCategory,
+    city,
+    resultCount,
+    isTextSearch,
+    debouncedSearch,
+  ]);
 
   const openRestaurant = (id: string) => {
     router.push({

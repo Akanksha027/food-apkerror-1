@@ -14,11 +14,16 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  InteractionManager,
+  LayoutAnimation,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  UIManager,
   View,
+  type LayoutChangeEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -46,21 +51,57 @@ import type { MenuItem } from '@/lib/restaurant/types';
 
 type Tab = 'menu' | 'offers' | 'reviews';
 
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+function normalizeParam(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return String(value[0] ?? '').trim();
+  return String(value ?? '').trim();
+}
+
+const FOCUS_SCROLL_EASE = LayoutAnimation.create(
+  380,
+  LayoutAnimation.Types.easeInEaseOut,
+  LayoutAnimation.Properties.opacity
+);
+
 export function RestaurantDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { restaurantId, category, cuisine } = useLocalSearchParams<{
+  const params = useLocalSearchParams<{
     restaurantId: string;
     category?: string;
     cuisine?: string;
+    itemId?: string;
+    itemName?: string;
+    menuCategory?: string;
+    menuCategoryId?: string;
   }>();
-  const id = String(restaurantId ?? '');
-  const cuisineFilter = String(category ?? cuisine ?? '').trim();
+
+  const id = normalizeParam(params.restaurantId);
+  const cuisineFilter = normalizeParam(params.category || params.cuisine);
+  const focusItemId = normalizeParam(params.itemId);
+  const focusItemName = normalizeParam(params.itemName);
+  const focusMenuCategory = normalizeParam(params.menuCategory);
+  const focusMenuCategoryId = normalizeParam(params.menuCategoryId);
   const foodCategory = findCategoryBySlug(cuisineFilter);
+  const hasDishDeepLink = Boolean(focusItemId || focusItemName);
 
   const [tab, setTab] = useState<Tab>('menu');
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(
+    null
+  );
   const appliedCategoryFilter = useRef(false);
+  const appliedItemFocus = useRef(false);
+  const hasSmoothScrolled = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const itemYRef = useRef<Record<string, number>>({});
+  const menuAnchorY = useRef(0);
 
   const restaurant = useRestaurant(id);
   const menu = useFullMenu(id, {
@@ -91,17 +132,150 @@ export function RestaurantDetailScreen() {
     }));
   }, [menu.categories, menu.items]);
 
+  const focusedItem = useMemo(() => {
+    if (!hasDishDeepLink || menu.items.length === 0) return null;
+    return (
+      menu.items.find((item) => focusItemId && item.id === focusItemId) ??
+      menu.items.find(
+        (item) =>
+          focusItemName &&
+          item.name.toLowerCase() === focusItemName.toLowerCase()
+      ) ??
+      menu.items.find(
+        (item) =>
+          focusItemName &&
+          item.name.toLowerCase().includes(focusItemName.toLowerCase())
+      ) ??
+      null
+    );
+  }, [hasDishDeepLink, menu.items, focusItemId, focusItemName]);
+
+  // From search: open restaurant menu on the section that contains this dish.
+  useEffect(() => {
+    if (appliedItemFocus.current || menu.isLoading) return;
+    if (!hasDishDeepLink) return;
+
+    setTab('menu');
+
+    const easeIntoSection = (categoryId: string | null) => {
+      LayoutAnimation.configureNext(FOCUS_SCROLL_EASE);
+      if (categoryId) setActiveCategory(categoryId);
+    };
+
+    const smoothScrollTo = (itemId: string, attempt = 0) => {
+      if (hasSmoothScrolled.current) return;
+
+      const measured = itemYRef.current[itemId];
+      const targetY =
+        typeof measured === 'number'
+          ? Math.max(0, measured - 96)
+          : menuAnchorY.current > 0
+            ? Math.max(0, menuAnchorY.current - 24)
+            : null;
+
+      if (targetY == null) {
+        if (attempt < 10) {
+          setTimeout(() => smoothScrollTo(itemId, attempt + 1), 70);
+        }
+        return;
+      }
+
+      hasSmoothScrolled.current = true;
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ y: targetY, animated: true });
+      });
+    };
+
+    if (focusedItem) {
+      const catId =
+        focusedItem.categoryId ||
+        focusMenuCategoryId ||
+        categories.find(
+          (c) =>
+            c.id === focusedItem.categoryId ||
+            c.id === focusMenuCategoryId ||
+            (focusedItem.categoryName &&
+              c.name.toLowerCase() === focusedItem.categoryName.toLowerCase()) ||
+            (focusMenuCategory &&
+              c.name.toLowerCase() === focusMenuCategory.toLowerCase())
+        )?.id ||
+        null;
+
+      if (catId) {
+        easeIntoSection(catId);
+      } else if (focusMenuCategory) {
+        const byName = categories.find(
+          (c) => c.name.toLowerCase() === focusMenuCategory.toLowerCase()
+        );
+        easeIntoSection(byName?.id ?? null);
+      } else {
+        easeIntoSection(null);
+      }
+
+      setHighlightedItemId(focusedItem.id);
+      appliedItemFocus.current = true;
+      appliedCategoryFilter.current = true;
+
+      const interaction = InteractionManager.runAfterInteractions(() => {
+        setTimeout(() => smoothScrollTo(focusedItem.id), 160);
+      });
+
+      const clearHighlight = setTimeout(() => {
+        setHighlightedItemId(null);
+      }, 4200);
+
+      return () => {
+        interaction.cancel?.();
+        clearTimeout(clearHighlight);
+      };
+    }
+
+    if (focusMenuCategory && categories.length > 0) {
+      const byName = categories.find(
+        (c) => c.name.toLowerCase() === focusMenuCategory.toLowerCase()
+      );
+      if (byName) {
+        easeIntoSection(byName.id);
+        appliedItemFocus.current = true;
+        appliedCategoryFilter.current = true;
+
+        const interaction = InteractionManager.runAfterInteractions(() => {
+          setTimeout(() => {
+            if (hasSmoothScrolled.current || !scrollRef.current) return;
+            hasSmoothScrolled.current = true;
+            scrollRef.current.scrollTo({
+              y: Math.max(0, menuAnchorY.current - 24),
+              animated: true,
+            });
+          }, 160);
+        });
+
+        return () => {
+          interaction.cancel?.();
+        };
+      }
+    }
+  }, [
+    hasDishDeepLink,
+    focusedItem,
+    focusMenuCategory,
+    focusMenuCategoryId,
+    categories,
+    menu.isLoading,
+  ]);
+
   // Apply deep-link / browse cuisine filter once categories load from API.
   useEffect(() => {
     if (appliedCategoryFilter.current || !cuisineFilter || categories.length === 0) {
       return;
     }
+    if (hasDishDeepLink) return;
     const resolved = resolveMenuCategoryId(categories, cuisineFilter);
     if (resolved) {
       setActiveCategory(resolved);
       appliedCategoryFilter.current = true;
     }
-  }, [categories, cuisineFilter]);
+  }, [categories, cuisineFilter, hasDishDeepLink]);
 
   const activeCategoryLabel =
     activeCategory === 'all'
@@ -111,14 +285,26 @@ export function RestaurantDetailScreen() {
         null;
 
   const filteredItems = useMemo(() => {
-    if (activeCategory === 'all') return menu.items;
-    return menu.items.filter(
-      (item) =>
-        item.categoryId === activeCategory ||
-        item.categoryName ===
-          categories.find((c) => c.id === activeCategory)?.name
-    );
-  }, [activeCategory, menu.items, categories]);
+    let items =
+      activeCategory === 'all'
+        ? menu.items
+        : menu.items.filter(
+            (item) =>
+              item.categoryId === activeCategory ||
+              item.categoryName ===
+                categories.find((c) => c.id === activeCategory)?.name
+          );
+
+    // From search: pin the matched dish to the top of its section.
+    if (focusedItem && activeCategory !== 'all') {
+      items = [
+        focusedItem,
+        ...items.filter((item) => item.id !== focusedItem.id),
+      ];
+    }
+
+    return items;
+  }, [activeCategory, menu.items, categories, focusedItem]);
 
   const groupedSections = useMemo(() => {
     if (activeCategory !== 'all') return null;
@@ -134,6 +320,15 @@ export function RestaurantDetailScreen() {
       .filter((section) => section.items.length > 0);
     return sections.length > 0 ? sections : null;
   }, [activeCategory, categories, menu.items]);
+
+  const onItemLayout = (itemKey: string, event: LayoutChangeEvent) => {
+    // Relative to menu section; add menu offset for ScrollView content Y.
+    itemYRef.current[itemKey] =
+      menuAnchorY.current + event.nativeEvent.layout.y;
+  };
+
+  const showSearchBanner =
+    hasDishDeepLink && activeCategory !== 'all' && Boolean(activeCategoryLabel);
 
   const toggleFavorite = () => {
     if (!id) return;
@@ -186,7 +381,11 @@ export function RestaurantDetailScreen() {
 
   return (
     <View style={styles.root}>
-      <ScrollView showsVerticalScrollIndicator={false} stickyHeaderIndices={[2]}>
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[2]}
+      >
         <View style={styles.heroWrap}>
           {r.coverUrl || r.imageUrl ? (
             <Image
@@ -301,7 +500,12 @@ export function RestaurantDetailScreen() {
         </View>
 
         {tab === 'menu' ? (
-          <View style={styles.menuSection}>
+          <View
+            style={styles.menuSection}
+            onLayout={(e) => {
+              menuAnchorY.current = e.nativeEvent.layout.y;
+            }}
+          >
             {menu.isLoading ? (
               <LoadingView label="Loading menu…" />
             ) : filteredItems.length === 0 && categories.length === 0 ? (
@@ -314,7 +518,34 @@ export function RestaurantDetailScreen() {
               </View>
             ) : (
               <>
-                {cuisineFilter && activeCategory !== 'all' && activeCategoryLabel ? (
+                {showSearchBanner ? (
+                  <View style={styles.filterBanner}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.filterTitle}>
+                        {focusedItem
+                          ? `Found “${focusedItem.name}”`
+                          : `Showing ${activeCategoryLabel}`}
+                      </Text>
+                      <Text style={styles.filterSub}>
+                        Opened {activeCategoryLabel} from search ·{' '}
+                        {filteredItems.length} item
+                        {filteredItems.length === 1 ? '' : 's'}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => {
+                        setActiveCategory('all');
+                        setHighlightedItemId(null);
+                      }}
+                      hitSlop={8}
+                      style={styles.clearChip}
+                    >
+                      <Text style={styles.clearChipText}>View full menu</Text>
+                    </Pressable>
+                  </View>
+                ) : cuisineFilter &&
+                  activeCategory !== 'all' &&
+                  activeCategoryLabel ? (
                   <View style={styles.filterBanner}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.filterTitle}>
@@ -403,22 +634,32 @@ export function RestaurantDetailScreen() {
                       <View key={section.id}>
                         <Text style={styles.sectionTitle}>{section.name}</Text>
                         {section.items.map((item) => (
-                          <MenuItemRow
+                          <View
                             key={item.id}
-                            item={item}
-                            onPress={() => openItem(item)}
-                            onAdd={() => addItem(item)}
-                          />
+                            onLayout={(e) => onItemLayout(item.id, e)}
+                          >
+                            <MenuItemRow
+                              item={item}
+                              highlighted={highlightedItemId === item.id}
+                              onPress={() => openItem(item)}
+                              onAdd={() => addItem(item)}
+                            />
+                          </View>
                         ))}
                       </View>
                     ))
                   : filteredItems.map((item) => (
-                      <MenuItemRow
+                      <View
                         key={item.id}
-                        item={item}
-                        onPress={() => openItem(item)}
-                        onAdd={() => addItem(item)}
-                      />
+                        onLayout={(e) => onItemLayout(item.id, e)}
+                      >
+                        <MenuItemRow
+                          item={item}
+                          highlighted={highlightedItemId === item.id}
+                          onPress={() => openItem(item)}
+                          onAdd={() => addItem(item)}
+                        />
+                      </View>
                     ))}
               </>
             )}

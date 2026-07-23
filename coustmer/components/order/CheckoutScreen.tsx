@@ -15,8 +15,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AddressPickerSheet } from '@/components/address/AddressPickerSheet';
 import { ScreenHeader } from '@/components/common/ScreenHeader';
+import { DeliveryLocationPicker } from '@/components/location/DeliveryLocationPicker';
 import { authTheme } from '@/constants/auth-theme';
+import type { SavedAddress } from '@/lib/address/types';
+import {
+  extractCityFromAddress,
+  normalizeCityName,
+} from '@/lib/location/format';
 import { useCreateOrder } from '@/lib/order/hooks';
 import { parseDeliveryAddress } from '@/lib/order/parse-address';
 import { isValidIndianPhone, toTenDigitIndianMobile } from '@/lib/order/phone';
@@ -73,11 +80,14 @@ export function CheckoutScreen() {
   const subtotal = useCartStore((s) => s.subtotal());
 
   const location = useDeliveryLocationStore((s) => s.location);
+  const setDeliveryLocation = useDeliveryLocationStore((s) => s.setLocation);
 
   const [paymentMethod, setPaymentMethod] =
     useState<(typeof PAYMENT_METHODS)[number]['id']>('cod');
   const [savedMethodId, setSavedMethodId] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
+  const [addressSheetOpen, setAddressSheetOpen] = useState(false);
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [scheduleEnabled, setScheduleEnabled] = useState(Boolean(scheduledFor));
   const [scheduleInput, setScheduleInput] = useState(() => {
     if (scheduledFor) return scheduledFor.slice(0, 16);
@@ -179,6 +189,7 @@ export function CheckoutScreen() {
         lat: parsedAddress.lat,
         lng: parsedAddress.lng,
       },
+      addressId: location?.savedAddressId,
       paymentMethod,
       specialInstructions: specialInstructions || undefined,
       tip: tip > 0 ? tip : undefined,
@@ -198,7 +209,26 @@ export function CheckoutScreen() {
     tip,
     scheduleEnabled,
     scheduleInput,
+    location?.savedAddressId,
   ]);
+
+  const applySavedAddress = (address: SavedAddress) => {
+    setDeliveryLocation({
+      label: address.label || 'Saved',
+      formattedAddress: address.formattedAddress,
+      city: normalizeCityName(
+        address.city || extractCityFromAddress(address.formattedAddress)
+      ),
+      lat: address.lat,
+      lng: address.lng,
+      source: 'saved',
+      savedAddressId: address.id,
+      updatedAt: Date.now(),
+    });
+    if (address.contactName) setContactName(address.contactName);
+    if (address.contactPhone) setContactPhone(address.contactPhone);
+    setAddressSheetOpen(false);
+  };
 
   const goToOrder = (orderId: string) => {
     router.replace({
@@ -337,12 +367,7 @@ export function CheckoutScreen() {
       >
         <Pressable
           style={styles.card}
-          onPress={() =>
-            Alert.alert(
-              'Delivery address',
-              'Change your delivery address from the home screen location picker.'
-            )
-          }
+          onPress={() => setAddressSheetOpen(true)}
         >
           <MapPin color={authTheme.brand} size={18} />
           <View style={styles.cardBody}>
@@ -350,7 +375,7 @@ export function CheckoutScreen() {
             <Text style={styles.cardText}>
               {location
                 ? location.label + ' · ' + location.formattedAddress
-                : 'Set a delivery address on Home first'}
+                : 'Choose a delivery address'}
             </Text>
             {parsedAddress ? (
               <Text style={styles.addressMeta}>
@@ -358,6 +383,7 @@ export function CheckoutScreen() {
                 {parsedAddress.state} {parsedAddress.pincode}
               </Text>
             ) : null}
+            <Text style={styles.changeHint}>Tap to change</Text>
           </View>
         </Pressable>
 
@@ -567,6 +593,45 @@ export function CheckoutScreen() {
           </LinearGradient>
         </Pressable>
       </View>
+
+      <AddressPickerSheet
+        visible={addressSheetOpen}
+        activeAddressId={location?.savedAddressId}
+        onClose={() => setAddressSheetOpen(false)}
+        onSelectSaved={applySavedAddress}
+        onChooseOnMap={() => {
+          setAddressSheetOpen(false);
+          setMapPickerOpen(true);
+        }}
+        onAddNew={() => {
+          setAddressSheetOpen(false);
+          router.push('/profile/addresses/new' as import('expo-router').Href);
+        }}
+      />
+
+      <DeliveryLocationPicker
+        visible={mapPickerOpen}
+        initial={
+          location ? { lat: location.lat, lng: location.lng } : undefined
+        }
+        autoDetectOnOpen={!location}
+        onClose={() => setMapPickerOpen(false)}
+        onConfirm={(result) => {
+          setMapPickerOpen(false);
+          setDeliveryLocation({
+            label: result.label,
+            formattedAddress: result.formattedAddress,
+            city: normalizeCityName(
+              extractCityFromAddress(result.formattedAddress)
+            ),
+            lat: result.lat,
+            lng: result.lng,
+            source: result.source,
+            savedAddressId: undefined,
+            updatedAt: Date.now(),
+          });
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -601,6 +666,12 @@ const styles = StyleSheet.create({
     color: authTheme.textDim,
     fontSize: 11,
     lineHeight: 16,
+  },
+  changeHint: {
+    color: authTheme.brand,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
   },
   payRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   payChip: {

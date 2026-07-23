@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   RefreshControl,
   StyleSheet,
   Text,
@@ -18,6 +19,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ErrorView, LoadingView } from '@/components/common/StateViews';
+import { SaveAddressLabelModal } from '@/components/address/SaveAddressLabelModal';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { HomeStickyChrome } from '@/components/home/HomeStickyChrome';
 import { OfferBannerTicker } from '@/components/home/OfferBannerTicker';
@@ -25,6 +27,8 @@ import { RestaurantFeedCard } from '@/components/home/RestaurantFeedCard';
 import { DeliveryLocationPicker } from '@/components/location/DeliveryLocationPicker';
 import { APP_BOTTOM_NAV_INSET } from '@/components/navigation/AppBottomNav';
 import { authTheme } from '@/constants/auth-theme';
+import { addressApi } from '@/lib/address/api';
+import { formatAddressLabel } from '@/lib/address/types';
 import {
   useAddFavorite,
   useCustomerProfile,
@@ -45,6 +49,7 @@ import {
 } from '@/lib/location/format';
 import { resolvePlaceFromCoords } from '@/lib/location/resolve-place';
 import { useDeliveryLocationInit } from '@/lib/location/use-delivery-location-init';
+import { parseDeliveryAddress } from '@/lib/order/parse-address';
 import { useInfiniteRestaurants } from '@/lib/restaurant/hooks';
 import type { Restaurant } from '@/lib/restaurant/types';
 import { useAuthStore } from '@/store/auth-store';
@@ -69,6 +74,15 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [savePrompt, setSavePrompt] = useState<{
+    label: string;
+    formattedAddress: string;
+    city?: string;
+    lat: number;
+    lng: number;
+    source: 'gps' | 'search';
+  } | null>(null);
+  const [savingAddress, setSavingAddress] = useState(false);
   /** StatusBar / pointerEvents only — visual pin is driven on the UI thread. */
   const [pinned, setPinned] = useState(false);
   const setHomeCategoriesPinned = useUiStore((s) => s.setHomeCategoriesPinned);
@@ -248,6 +262,58 @@ export default function HomeScreen() {
     source: 'gps' | 'search';
   }) => {
     setPickerOpen(false);
+
+    const applyLocal = (loc: {
+      label: string;
+      formattedAddress: string;
+      city?: string;
+      lat: number;
+      lng: number;
+      source: 'gps' | 'search';
+    }) => {
+      const next: {
+        label: string;
+        formattedAddress: string;
+        city?: string;
+        lat: number;
+        lng: number;
+        source: 'gps' | 'search';
+      } = {
+        label: loc.label,
+        formattedAddress: loc.formattedAddress,
+        lat: loc.lat,
+        lng: loc.lng,
+        source: loc.source,
+      };
+      const city = normalizeCityName(loc.city);
+      if (city) next.city = city;
+      setDeliveryLocation({
+        ...next,
+        savedAddressId: undefined,
+        updatedAt: Date.now(),
+      });
+      return next;
+    };
+
+    let applied: {
+      label: string;
+      formattedAddress: string;
+      city?: string;
+      lat: number;
+      lng: number;
+      source: 'gps' | 'search';
+    } = {
+      label: result.label,
+      formattedAddress: result.formattedAddress,
+      lat: result.lat,
+      lng: result.lng,
+      source: result.source,
+    };
+    const initialCity = normalizeCityName(
+      extractCityFromAddress(result.formattedAddress)
+    );
+    if (initialCity) applied.city = initialCity;
+
     try {
       const resolved = await resolvePlaceFromCoords({
         lat: result.lat,
@@ -255,26 +321,86 @@ export default function HomeScreen() {
         source: result.source,
         preferredAddress: result.formattedAddress,
       });
-      setDeliveryLocation({
+      applied = applyLocal({
         label: resolved.label || result.label,
         formattedAddress: resolved.formattedAddress,
         city: normalizeCityName(resolved.city),
         lat: resolved.lat,
         lng: resolved.lng,
         source: result.source,
-        updatedAt: Date.now(),
       });
     } catch {
-      setDeliveryLocation({
-        label: result.label,
-        formattedAddress: result.formattedAddress,
-        city: normalizeCityName(extractCityFromAddress(result.formattedAddress)),
-        lat: result.lat,
-        lng: result.lng,
-        source: result.source,
-        updatedAt: Date.now(),
-      });
+      applied = applyLocal(applied);
     }
+
+    if (!user) return;
+    setSavePrompt(applied);
+  };
+
+  const closeSavePrompt = () => {
+    if (savingAddress) return;
+    setSavePrompt(null);
+  };
+
+  const onSaveAddressWithLabel = (payload: {
+    label: 'home' | 'work' | 'other';
+    displayLabel: string;
+  }) => {
+    if (!savePrompt || savingAddress) return;
+    const applied = savePrompt;
+    const parsed = parseDeliveryAddress({
+      formattedAddress: applied.formattedAddress,
+      label: payload.displayLabel,
+      city: applied.city,
+      lat: applied.lat,
+      lng: applied.lng,
+    });
+
+    setSavingAddress(true);
+    void addressApi
+      .create({
+        label: payload.label,
+        formattedAddress: applied.formattedAddress,
+        street: parsed.street,
+        area: parsed.area,
+        city: parsed.city,
+        state: parsed.state,
+        pincode: parsed.pincode,
+        lat: applied.lat,
+        lng: applied.lng,
+        setAsDefault: true,
+      })
+      .then((saved) => {
+        setDeliveryLocation({
+          label:
+            payload.displayLabel ||
+            formatAddressLabel(saved.label) ||
+            'Home',
+          formattedAddress:
+            saved.formattedAddress || applied.formattedAddress,
+          city: normalizeCityName(
+            saved.city ||
+              extractCityFromAddress(
+                saved.formattedAddress || applied.formattedAddress
+              )
+          ),
+          lat: saved.lat || applied.lat,
+          lng: saved.lng || applied.lng,
+          source: 'saved',
+          savedAddressId: saved.id,
+          updatedAt: Date.now(),
+        });
+        setSavePrompt(null);
+      })
+      .catch((e) => {
+        Alert.alert(
+          'Could not save',
+          e instanceof Error ? e.message : 'Try again from Profile'
+        );
+      })
+      .finally(() => {
+        setSavingAddress(false);
+      });
   };
 
   const locationPicker = (
@@ -284,6 +410,16 @@ export default function HomeScreen() {
       autoDetectOnOpen
       onClose={() => setPickerOpen(false)}
       onConfirm={onConfirmLocation}
+    />
+  );
+
+  const saveLabelModal = (
+    <SaveAddressLabelModal
+      visible={Boolean(savePrompt)}
+      addressPreview={savePrompt?.formattedAddress}
+      saving={savingAddress}
+      onClose={closeSavePrompt}
+      onSave={onSaveAddressWithLabel}
     />
   );
 
@@ -373,6 +509,7 @@ export default function HomeScreen() {
         <HomeHeader {...headerProps} showSearch />
         <LoadingView label="Finding restaurants near you…" />
         {locationPicker}
+        {saveLabelModal}
       </View>
     );
   }
@@ -468,6 +605,7 @@ export default function HomeScreen() {
       </Animated.View>
 
       {locationPicker}
+      {saveLabelModal}
     </View>
   );
 }

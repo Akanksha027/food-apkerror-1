@@ -1,7 +1,17 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Plus, Star } from 'lucide-react-native';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { PriceTag, VegBadge } from '@/components/restaurant/MenuBadges';
 import { authTheme } from '@/constants/auth-theme';
@@ -12,65 +22,119 @@ type Props = {
   item: MenuItem;
   onPress?: () => void;
   onAdd?: () => void;
+  /** Soft highlight when opened from search deep-link. */
+  highlighted?: boolean;
 };
 
-export function MenuItemRow({ item, onPress, onAdd }: Props) {
+export function MenuItemRow({ item, onPress, onAdd, highlighted }: Props) {
   const rating = getMenuItemRating(item);
+  const highlight = useSharedValue(0);
+
+  useEffect(() => {
+    if (highlighted) {
+      highlight.value = 0;
+      highlight.value = withSequence(
+        withTiming(1, {
+          duration: 420,
+          easing: Easing.out(Easing.cubic),
+        }),
+        withDelay(
+          2400,
+          withTiming(0, {
+            duration: 700,
+            easing: Easing.inOut(Easing.quad),
+          })
+        )
+      );
+    } else {
+      highlight.value = withTiming(0, {
+        duration: 280,
+        easing: Easing.out(Easing.quad),
+      });
+    }
+  }, [highlighted, highlight]);
+
+  const highlightStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      highlight.value,
+      [0, 1],
+      ['transparent', 'rgba(122, 14, 34, 0.08)']
+    ),
+    borderColor: interpolateColor(
+      highlight.value,
+      [0, 1],
+      ['transparent', 'rgba(122, 14, 34, 0.28)']
+    ),
+    borderWidth: highlight.value > 0.01 ? 1 : 0,
+    transform: [
+      {
+        scale: 1 + highlight.value * 0.012,
+      },
+    ],
+    marginHorizontal: -8 * highlight.value,
+    paddingHorizontal: 8 * highlight.value,
+    borderRadius: 12 * highlight.value,
+  }));
 
   return (
-    <Pressable style={styles.row} onPress={onPress}>
-      <View style={styles.textWrap}>
-        <View style={styles.titleRow}>
-          <VegBadge isVeg={item.isVeg} />
-          <Text style={styles.name} numberOfLines={2}>
-            {item.name}
-          </Text>
-        </View>
-        <View style={styles.metaRow}>
-          <PriceTag price={item.price} />
-          {rating != null ? (
-            <View style={styles.ratingPill}>
-              <Star color="#FFFFFF" fill="#FFFFFF" size={10} />
-              <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
-            </View>
+    <Animated.View style={highlightStyle}>
+      <Pressable style={styles.row} onPress={onPress}>
+        <View style={styles.textWrap}>
+          <View style={styles.titleRow}>
+            <VegBadge isVeg={item.isVeg} />
+            <Text style={styles.name} numberOfLines={2}>
+              {item.name}
+            </Text>
+          </View>
+          <View style={styles.metaRow}>
+            <PriceTag price={item.price} />
+            {rating != null ? (
+              <View style={styles.ratingPill}>
+                <Star color="#FFFFFF" fill="#FFFFFF" size={10} />
+                <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+              </View>
+            ) : null}
+          </View>
+          {item.description ? (
+            <Text style={styles.desc} numberOfLines={2}>
+              {item.description}
+            </Text>
+          ) : null}
+          {!item.isAvailable ? (
+            <Text style={styles.unavailable}>Currently unavailable</Text>
           ) : null}
         </View>
-        {item.description ? (
-          <Text style={styles.desc} numberOfLines={2}>
-            {item.description}
-          </Text>
-        ) : null}
-        {!item.isAvailable ? (
-          <Text style={styles.unavailable}>Currently unavailable</Text>
-        ) : null}
-      </View>
 
-      <View style={styles.imageWrap}>
-        {item.imageUrl ? (
-          <Image
-            source={{ uri: item.imageUrl }}
-            style={styles.image}
-            contentFit="cover"
-            recyclingKey={item.id}
-            transition={200}
-          />
-        ) : (
-          <LinearGradient colors={['#FFF7ED', '#FFEDD5']} style={styles.imagePlaceholder} />
-        )}
-        {item.isAvailable ? (
-          <Pressable
-            style={styles.addButton}
-            onPress={(e) => {
-              e.stopPropagation?.();
-              onAdd?.();
-            }}
-          >
-            <Text style={styles.addLabel}>ADD</Text>
-            <Plus color={authTheme.brand} size={14} />
-          </Pressable>
-        ) : null}
-      </View>
-    </Pressable>
+        <View style={styles.imageWrap}>
+          {item.imageUrl ? (
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.image}
+              contentFit="cover"
+              recyclingKey={item.id}
+              transition={200}
+            />
+          ) : (
+            <LinearGradient
+              colors={['#FFF7ED', '#FFEDD5']}
+              style={styles.imagePlaceholder}
+            />
+          )}
+          {item.isAvailable ? (
+            <Pressable
+              style={styles.addButton}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onAdd?.();
+              }}
+            >
+              <Text style={styles.addLabel}>ADD</Text>
+              <Plus color={authTheme.brand} size={14} />
+            </Pressable>
+          ) : null}
+        </View>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -166,7 +230,8 @@ const styles = StyleSheet.create({
   },
   addLabel: {
     color: authTheme.brand,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
+    letterSpacing: 0.3,
   },
 });

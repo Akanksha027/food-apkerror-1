@@ -9,6 +9,7 @@ import {
   KeyRound,
   LogOut,
   Mail,
+  MapPin,
   Package,
   Shield,
   Smartphone,
@@ -246,6 +247,15 @@ export function ProfileHubScreen() {
               subtitle="Update contact details"
               onPress={() => router.push('/profile/contact')}
               color="#0891B2"
+            />
+            <ProfileMenuItem
+              icon={MapPin}
+              label="Saved addresses"
+              subtitle="Home, work & delivery pins"
+              onPress={() =>
+                router.push('/profile/addresses' as import('expo-router').Href)
+              }
+              color="#EA580C"
             />
             <ProfileMenuItem
               icon={Wallet}
