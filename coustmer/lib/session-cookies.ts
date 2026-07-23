@@ -1,5 +1,11 @@
 import type { AxiosResponse } from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+
+import {
+  storageDeleteItem,
+  storageGetItem,
+  storageSetItem,
+} from '@/lib/storage';
 
 const COOKIE_KEY = 'customer_session_cookies';
 
@@ -46,28 +52,24 @@ function readSetCookieHeader(headers: AxiosResponse['headers']): string | null {
 }
 
 export async function getStoredSessionCookies(): Promise<string | null> {
-  try {
-    return await SecureStore.getItemAsync(COOKIE_KEY);
-  } catch {
-    return null;
-  }
+  return storageGetItem(COOKIE_KEY);
 }
 
 export async function persistSessionCookies(
   response: AxiosResponse
 ): Promise<void> {
+  // On web, browsers own cookies for same-origin Metro proxy; Set-Cookie is
+  // often not readable from JS. Skip SecureStore-style persistence.
+  if (Platform.OS === 'web') return;
+
   const incoming = readSetCookieHeader(response.headers);
   if (!incoming) return;
 
   const existing = await getStoredSessionCookies();
   const merged = mergeCookieStrings(existing, incoming);
-  await SecureStore.setItemAsync(COOKIE_KEY, merged);
+  await storageSetItem(COOKIE_KEY, merged);
 }
 
 export async function clearSessionCookies(): Promise<void> {
-  try {
-    await SecureStore.deleteItemAsync(COOKIE_KEY);
-  } catch {
-    // ignore
-  }
+  await storageDeleteItem(COOKIE_KEY);
 }

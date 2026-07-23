@@ -1,4 +1,5 @@
 import axios, { AxiosHeaders } from 'axios';
+import { Platform } from 'react-native';
 
 import { getToken } from '@/lib/auth/storage';
 import { notifyUnauthorized } from '@/lib/auth/unauthorized';
@@ -14,6 +15,15 @@ const SESSION_AUTH_TOKEN = 'session';
 const DEFAULT_API_BASE_URL = 'http://api.viharfood.in';
 
 function resolveApiBaseUrl(): string {
+  /**
+   * Expo web runs on localhost. The gateway CORS allowlist rejects that Origin
+   * (returns 500), so web uses same-origin requests and Metro proxies to the API.
+   * Native (Android/iOS) keeps calling the gateway directly.
+   */
+  if (Platform.OS === 'web') {
+    return '';
+  }
+
   const raw = process.env.EXPO_PUBLIC_API_URL?.trim();
   if (raw && /^https?:\/\//i.test(raw)) {
     return raw.replace(/\/+$/, '');
@@ -24,6 +34,7 @@ function resolveApiBaseUrl(): string {
 export const API_BASE_URL = resolveApiBaseUrl();
 
 export function assertApiBaseUrl(): void {
+  if (Platform.OS === 'web') return;
   if (!/^https?:\/\//i.test(API_BASE_URL)) {
     throw new Error(
       'API URL is not configured. Add EXPO_PUBLIC_API_URL=http://api.viharfood.in to .env and restart Expo with npm run start:clear.'
@@ -32,7 +43,7 @@ export function assertApiBaseUrl(): void {
 }
 
 export const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: API_BASE_URL || undefined,
   timeout: 25000,
   withCredentials: true,
   headers: {
@@ -45,6 +56,36 @@ let csrfToken: string | null = null;
 let csrfPromise: Promise<string> | null = null;
 
 const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete']);
+
+function csrfFetchErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    const data = error.response?.data as { message?: string } | undefined;
+    const serverMessage = data?.message || '';
+
+    if (
+      status === 500 &&
+      serverMessage.toLowerCase().includes('cors')
+    ) {
+      return (
+        'Web login is blocked by API CORS (localhost not allowed). ' +
+        'Restart Expo after the Metro proxy change, or test on Android/iOS. ' +
+        'Backend should allow http://localhost:8081 for local web.'
+      );
+    }
+
+    if (!error.response) {
+      return Platform.OS === 'web'
+        ? 'Could not reach API from the browser. Restart Expo with a cleared cache (npx expo start --web --clear) so the Metro API proxy loads.'
+        : 'Network request failed. Check your internet and try again.';
+    }
+
+    return serverMessage || `CSRF request failed (${status})`;
+  }
+
+  if (error instanceof Error) return error.message;
+  return 'Could not get security token';
+}
 
 /** Fetch CSRF via axios so the cookie jar is shared with later POSTs on mobile. */
 export async function refreshCsrfToken(force = false): Promise<string> {
@@ -66,7 +107,7 @@ export async function refreshCsrfToken(force = false): Promise<string> {
       return token;
     } catch (error) {
       csrfToken = null;
-      throw error;
+      throw new Error(csrfFetchErrorMessage(error));
     } finally {
       csrfPromise = null;
     }
@@ -118,7 +159,8 @@ api.interceptors.request.use(async (config) => {
 
   if (authToken && authToken !== SESSION_AUTH_TOKEN) {
     headers.set('Authorization', `Bearer ${authToken}`);
-  } else if (sessionCookies) {
+  } else if (sessionCookies && Platform.OS !== 'web') {
+    // Browsers forbid setting Cookie manually; same-origin Metro proxy uses real cookies.
     headers.set('Cookie', sessionCookies);
   }
 

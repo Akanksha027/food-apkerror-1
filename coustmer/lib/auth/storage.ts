@@ -1,7 +1,10 @@
-import * as SecureStore from 'expo-secure-store';
-
 import type { AuthUser } from '@/lib/auth/types';
 import { clearSessionCookies } from '@/lib/session-cookies';
+import {
+  storageDeleteItem,
+  storageGetItem,
+  storageSetItem,
+} from '@/lib/storage';
 
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
@@ -19,28 +22,20 @@ async function withTimeout<T>(
 }
 
 export async function getToken(): Promise<string | null> {
-  try {
-    return await withTimeout(SecureStore.getItemAsync(TOKEN_KEY), null);
-  } catch {
-    return null;
-  }
+  return withTimeout(storageGetItem(TOKEN_KEY), null);
 }
 
 export async function setToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
+  await storageSetItem(TOKEN_KEY, token);
 }
 
 export async function clearToken(): Promise<void> {
-  try {
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
-  } catch {
-    // ignore
-  }
+  await storageDeleteItem(TOKEN_KEY);
 }
 
 export async function getStoredUser(): Promise<AuthUser | null> {
   try {
-    const raw = await withTimeout(SecureStore.getItemAsync(USER_KEY), null);
+    const raw = await withTimeout(storageGetItem(USER_KEY), null);
     return raw ? (JSON.parse(raw) as AuthUser) : null;
   } catch {
     return null;
@@ -48,15 +43,11 @@ export async function getStoredUser(): Promise<AuthUser | null> {
 }
 
 export async function setStoredUser(user: AuthUser): Promise<void> {
-  await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+  await storageSetItem(USER_KEY, JSON.stringify(user));
 }
 
 export async function clearStoredUser(): Promise<void> {
-  try {
-    await SecureStore.deleteItemAsync(USER_KEY);
-  } catch {
-    // ignore
-  }
+  await storageDeleteItem(USER_KEY);
 }
 
 export async function clearAuthStorage(): Promise<void> {
