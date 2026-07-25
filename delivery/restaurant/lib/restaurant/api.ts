@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import { api } from '@/lib/api';
+import { API_BASE_URL, api } from '@/lib/api';
 import { postMultipartWithFieldFallback } from '@/lib/multipart-upload';
 import type { CreateRestaurantPayload, RestaurantOwnerRestaurant } from '@/lib/restaurant/types';
 
@@ -12,15 +12,77 @@ type Envelope<T> = {
   data?: T;
 };
 
+function resolveMediaUrl(url?: string | null): string | undefined {
+  if (!url || typeof url !== 'string') return undefined;
+  const trimmed = url.trim();
+  if (!trimmed) return undefined;
+  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith('data:')) return trimmed;
+  if (trimmed.startsWith('//')) return `https:${trimmed}`;
+  const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return `${API_BASE_URL}${path}`;
+}
+
+/** GET /restaurants/my may return one restaurant or a list of owned restaurants. */
+function extractOwnerRestaurantRecord(data: unknown): Record<string, unknown> | null {
+  if (!data) return null;
+
+  if (Array.isArray(data)) {
+    const first = data.find(
+      (row) => row && typeof row === 'object' && String((row as Record<string, unknown>)._id ?? (row as Record<string, unknown>).id ?? '').trim()
+    );
+    return first && typeof first === 'object' ? (first as Record<string, unknown>) : null;
+  }
+
+  if (typeof data !== 'object') return null;
+
+  const record = data as Record<string, unknown>;
+  const nested =
+    record.restaurant ??
+    record.restaurants ??
+    record.items ??
+    record.results ??
+    record.docs;
+
+  if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+    return nested as Record<string, unknown>;
+  }
+
+  if (Array.isArray(nested)) {
+    return extractOwnerRestaurantRecord(nested);
+  }
+
+  if (String(record._id ?? record.id ?? '').trim()) {
+    return record;
+  }
+
+  return null;
+}
+
 function mapRestaurant(data: Record<string, unknown>): RestaurantOwnerRestaurant {
+  const logoUrl =
+    resolveMediaUrl(
+      (data.logoUrl as string) ||
+        (data.logo as string) ||
+        (data.logoImage as string) ||
+        (data.logoPath as string)
+    ) || undefined;
+
+  const coverUrl =
+    resolveMediaUrl(
+      (data.coverUrl as string) ||
+        (data.coverImage as string) ||
+        (data.bannerUrl as string) ||
+        (data.banner as string)
+    ) || undefined;
+
   return {
-    id: String(data._id ?? data.id ?? ''),
-    name: String(data.name ?? ''),
-    description: (data.description as string) || undefined,
-    logoUrl: (data.logoUrl as string) || (data.logo as string) || undefined,
-    coverUrl: (data.coverUrl as string) || (data.coverImage as string) || undefined,
-    status: (data.status as string) || (data.verificationStatus as string) || undefined,
     ...data,
+    id: String(data._id ?? data.id ?? ''),
+    name: String(data.name ?? data.restaurantName ?? ''),
+    description: (data.description as string) || undefined,
+    logoUrl,
+    coverUrl,
+    status: (data.status as string) || (data.verificationStatus as string) || undefined,
   };
 }
 
@@ -103,8 +165,9 @@ export const restaurantOwnerApi = {
       const res = await api.post<Envelope<Record<string, unknown>>>(RESTAURANT_BASE, body, {
         withCredentials: true,
       });
-      const data = (res.data?.data ?? res.data) as Record<string, unknown>;
-      const mapped = mapRestaurant(data);
+      const raw = res.data?.data ?? res.data;
+      const record = extractOwnerRestaurantRecord(raw) ?? (raw as Record<string, unknown>);
+      const mapped = mapRestaurant(record);
       if (!mapped.id) throw new Error('Restaurant creation failed (missing id)');
       return mapped;
     } catch (error) {
@@ -118,8 +181,10 @@ export const restaurantOwnerApi = {
         `${RESTAURANT_BASE}/my`,
         { withCredentials: true }
       );
-      const data = (res.data?.data ?? res.data) as Record<string, unknown>;
-      const mapped = mapRestaurant(data);
+      const raw = res.data?.data ?? res.data;
+      const record = extractOwnerRestaurantRecord(raw);
+      if (!record) return null;
+      const mapped = mapRestaurant(record);
       return mapped.id ? mapped : null;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) return null;

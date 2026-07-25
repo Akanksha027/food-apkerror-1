@@ -30,7 +30,9 @@ import {
 } from '@/components/restaurant/SetupProgress';
 import { cardShadow, theme } from '@/constants/theme';
 import { getApiErrorMessage } from '@/lib/errors';
+import { parseDeliveryAddress } from '@/lib/location';
 import { restaurantOwnerApi, buildCreateRestaurantPayload } from '@/lib/restaurant/api';
+import { useAuthStore } from '@/store/auth-store';
 
 type Step = 0 | 1 | 2;
 
@@ -53,6 +55,7 @@ const CUISINE_OPTIONS = [
 
 export default function RestaurantSetupScreen() {
   const router = useRouter();
+  const logout = useAuthStore((s) => s.logout);
 
   const [step, setStep] = useState<Step>(0);
   const [maxStep, setMaxStep] = useState<Step>(0);
@@ -142,7 +145,22 @@ export default function RestaurantSetupScreen() {
       setStep((s) => ((s - 1) as Step));
       return;
     }
-    router.replace('/dashboard');
+
+    Alert.alert(
+      'Finish registration first',
+      'Your restaurant profile (logo, address, and map pin) must be completed before you can use the dashboard.',
+      [
+        { text: 'Continue setup', style: 'cancel' },
+        {
+          text: 'Log out',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/login');
+          },
+        },
+      ]
+    );
   };
 
   const submit = async () => {
@@ -275,15 +293,17 @@ export default function RestaurantSetupScreen() {
                 )}
               </View>
             </View>
-            <Pressable
-              onPress={() => router.replace('/dashboard')}
-              disabled={busy}
-              className="items-center py-1"
-            >
-              <Text className="text-sm font-semibold text-secondary-light">
-                Continue later
-              </Text>
-            </Pressable>
+            {step === 0 ? (
+              <Pressable
+                onPress={goBack}
+                disabled={busy}
+                className="items-center py-1"
+              >
+                <Text className="text-sm font-semibold text-secondary-light">
+                  Log out instead
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         }
       >
@@ -369,12 +389,12 @@ export default function RestaurantSetupScreen() {
                 </View>
                 <View className="flex-1">
                   <Text className="text-sm font-bold text-secondary">
-                    Pick on Google Maps
+                    {coords ? 'Change map location' : 'Pick restaurant location'}
                   </Text>
                 <Text className="mt-0.5 text-xs text-secondary-light">
                   {coords
                     ? locationLabel ?? `Pinned: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`
-                    : 'Tap to open map, search & auto-detect location'}
+                    : 'Search, auto-detect GPS, then confirm on the map'}
                 </Text>
                 {coords ? (
                   <Text className="mt-1 text-[11px] font-medium text-primary">
@@ -455,12 +475,34 @@ export default function RestaurantSetupScreen() {
       <LocationMapPicker
         visible={mapOpen}
         initial={coords}
+        autoDetectOnOpen={!coords}
         onClose={() => setMapOpen(false)}
         onConfirm={(result) => {
           setCoords({ lat: result.lat, lng: result.lng });
-          setLocationLabel(result.formattedAddress ?? null);
+          setLocationLabel(result.formattedAddress || result.label);
+          const parsed = parseDeliveryAddress({
+            formattedAddress: result.formattedAddress || result.label,
+            label: result.label,
+            lat: result.lat,
+            lng: result.lng,
+          });
+          // Prefill form from the confirmed pin (user can still edit).
+          if (!street.trim() || street.trim().length < 3) {
+            setStreet(parsed.street);
+          }
+          if (!area.trim()) setArea(parsed.area);
+          if (!city.trim() || city.trim().length < 2) setCity(parsed.city);
+          if (!stateName.trim() || stateName.trim().length < 2) {
+            setStateName(parsed.state);
+          }
+          if (!pincode.trim() || pincode.trim().length < 4) {
+            setPincode(parsed.pincode === '000000' ? '' : parsed.pincode);
+          }
           setMapOpen(false);
-          setBanner({ type: 'success', message: 'Location pinned successfully.' });
+          setBanner({
+            type: 'success',
+            message: 'Location confirmed. Address fields updated — review before continuing.',
+          });
         }}
       />
     </>

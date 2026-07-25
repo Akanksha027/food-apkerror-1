@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { clearApiSession } from '@/lib/api';
+import { clearApiSession, SESSION_AUTH_TOKEN } from '@/lib/api';
 import { authApi } from '@/lib/auth/api';
 import {
   clearAuthStorage,
@@ -23,6 +23,7 @@ import type {
   ResetPasswordPayload,
 } from '@/lib/auth/types';
 import { getApiErrorMessage } from '@/lib/errors';
+import { getStoredSessionCookies } from '@/lib/session-cookies';
 
 type AuthState = {
   user: AuthUser | null;
@@ -74,15 +75,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         getStoredUser(),
         getStoredRole(),
       ]);
+
+      // Cookie sessions need stored cookies — otherwise treat as logged out.
+      if (token === SESSION_AUTH_TOKEN) {
+        const cookies = await getStoredSessionCookies();
+        if (!cookies) {
+          await clearAuthStorage();
+          set({
+            token: null,
+            user: null,
+            role: storedRole ?? 'restaurant',
+            isHydrated: true,
+          });
+          return;
+        }
+      }
+
+      if (!token || !user) {
+        set({
+          token: null,
+          user: null,
+          role: storedRole ?? 'restaurant',
+          isHydrated: true,
+        });
+        return;
+      }
+
       set({
         token,
         user,
-        role: user?.role ?? storedRole ?? 'restaurant',
+        role: user.role ?? storedRole ?? 'restaurant',
+        isHydrated: true,
       });
     } catch {
-      set({ token: null, user: null });
-    } finally {
-      set({ isHydrated: true });
+      set({ token: null, user: null, isHydrated: true });
     }
   },
 

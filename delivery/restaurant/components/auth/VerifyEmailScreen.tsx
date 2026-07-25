@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/auth/PrimaryButton';
 import { theme } from '@/constants/theme';
+import { resolvePostAuthRoute } from '@/lib/navigation/post-auth';
 import { useAuthStore } from '@/store/auth-store';
 
 type Status = 'verifying' | 'success' | 'error';
@@ -14,10 +15,25 @@ export function VerifyEmailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ token?: string }>();
   const verifyEmail = useAuthStore((s) => s.verifyEmail);
-  const token = useAuthStore((s) => s.token);
+  const authToken = useAuthStore((s) => s.token);
+  const role = useAuthStore((s) => s.role);
+  const user = useAuthStore((s) => s.user);
 
   const [status, setStatus] = useState<Status>('verifying');
   const [message, setMessage] = useState('Verifying your email…');
+
+  const goNext = async () => {
+    if (!authToken) {
+      router.replace('/login');
+      return;
+    }
+    try {
+      const target = await resolvePostAuthRoute(user?.role ?? role);
+      router.replace(target);
+    } catch {
+      router.replace('/restaurant-setup');
+    }
+  };
 
   useEffect(() => {
     const linkToken = params.token;
@@ -85,8 +101,10 @@ export function VerifyEmailScreen() {
         {status !== 'verifying' ? (
           <View className="mt-2 w-full">
             <PrimaryButton
-              label={token ? 'Go to dashboard' : 'Back to sign in'}
-              onPress={() => router.replace(token ? '/dashboard' : '/login')}
+              label={authToken ? 'Continue' : 'Back to sign in'}
+              onPress={() => {
+                void goNext();
+              }}
             />
           </View>
         ) : null}

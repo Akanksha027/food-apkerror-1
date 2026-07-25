@@ -32,7 +32,8 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     }
   }
 
-  if (defaultResolveRequest) {
+  // Always fall through to Expo/Metro default (keeps @/ tsconfig path aliases working).
+  if (typeof defaultResolveRequest === 'function') {
     return defaultResolveRequest(context, moduleName, platform);
   }
   return context.resolveRequest(context, moduleName, platform);

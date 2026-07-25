@@ -1,33 +1,28 @@
-/** Shared brand palette — mirrors tailwind.config.js for use in non-className props. */
+/** Shared brand palette — mirrors customer app + tailwind.config.js */
 export const theme = {
-  primary: '#9E1B32',
-  primaryDark: '#6E0F1B',
-  primaryLight: '#C24A5E',
-  secondary: '#1A1D1F',
-  secondaryLight: '#6B7280',
-  surface: '#F2F3F5',
-  success: '#0EA968',
+  primary: '#7A0E22',
+  primaryDark: '#5A0A18',
+  primaryLight: '#9E1A32',
+  secondary: '#0F172A',
+  secondaryLight: '#64748B',
+  surface: '#F6F6F7',
+  success: '#22C55E',
   warning: '#F59E0B',
-  danger: '#DC2626',
-  muted: '#9CA3AF',
-  border: '#EAEAEC',
+  danger: '#EF4444',
+  muted: '#94A3B8',
+  border: '#EBEBEB',
   white: '#FFFFFF',
 } as const;
 
-/** Product brand shown as the wordmark across auth screens. */
 export const BRAND_NAME = 'Gourmet Direct';
 
-/** Gradient stops for the primary CTA button (top → bottom). */
-export const buttonGradient = ['#8E1A2B', '#6E0F1B'] as const;
+export const buttonGradient = ['#7A0E22', '#5A0A18'] as const;
+export const heroGradient = ['#7A0E22', '#5A0A18'] as const;
 
-/** Gradient stops for solid maroon headers. */
-export const heroGradient = ['#9E1B32', '#6E0F1B'] as const;
-
-/** Standard soft card shadow. */
 export const cardShadow = {
-  shadowColor: '#111827',
+  shadowColor: '#1E293B',
   shadowOpacity: 0.08,
-  shadowRadius: 24,
-  shadowOffset: { width: 0, height: 12 },
-  elevation: 4,
+  shadowRadius: 10,
+  shadowOffset: { width: 0, height: 4 },
+  elevation: 3,
 } as const;

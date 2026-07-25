@@ -1,6 +1,7 @@
 import axios, { AxiosHeaders } from 'axios';
 
 import { getToken } from '@/lib/auth/storage';
+import { notifyUnauthorized } from '@/lib/auth/unauthorized';
 import {
   clearSessionCookies,
   getStoredSessionCookies,
@@ -8,7 +9,7 @@ import {
 } from '@/lib/session-cookies';
 
 /** Cookie session marker stored when API uses Set-Cookie instead of JWT. */
-const SESSION_AUTH_TOKEN = 'session';
+export const SESSION_AUTH_TOKEN = 'session';
 
 const DEFAULT_API_BASE_URL = 'http://api.viharfood.in';
 
@@ -97,6 +98,19 @@ function applyCsrfHeader(headers: AxiosHeaders, token: string) {
   headers.set('X-CSRF-Token', token);
 }
 
+function isAuthFailure(status: number | undefined, message: string): boolean {
+  if (status !== 401 && status !== 403) return false;
+  const lower = message.toLowerCase();
+  return (
+    lower.includes('authentication') ||
+    lower.includes('unauthorized') ||
+    lower.includes('log in') ||
+    lower.includes('not authenticated') ||
+    lower.includes('invalid token') ||
+    lower.includes('session')
+  );
+}
+
 api.interceptors.request.use(async (config) => {
   const headers = AxiosHeaders.from(config.headers);
   const authToken = await getToken();
@@ -138,6 +152,7 @@ api.interceptors.response.use(
     const original = error.config;
     const message =
       error.response?.data?.message ?? error.response?.data?.error ?? '';
+    const status = error.response?.status;
 
     const isCsrfError =
       typeof message === 'string' &&
@@ -156,6 +171,16 @@ api.interceptors.response.use(
       return api(original);
     }
 
+    if (
+      original &&
+      !original._authLogout &&
+      isAuthFailure(status, String(message))
+    ) {
+      original._authLogout = true;
+      await clearApiSession();
+      await notifyUnauthorized();
+    }
+
     return Promise.reject(error);
   }
 );
@@ -163,5 +188,6 @@ api.interceptors.response.use(
 declare module 'axios' {
   export interface AxiosRequestConfig {
     _csrfRetry?: boolean;
+    _authLogout?: boolean;
   }
 }
