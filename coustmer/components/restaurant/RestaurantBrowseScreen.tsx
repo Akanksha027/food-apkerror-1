@@ -198,7 +198,7 @@ export function RestaurantBrowseScreen() {
   const clearCuisine = () => setSelectedCuisine('');
 
   const listHeader = (
-    <View>
+    <View style={{ paddingTop: 16 }}>
       {activeCategory ? (
         <LinearGradient
           colors={['#FFF1F0', '#FFE8E4']}

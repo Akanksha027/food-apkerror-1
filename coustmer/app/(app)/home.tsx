@@ -401,9 +401,9 @@ export default function HomeScreen() {
             saved.formattedAddress || applied.formattedAddress,
           city: normalizeCityName(
             saved.city ||
-              extractCityFromAddress(
-                saved.formattedAddress || applied.formattedAddress
-              )
+            extractCityFromAddress(
+              saved.formattedAddress || applied.formattedAddress
+            )
           ),
           lat: saved.lat || applied.lat,
           lng: saved.lng || applied.lng,

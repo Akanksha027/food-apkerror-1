@@ -52,7 +52,7 @@ export function useDeliveryLocationInit() {
           formattedAddress: preferred.formattedAddress,
           city: normalizeCityName(
             preferred.city ||
-              extractCityFromAddress(preferred.formattedAddress)
+            extractCityFromAddress(preferred.formattedAddress)
           ),
           lat: preferred.lat,
           lng: preferred.lng,
