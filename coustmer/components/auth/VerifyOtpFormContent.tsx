@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import { AuthMessageBanner } from '@/components/auth/AuthMessageBanner';
 import { loginFormStyles } from '@/components/auth/LoginFormContent';
@@ -63,8 +64,8 @@ export function VerifyOtpFormContent({ identifier, onBackToLogin, onVerifySucces
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} bounces={false}>
+    <View style={{ flex: 1 }}>
+      <KeyboardAwareScrollView enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} bounces={false}>
         <Text style={styles.title}>Verify OTP</Text>
         <Text style={styles.subtitle}>
           Enter the code sent to{'\n'}
@@ -123,8 +124,8 @@ export function VerifyOtpFormContent({ identifier, onBackToLogin, onVerifySucces
             </Text>
           </View>
         ) : null}
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

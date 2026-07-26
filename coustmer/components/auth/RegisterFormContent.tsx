@@ -5,13 +5,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import { AuthMessageBanner } from '@/components/auth/AuthMessageBanner';
 import { loginFormStyles } from '@/components/auth/LoginFormContent';
@@ -230,8 +230,10 @@ export function RegisterFormContent({ onSignIn, onRegisterSuccess }: Props) {
   );
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView
+    <View style={{ flex: 1 }}>
+      <KeyboardAwareScrollView
+        enableOnAndroid={true}
+        extraScrollHeight={20}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         bounces={false}
@@ -358,8 +360,8 @@ export function RegisterFormContent({ onSignIn, onRegisterSuccess }: Props) {
           By signing up, you agree to our <Text style={registerStyles.termsLink}>Terms</Text> &{' '}
           <Text style={registerStyles.termsLink}>Privacy Policy</Text>
         </Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

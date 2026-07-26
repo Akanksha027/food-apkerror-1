@@ -10,9 +10,10 @@ import {
   Switch,
   Text,
   TextInput,
-  View,
   TouchableOpacity,
+  View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { FontAwesome, AntDesign } from '@expo/vector-icons';
 
 import { AuthMessageBanner } from '@/components/auth/AuthMessageBanner';
@@ -148,8 +149,8 @@ export function LoginFormContent({ onSignUp, onForgotPassword, onLoginSuccess, o
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} bounces={false}>
+    <View style={{ flex: 1 }}>
+      <KeyboardAwareScrollView enableOnAndroid={true} extraScrollHeight={20} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} bounces={false}>
         <Text style={styles.title}>Let's get something</Text>
         <Text style={styles.subtitle}>Good to see you back.</Text>
 
@@ -312,8 +313,8 @@ export function LoginFormContent({ onSignUp, onForgotPassword, onLoginSuccess, o
             </Text>
           </Pressable>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 
