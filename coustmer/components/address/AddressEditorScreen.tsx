@@ -165,7 +165,7 @@ export function AddressEditorScreen({ mode = 'create' }: Props) {
         updatedAt: Date.now(),
       });
 
-      router.back();
+      if (router.canGoBack()) { router.back(); } else { router.replace('/'); }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save address');
     }

@@ -90,7 +90,7 @@ export function NewlyAddedRail({
                     />
                   ) : (
                     <LinearGradient
-                      colors={['#3F0A14', '#7A0E22']}
+                      colors={['#C43A28', '#FF5A41']}
                       style={styles.image}
                     />
                   )}
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF8F6',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(122,14,34,0.10)',
+    borderColor: 'rgba(255, 90, 65,0.10)',
   },
   header: {
     flexDirection: 'row',

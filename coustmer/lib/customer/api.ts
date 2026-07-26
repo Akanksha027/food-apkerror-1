@@ -261,8 +261,24 @@ export const customerApi = {
 
   /** GET /customers/me/favorites */
   getFavorites: async (): Promise<RestaurantCard[]> => {
-    const res = await request<RestaurantCard[]>(`${CUSTOMER_BASE}/me/favorites`);
-    return Array.isArray(res.data) ? res.data : [];
+    try {
+      const res = await request<unknown>(`${CUSTOMER_BASE}/me/favorites`);
+      const payload = res.data ?? res;
+      if (Array.isArray(payload)) {
+        return payload.map((row) =>
+          mapRestaurantCard((row ?? {}) as Record<string, unknown>)
+        );
+      }
+      if (payload && typeof payload === 'object') {
+        const obj = payload as Record<string, unknown>;
+        const nested =
+          obj.favorites ?? obj.restaurants ?? obj.items ?? obj.data;
+        return unwrapList(nested).map(mapRestaurantCard);
+      }
+      return unwrapList(payload).map(mapRestaurantCard);
+    } catch {
+      return [];
+    }
   },
 
   /** POST /customers/me/favorites/:restaurantId */

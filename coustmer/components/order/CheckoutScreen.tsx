@@ -1,4 +1,4 @@
-﻿import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { CalendarClock, CreditCard, MapPin, Phone, User, Wallet } from 'lucide-react-native';
@@ -19,6 +19,7 @@ import { AddressPickerSheet } from '@/components/address/AddressPickerSheet';
 import { ScreenHeader } from '@/components/common/ScreenHeader';
 import { DeliveryLocationPicker } from '@/components/location/DeliveryLocationPicker';
 import { authTheme } from '@/constants/auth-theme';
+import { swiggyOrderUi as ui } from '@/constants/swiggy-order-ui';
 import type { SavedAddress } from '@/lib/address/types';
 import {
   extractCityFromAddress,
@@ -580,13 +581,16 @@ export function CheckoutScreen() {
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <>
+                <View>
+                  <Text style={styles.placeAmount}>
+                    ₹{estimatedTotal.toFixed(0)}
+                  </Text>
+                  <Text style={styles.placeAmountSub}>TOTAL</Text>
+                </View>
                 <Text style={styles.placeText}>
                   {needsOnlinePayment(paymentMethod)
-                    ? 'Pay & place order'
-                    : 'Place order'}
-                </Text>
-                <Text style={styles.placeAmount}>
-                  ₹{estimatedTotal.toFixed(0)}
+                    ? 'PAY & PLACE ORDER'
+                    : 'PLACE ORDER'}
                 </Text>
               </>
             )}
@@ -626,8 +630,8 @@ export function CheckoutScreen() {
             ),
             lat: result.lat,
             lng: result.lng,
-            source: result.source,
-            savedAddressId: undefined,
+            source: result.source === 'saved' ? 'saved' : result.source,
+            savedAddressId: result.savedAddressId,
             updatedAt: Date.now(),
           });
         }}
@@ -637,59 +641,75 @@ export function CheckoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: authTheme.bg },
-  pad: { paddingHorizontal: 20, paddingTop: 8 },
-  scroll: { paddingHorizontal: 20, paddingBottom: 120, gap: 12 },
-  empty: { color: authTheme.textMuted, marginTop: 24, textAlign: 'center' },
+  safe: { flex: 1, backgroundColor: ui.pageBg },
+  pad: {
+    paddingHorizontal: ui.hPad,
+    paddingTop: 8,
+    paddingBottom: 8,
+    backgroundColor: ui.card,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: ui.border,
+  },
+  scroll: {
+    paddingHorizontal: ui.hPad,
+    paddingTop: 12,
+    paddingBottom: 120,
+    gap: ui.sectionGap,
+  },
+  empty: { color: ui.textSecondary, marginTop: 24, textAlign: 'center' },
   linkBtn: {
     alignSelf: 'center',
     marginTop: 16,
-    backgroundColor: authTheme.brand,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    backgroundColor: ui.orange,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
     borderRadius: 12,
   },
   linkText: { color: '#FFFFFF', fontWeight: '800' },
   card: {
     flexDirection: 'row',
     gap: 12,
-    backgroundColor: authTheme.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: authTheme.cardBorder,
+    backgroundColor: ui.card,
+    borderRadius: ui.radius,
     padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   cardBody: { flex: 1, gap: 8 },
-  cardTitle: { color: authTheme.text, fontWeight: '800', fontSize: 14 },
-  cardText: { color: authTheme.textMuted, fontSize: 13, lineHeight: 18 },
+  cardTitle: { color: ui.text, fontWeight: '800', fontSize: 14 },
+  cardText: { color: ui.textSecondary, fontSize: 13, lineHeight: 18 },
   addressMeta: {
-    color: authTheme.textDim,
+    color: ui.textMuted,
     fontSize: 11,
     lineHeight: 16,
   },
   changeHint: {
-    color: authTheme.brand,
+    color: ui.orange,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
     marginTop: 2,
   },
   payRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   payChip: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
+    paddingVertical: 10,
+    borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: authTheme.cardBorder,
+    borderColor: ui.border,
+    backgroundColor: '#FFFFFF',
   },
   payChipActive: {
-    backgroundColor: authTheme.brand,
-    borderColor: authTheme.brand,
+    backgroundColor: ui.orangeSoft,
+    borderColor: ui.orange,
   },
-  payChipText: { color: authTheme.text, fontWeight: '700', fontSize: 12 },
-  payChipTextActive: { color: '#FFFFFF' },
+  payChipText: { color: ui.text, fontWeight: '700', fontSize: 12 },
+  payChipTextActive: { color: ui.orange },
   savedBlock: { gap: 8, marginTop: 4 },
   savedLabel: {
-    color: authTheme.textMuted,
+    color: ui.textMuted,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -701,22 +721,22 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: authTheme.cardBorder,
-    backgroundColor: authTheme.surface,
+    borderColor: ui.border,
+    backgroundColor: '#FAFAFB',
   },
   savedChipActive: {
-    backgroundColor: authTheme.brand,
-    borderColor: authTheme.brand,
+    backgroundColor: ui.orange,
+    borderColor: ui.orange,
   },
   savedChipText: {
-    color: authTheme.text,
+    color: ui.text,
     fontWeight: '600',
     fontSize: 12,
     flex: 1,
   },
   savedChipTextActive: { color: '#FFFFFF' },
   linkInline: {
-    color: authTheme.brand,
+    color: ui.orange,
     fontWeight: '700',
     fontSize: 12,
   },
@@ -726,74 +746,99 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   toggle: {
-    backgroundColor: authTheme.surface,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: '#F0F0F5',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: 999,
   },
-  toggleOn: { backgroundColor: authTheme.brandSoft },
-  toggleText: { color: authTheme.brand, fontWeight: '800', fontSize: 11 },
+  toggleOn: { backgroundColor: ui.greenSoft },
+  toggleText: { color: ui.orange, fontWeight: '800', fontSize: 11 },
   input: {
-    borderWidth: 1.5,
-    borderColor: authTheme.inputBorder,
+    borderWidth: 1,
+    borderColor: ui.border,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: authTheme.text,
+    color: ui.text,
+    backgroundColor: '#FAFAFB',
   },
   hint: {
-    color: authTheme.textDim,
+    color: ui.textMuted,
     fontSize: 11,
     lineHeight: 15,
   },
   summary: {
-    backgroundColor: authTheme.surface,
-    borderRadius: 16,
+    backgroundColor: ui.card,
+    borderRadius: ui.radius,
     padding: 14,
-    gap: 8,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   summaryTitle: {
-    color: authTheme.text,
+    color: ui.text,
     fontWeight: '900',
-    fontSize: 15,
-    marginBottom: 4,
+    fontSize: 14,
+    marginBottom: 2,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
   },
-  summaryLabel: { flex: 1, color: authTheme.textMuted, fontSize: 13 },
-  summaryValue: { color: authTheme.text, fontWeight: '700', fontSize: 13 },
+  summaryLabel: { flex: 1, color: ui.textSecondary, fontSize: 13 },
+  summaryValue: { color: ui.text, fontWeight: '700', fontSize: 13 },
   totalRow: {
     borderTopWidth: 1,
-    borderTopColor: authTheme.cardBorder,
+    borderTopColor: ui.border,
+    borderStyle: 'dashed',
     paddingTop: 10,
     marginTop: 4,
   },
-  totalLabel: { color: authTheme.text, fontWeight: '800' },
-  totalValue: { color: authTheme.text, fontWeight: '900', fontSize: 16 },
+  totalLabel: { color: ui.text, fontWeight: '900', letterSpacing: 0.2 },
+  totalValue: { color: ui.text, fontWeight: '900', fontSize: 16 },
   error: { color: authTheme.error, fontWeight: '600', fontSize: 13 },
   footer: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    padding: 16,
-    backgroundColor: authTheme.bg,
-    borderTopWidth: 1,
-    borderTopColor: authTheme.cardBorder,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    backgroundColor: ui.card,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: ui.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 10,
   },
-  placeBtn: { borderRadius: 16, overflow: 'hidden' },
+  placeBtn: { borderRadius: 12, overflow: 'hidden' },
   disabled: { opacity: 0.6 },
   placeGradient: {
     minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  placeText: { color: '#FFFFFF', fontWeight: '900', fontSize: 15 },
-  placeAmount: { color: '#FFFFFF', fontWeight: '900', fontSize: 15 },
+  placeText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 13,
+    letterSpacing: 0.4,
+  },
+  placeAmount: { color: '#FFFFFF', fontWeight: '900', fontSize: 16 },
+  placeAmountSub: {
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '700',
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
 });

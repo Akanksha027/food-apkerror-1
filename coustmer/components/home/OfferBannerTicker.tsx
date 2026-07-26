@@ -23,12 +23,12 @@ const CARD_W = SCREEN_W - H_PAD * 2;
 const GAP = 12;
 const SNAP = CARD_W + GAP;
 
-/** Brand-only gradients — same Vihar maroon theme on every card */
+/** Brand-only gradients — orange theme on every card */
 const BRAND_ACCENTS: [string, string, string][] = [
-  ['#7A0E22', '#9E1A32', '#C41E3A'],
-  ['#5A0A18', '#7A0E22', '#A3142E'],
-  ['#7A0E22', '#A3142E', '#BE123C'],
-  ['#5A0A18', '#7A0E22', '#9E1A32'],
+  ['#FF5A41', '#FF7A66', '#FF5A41'],
+  ['#E8482F', '#FF5A41', '#FF6B52'],
+  ['#FF5A41', '#FF6B52', '#FF7A66'],
+  ['#E8482F', '#FF5A41', '#FF7A66'],
 ];
 
 type Slide = {
@@ -196,7 +196,7 @@ export function OfferBannerTicker({ banners = [], deals = [] }: Props) {
                     transition={200}
                   />
                   <LinearGradient
-                    colors={['rgba(90,10,24,0.55)', 'rgba(122,14,34,0.88)']}
+                    colors={['rgba(232,72,47,0.55)', 'rgba(255, 90, 65,0.88)']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={StyleSheet.absoluteFill}
@@ -218,7 +218,7 @@ export function OfferBannerTicker({ banners = [], deals = [] }: Props) {
               <View style={styles.content}>
                 <View style={styles.topRow}>
                   <View style={styles.eyebrow}>
-                    <Icon color="#7A0E22" size={12} strokeWidth={2.5} />
+                    <Icon color="#FF5A41" size={12} strokeWidth={2.5} />
                     <Text style={styles.eyebrowText} numberOfLines={1}>
                       {slide.eyebrow}
                     </Text>
@@ -244,7 +244,7 @@ export function OfferBannerTicker({ banners = [], deals = [] }: Props) {
 
                 <View style={styles.ctaChip}>
                   <Text style={styles.ctaText}>{slide.cta}</Text>
-                  <ArrowRight color="#7A0E22" size={14} strokeWidth={2.5} />
+                  <ArrowRight color="#FF5A41" size={14} strokeWidth={2.5} />
                 </View>
               </View>
             </Pressable>
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 0.5,
-    color: '#7A0E22',
+    color: '#FF5A41',
     flexShrink: 1,
   },
   percentBadge: {
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     borderRadius: 11,
   },
   ctaText: {
-    color: '#7A0E22',
+    color: '#FF5A41',
     fontSize: 12,
     fontWeight: '800',
   },

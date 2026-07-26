@@ -58,12 +58,12 @@ export function MenuItemRow({ item, onPress, onAdd, highlighted }: Props) {
     backgroundColor: interpolateColor(
       highlight.value,
       [0, 1],
-      ['transparent', 'rgba(122, 14, 34, 0.08)']
+      ['transparent', 'rgba(255, 90, 65, 0.08)']
     ),
     borderColor: interpolateColor(
       highlight.value,
       [0, 1],
-      ['transparent', 'rgba(122, 14, 34, 0.28)']
+      ['transparent', 'rgba(255, 90, 65, 0.28)']
     ),
     borderWidth: highlight.value > 0.01 ? 1 : 0,
     transform: [

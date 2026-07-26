@@ -1,29 +1,26 @@
 import type { Href } from 'expo-router';
 import { usePathname, useRouter } from 'expo-router';
 import {
-  Compass,
+  ClipboardList,
+  Heart,
   Home,
-  RotateCcw,
   ShoppingBag,
   UserRound,
 } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { authTheme } from '@/constants/auth-theme';
-import { homeCategoriesPinnedSV } from '@/lib/home/pin-shared';
 import { useCartStore } from '@/store/cart-store';
-import { useUiStore } from '@/store/ui-store';
 
 /** Space to leave above the floating tab bar on root tab screens. */
-export const APP_BOTTOM_NAV_INSET = 92;
+export const APP_BOTTOM_NAV_INSET = 98;
 
-const ICON_IDLE = '#9A4A58';
+const ICON_IDLE = '#9CA3AF';
 const ICON_ACTIVE = authTheme.brand;
 
 type SideTab = {
-  key: 'home' | 'food' | 'reorder' | 'account';
+  key: 'home' | 'saved' | 'orders' | 'profile';
   label: string;
   href: Href;
   match: (pathname: string) => boolean;
@@ -41,25 +38,27 @@ const SIDE_TABS: SideTab[] = [
     filledWhenActive: true,
   },
   {
-    key: 'food',
-    label: 'Food',
-    href: '/restaurants',
-    match: (p) => p === '/restaurants' || /\/restaurants\/?$/.test(p),
-    Icon: Compass,
+    key: 'saved',
+    label: 'Fav',
+    href: '/favorites',
+    match: (p) => p === '/favorites' || p.endsWith('/favorites'),
+    Icon: Heart,
+    filledWhenActive: true,
   },
   {
-    key: 'reorder',
+    key: 'orders',
     label: 'Orders',
     href: '/orders',
     match: (p) => p === '/orders' || p.endsWith('/orders'),
-    Icon: RotateCcw,
+    Icon: ClipboardList,
   },
   {
-    key: 'account',
-    label: 'Account',
+    key: 'profile',
+    label: 'Profile',
     href: '/profile',
     match: (p) => p === '/profile' || p.endsWith('/profile'),
     Icon: UserRound,
+    filledWhenActive: true,
   },
 ];
 
@@ -67,13 +66,20 @@ function isCartPath(pathname: string) {
   return pathname === '/cart' || pathname.endsWith('/cart');
 }
 
-function isHomePath(pathname: string) {
-  return pathname === '/home' || pathname.endsWith('/home');
+function isFavoritesPath(pathname: string) {
+  return pathname === '/favorites' || pathname.endsWith('/favorites');
+}
+
+function isRestaurantsPath(pathname: string) {
+  return pathname === '/restaurants' || /\/restaurants\/?$/.test(pathname);
 }
 
 export function isAppTabRoot(pathname: string): boolean {
   const path = pathname.split('?')[0] ?? pathname;
-  return isCartPath(path) || SIDE_TABS.some((tab) => tab.match(path));
+  if (isFavoritesPath(path) || isCartPath(path)) return false;
+  return (
+    isRestaurantsPath(path) || SIDE_TABS.some((tab) => tab.match(path))
+  );
 }
 
 export function AppBottomNav() {
@@ -81,19 +87,9 @@ export function AppBottomNav() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const cartCount = useCartStore((s) => s.totalItems());
-  const homeCategoriesPinned = useUiStore((s) => s.homeCategoriesPinned);
 
   const path = pathname.split('?')[0] ?? pathname;
-  const onHome = isHomePath(path);
   const onTabRoot = isAppTabRoot(path);
-
-  const homePinStyle = useAnimatedStyle(() => {
-    const show = homeCategoriesPinnedSV.value;
-    return {
-      opacity: show,
-      transform: [{ translateY: (1 - show) * 16 }],
-    };
-  });
 
   if (!onTabRoot) return null;
 
@@ -126,7 +122,7 @@ export function AppBottomNav() {
           strokeWidth={active ? 2.4 : 1.9}
           fill={active && tab.filledWhenActive ? ICON_ACTIVE : 'transparent'}
         />
-        {active ? <View style={styles.activeDot} /> : <View style={styles.dotSpacer} />}
+        <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tab.label}</Text>
       </Pressable>
     );
   };
@@ -137,8 +133,6 @@ export function AppBottomNav() {
         <View style={styles.sideGroup}>{leftTabs.map(renderSideTab)}</View>
 
         <View style={styles.centerSlot}>
-          <View style={styles.glowOuter} />
-          <View style={styles.glowInner} />
           <Pressable
             accessibilityRole="tab"
             accessibilityState={{ selected: cartActive }}
@@ -155,6 +149,7 @@ export function AppBottomNav() {
               </View>
             ) : null}
           </Pressable>
+          <Text style={[styles.tabLabel, cartActive && styles.tabLabelActive]}>Cart</Text>
         </View>
 
         <View style={styles.sideGroup}>{rightTabs.map(renderSideTab)}</View>
@@ -162,25 +157,10 @@ export function AppBottomNav() {
     </View>
   );
 
-  if (onHome) {
-    return (
-      <Animated.View
-        pointerEvents={homeCategoriesPinned ? 'box-none' : 'none'}
-        style={[
-          styles.wrap,
-          { paddingBottom: Math.max(insets.bottom, 12) },
-          homePinStyle,
-        ]}
-      >
-        {bar}
-      </Animated.View>
-    );
-  }
-
   return (
     <View
       pointerEvents="box-none"
-      style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 12) }]}
+      style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 10) }]}
     >
       {bar}
     </View>
@@ -197,86 +177,73 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   barOuter: {
-    width: '88%',
-    maxWidth: 380,
+    width: '92%',
+    maxWidth: 420,
   },
   bar: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.90)',
-    borderRadius: 999,
-    paddingHorizontal: 18,
-    height: 64,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.75)',
-    shadowColor: '#7A0E22',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.12,
-    shadowRadius: 22,
-    elevation: 16,
+    borderColor: '#F0F0F0',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 14,
   },
   sideGroup: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-evenly',
   },
   sideTab: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 44,
-    paddingVertical: 6,
+    minWidth: 56,
+    paddingVertical: 2,
     gap: 4,
   },
-  activeDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: authTheme.brand,
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: ICON_IDLE,
   },
-  dotSpacer: {
-    width: 5,
-    height: 5,
+  tabLabelActive: {
+    color: ICON_ACTIVE,
+    fontWeight: '800',
   },
   centerSlot: {
-    width: 68,
+    width: 74,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -30,
-  },
-  glowOuter: {
-    position: 'absolute',
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(122, 14, 34, 0.12)',
-  },
-  glowInner: {
-    position: 'absolute',
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: 'rgba(122, 14, 34, 0.18)',
+    justifyContent: 'flex-end',
+    gap: 4,
+    marginTop: -28,
   },
   centerBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: authTheme.brand,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,
     borderColor: '#FFFFFF',
-    shadowColor: '#7A0E22',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.45,
-    shadowRadius: 14,
+    shadowColor: authTheme.brandDark,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
     elevation: 12,
   },
   centerBtnActive: {
     backgroundColor: authTheme.brandDark,
-    transform: [{ scale: 1.04 }],
+    transform: [{ scale: 1.03 }],
   },
   badge: {
     position: 'absolute',
@@ -285,7 +252,7 @@ const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#FF6B35',
+    backgroundColor: authTheme.brandLight,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,

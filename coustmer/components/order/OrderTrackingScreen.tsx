@@ -16,6 +16,7 @@ import {
   LoadingView,
 } from '@/components/common/StateViews';
 import { authTheme } from '@/constants/auth-theme';
+import { swiggyOrderUi as ui } from '@/constants/swiggy-order-ui';
 import { useOrder, useOrderTracking } from '@/lib/order/hooks';
 import { ORDER_STATUS_LABELS } from '@/lib/order/types';
 import * as Linking from 'expo-linking';
@@ -72,7 +73,7 @@ export function OrderTrackingScreen() {
         }
       >
         <View style={styles.hero}>
-          <Clock3 color={authTheme.brand} size={28} />
+          <Clock3 color={ui.green} size={28} />
           <Text style={styles.eta}>
             {t?.etaText ||
               (typeof t?.etaMinutes === 'number'
@@ -179,67 +180,97 @@ export function OrderTrackingScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: authTheme.bg },
-  pad: { paddingHorizontal: 20, paddingTop: 8 },
-  scroll: { paddingHorizontal: 20, paddingBottom: 40, gap: 12 },
+  safe: { flex: 1, backgroundColor: ui.pageBg },
+  pad: {
+    paddingHorizontal: ui.hPad,
+    paddingTop: 8,
+    paddingBottom: 8,
+    backgroundColor: ui.card,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: ui.border,
+  },
+  scroll: {
+    paddingHorizontal: ui.hPad,
+    paddingTop: 12,
+    paddingBottom: 40,
+    gap: ui.sectionGap,
+  },
   hero: {
-    backgroundColor: authTheme.brandSoft,
-    borderRadius: 20,
-    padding: 20,
+    backgroundColor: ui.card,
+    borderRadius: ui.radius,
+    padding: 22,
     alignItems: 'center',
     gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   eta: {
-    color: authTheme.text,
-    fontSize: 28,
+    color: ui.text,
+    fontSize: 32,
     fontWeight: '900',
+    letterSpacing: -0.5,
   },
   status: {
-    color: authTheme.brand,
+    color: ui.green,
     fontWeight: '800',
     fontSize: 14,
   },
-  hint: { color: authTheme.textMuted, fontSize: 11 },
+  hint: { color: ui.textMuted, fontSize: 11, fontWeight: '500' },
   card: {
     flexDirection: 'row',
     gap: 12,
-    backgroundColor: authTheme.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: authTheme.cardBorder,
+    backgroundColor: ui.card,
+    borderRadius: ui.radius,
     padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   cardBody: { flex: 1, gap: 6 },
-  cardTitle: { color: authTheme.text, fontWeight: '800', fontSize: 14 },
-  cardText: { color: authTheme.textMuted, fontSize: 13, lineHeight: 18 },
+  cardTitle: { color: ui.text, fontWeight: '800', fontSize: 14 },
+  cardText: { color: ui.textSecondary, fontSize: 13, lineHeight: 18 },
   phoneBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     alignSelf: 'flex-start',
     marginTop: 4,
+    backgroundColor: ui.orangeSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
-  phoneText: { color: authTheme.brand, fontWeight: '800' },
+  phoneText: { color: ui.orange, fontWeight: '800' },
   mapBtn: {
     alignSelf: 'flex-start',
-    backgroundColor: authTheme.brand,
+    backgroundColor: ui.orange,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
     marginTop: 4,
   },
   mapBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12 },
-  timeline: { gap: 10 },
-  section: { color: authTheme.text, fontWeight: '900', fontSize: 15 },
+  timeline: {
+    gap: 10,
+    backgroundColor: ui.card,
+    borderRadius: ui.radius,
+    padding: 14,
+  },
+  section: { color: ui.text, fontWeight: '900', fontSize: 14 },
   timelineRow: { flexDirection: 'row', gap: 12 },
   dot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: authTheme.brand,
+    backgroundColor: ui.green,
     marginTop: 4,
   },
   timelineBody: { flex: 1, gap: 2 },
-  timelineStatus: { color: authTheme.text, fontWeight: '700' },
-  timelineAt: { color: authTheme.textMuted, fontSize: 12 },
+  timelineStatus: { color: ui.text, fontWeight: '700' },
+  timelineAt: { color: ui.textMuted, fontSize: 12 },
 });

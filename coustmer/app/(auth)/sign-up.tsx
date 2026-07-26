@@ -1,5 +1,5 @@
-import { RegisterScreen } from '@/components/auth/RegisterScreen';
+import { Redirect } from 'expo-router';
 
 export default function SignUpPage() {
-  return <RegisterScreen />;
+  return <Redirect href="/?auth=sign-up" />;
 }

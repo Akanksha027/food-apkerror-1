@@ -18,7 +18,7 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 40;
 
 const GRADIENTS: [string, string][] = [
-  ['#7A0E22', '#B91C1C'],
+  ['#FF5A41', '#E8482F'],
   ['#C2410C', '#EA580C'],
   ['#6D28D9', '#9333EA'],
   ['#0F766E', '#0D9488'],
@@ -160,6 +160,6 @@ const styles = StyleSheet.create({
   },
   dotActive: {
     width: 18,
-    backgroundColor: '#7A0E22',
+    backgroundColor: '#FF5A41',
   },
 });

@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   },
   cardUnread: {
     backgroundColor: '#FFF8F6',
-    borderColor: 'rgba(122, 14, 34, 0.14)',
+    borderColor: 'rgba(255, 90, 65, 0.14)',
   },
   iconWrap: {
     width: 42,

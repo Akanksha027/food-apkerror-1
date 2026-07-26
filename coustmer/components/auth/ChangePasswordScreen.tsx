@@ -54,7 +54,7 @@ export function ChangePasswordScreen() {
         confirmPassword,
       });
       setBanner({ message, type: 'success' });
-      setTimeout(() => router.back(), 1500);
+      setTimeout(() => { if (router.canGoBack()) { if (router.canGoBack()) { router.back(); } else { router.replace('/'); } } else { router.replace('/'); } }, 1500);
     } catch (error) {
       setBanner({
         message:
@@ -66,7 +66,7 @@ export function ChangePasswordScreen() {
 
   return (
     <AuthScreenLayout>
-      <Pressable onPress={() => router.back()}>
+      <Pressable onPress={() => { if (router.canGoBack()) { if (router.canGoBack()) { router.back(); } else { router.replace('/'); } } else { router.replace('/'); } }}>
         <Text style={styles.back}>← Back</Text>
       </Pressable>
 

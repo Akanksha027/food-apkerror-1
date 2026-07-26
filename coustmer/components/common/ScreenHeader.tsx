@@ -16,7 +16,7 @@ export function ScreenHeader({ title, subtitle, right }: ScreenHeaderProps) {
   return (
     <View style={styles.container}>
       <Pressable
-        onPress={() => router.back()}
+        onPress={() => { if (router.canGoBack()) { if (router.canGoBack()) { router.back(); } else { router.replace('/'); } } else { router.replace('/'); } }}
         style={styles.backButton}
         hitSlop={8}
       >
@@ -42,15 +42,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingBottom: 12,
+    paddingBottom: 4,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: authTheme.card,
-    borderWidth: 1,
-    borderColor: authTheme.cardBorder,
+    backgroundColor: '#F0F0F5',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -58,14 +56,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    color: authTheme.text,
-    fontSize: 20,
-    fontWeight: '700',
+    color: '#02060C',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
   subtitle: {
-    color: authTheme.textMuted,
-    fontSize: 13,
+    color: '#686B78',
+    fontSize: 12,
     marginTop: 2,
+    fontWeight: '500',
   },
   spacer: {
     width: 40,

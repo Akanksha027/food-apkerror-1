@@ -34,7 +34,7 @@ export const FOOD_CATEGORIES: FoodCategory[] = [
     label: 'All',
     slug: 'all',
     icon: UtensilsCrossed,
-    color: '#7A0E22',
+    color: '#FF5A41',
     imageUrl:
       'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300&h=300&fit=crop&q=80',
   },
@@ -146,7 +146,7 @@ export const FOOD_CATEGORIES: FoodCategory[] = [
     label: 'Kebab',
     slug: 'kebab',
     icon: Drumstick,
-    color: '#B91C1C',
+    color: '#E8482F',
     imageUrl:
       'https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=300&h=300&fit=crop&q=80',
   },

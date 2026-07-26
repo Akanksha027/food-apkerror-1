@@ -44,7 +44,7 @@ export default function Index() {
   }
 
   if (onboardingDone) {
-    return <Redirect href="/login" />;
+    return <WelcomeScreen openAuthOnMount="login" />;
   }
 
   return <WelcomeScreen />;

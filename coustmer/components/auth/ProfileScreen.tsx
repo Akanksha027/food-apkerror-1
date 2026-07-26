@@ -188,7 +188,7 @@ export function ProfileScreen() {
           </Pressable>
         </View>
 
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={() => { if (router.canGoBack()) { if (router.canGoBack()) { router.back(); } else { router.replace('/'); } } else { router.replace('/'); } }} style={styles.backButton}>
           <Text style={styles.backText}>← Back to Home</Text>
         </Pressable>
       </ScrollView>

@@ -2,8 +2,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
+  Platform,
   RefreshControl,
   StyleSheet,
   Text,
@@ -20,25 +20,28 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ErrorView, LoadingView } from '@/components/common/StateViews';
 import { SaveAddressLabelModal } from '@/components/address/SaveAddressLabelModal';
-import { HomeHeader } from '@/components/home/HomeHeader';
-import { HomeStickyChrome } from '@/components/home/HomeStickyChrome';
-import { OfferBannerTicker } from '@/components/home/OfferBannerTicker';
-import { RestaurantFeedCard } from '@/components/home/RestaurantFeedCard';
+import { PopularRestaurantsSection } from '@/components/home/PopularRestaurantsSection';
+import { HomeFilterChips } from '@/components/home/HomeFilterChips';
+import { SwiggyHomeChrome } from '@/components/home/SwiggyHomeChrome';
+import { VegModeModal } from '@/components/home/VegModeModal';
+import {
+  MIND_CATEGORIES,
+  WhatsOnYourMind,
+} from '@/components/home/WhatsOnYourMind';
 import { DeliveryLocationPicker } from '@/components/location/DeliveryLocationPicker';
 import { APP_BOTTOM_NAV_INSET } from '@/components/navigation/AppBottomNav';
 import { authTheme } from '@/constants/auth-theme';
+import { fonts } from '@/constants/typography';
 import { addressApi } from '@/lib/address/api';
 import { formatAddressLabel } from '@/lib/address/types';
 import {
-  useAddFavorite,
   useCustomerProfile,
   useDeals,
   useHomeFeed,
   useOffersFeed,
-  useRemoveFavorite,
 } from '@/lib/customer/hooks';
+import { useFavoriteToggle } from '@/lib/customer/useFavoriteToggle';
 import { useHomeDiscovery } from '@/lib/home/hooks';
-import { homeCategoriesPinnedSV } from '@/lib/home/pin-shared';
 import {
   deliveryHeaderSubtitle,
   deliveryHeaderTitle,
@@ -51,29 +54,27 @@ import { resolvePlaceFromCoords } from '@/lib/location/resolve-place';
 import { useDeliveryLocationInit } from '@/lib/location/use-delivery-location-init';
 import { parseDeliveryAddress } from '@/lib/order/parse-address';
 import { useInfiniteRestaurants } from '@/lib/restaurant/hooks';
-import type { Restaurant } from '@/lib/restaurant/types';
 import { useAuthStore } from '@/store/auth-store';
 import {
   useDeliveryCoords,
   useDeliveryLocationStore,
 } from '@/store/delivery-location-store';
-import { useUiStore } from '@/store/ui-store';
+import {
+  type VegMode,
+  useVegPreferenceStore,
+} from '@/store/veg-preference-store';
 
-type FeedRow = { key: string; kind: 'restaurant'; restaurant: Restaurant };
-
-function buildFeedRows(restaurants: Restaurant[]): FeedRow[] {
-  return restaurants.map((restaurant) => ({
-    key: `r-${restaurant.id}`,
-    kind: 'restaurant' as const,
-    restaurant,
-  }));
-}
+const HOME_BG = '#FFFFFF';
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
+
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [vegModalOpen, setVegModalOpen] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [mindPinned, setMindPinned] = useState(false);
   const [savePrompt, setSavePrompt] = useState<{
     label: string;
     formattedAddress: string;
@@ -83,24 +84,13 @@ export default function HomeScreen() {
     source: 'gps' | 'search';
   } | null>(null);
   const [savingAddress, setSavingAddress] = useState(false);
-  /** StatusBar / pointerEvents only — visual pin is driven on the UI thread. */
-  const [pinned, setPinned] = useState(false);
-  const setHomeCategoriesPinned = useUiStore((s) => s.setHomeCategoriesPinned);
+
+  const vegMode = useVegPreferenceStore((s) => s.mode);
+  const setVegMode = useVegPreferenceStore((s) => s.setMode);
 
   const scrollY = useSharedValue(0);
+  /** Y offset in the list where mind *items* begin (title already above this). */
   const pinAt = useSharedValue(0);
-
-  const syncCategoriesPinned = (isPinned: boolean) => {
-    setPinned(isPinned);
-    setHomeCategoriesPinned(isPinned);
-  };
-
-  useEffect(() => {
-    return () => {
-      homeCategoriesPinnedSV.value = 0;
-      setHomeCategoriesPinned(false);
-    };
-  }, [setHomeCategoriesPinned]);
 
   useDeliveryLocationInit();
 
@@ -151,9 +141,18 @@ export default function HomeScreen() {
   const deals = useDeals();
   const offers = useOffersFeed();
   const profile = useCustomerProfile();
-  const addFavorite = useAddFavorite();
-  const removeFavorite = useRemoveFavorite();
   const discovery = useHomeDiscovery(city);
+  const { favoriteIds, toggleFavorite } = useFavoriteToggle();
+
+  const greeting =
+    user?.firstName?.trim() || user?.email?.split('@')[0] || 'foodie';
+
+  const mindCategories = useMemo(() => {
+    const fromApi = (discovery.data?.categories ?? []).filter(
+      (c) => c.slug !== 'all' && c.imageUrl
+    );
+    return fromApi.length >= 4 ? fromApi : MIND_CATEGORIES;
+  }, [discovery.data?.categories]);
 
   const feed = useInfiniteRestaurants(
     {
@@ -168,38 +167,35 @@ export default function HomeScreen() {
     const rows = feed.data?.pages.flatMap((p) => p.restaurants) ?? [];
     if (!city) return [];
 
-    const matched = rows.filter((r) => restaurantMatchesCity(r, city));
-    if (matched.length > 0) return matched;
-
-    const hasLocationFields = rows.some((r) => r.city || r.address);
-    if (!hasLocationFields) return rows;
-
-    return [];
-  }, [feed.data?.pages, city]);
-
-  /** Prefer API meta.total so the count includes pages not loaded yet. */
-  const totalInCity = useMemo(() => {
-    const pages = feed.data?.pages ?? [];
-    for (let i = pages.length - 1; i >= 0; i -= 1) {
-      const total = pages[i]?.meta?.total;
-      if (typeof total === 'number' && total >= 0) return total;
+    let matched = rows.filter((r) => restaurantMatchesCity(r, city));
+    if (matched.length === 0) {
+      const hasLocationFields = rows.some((r) => r.city || r.address);
+      if (!hasLocationFields) matched = rows;
+      else return [];
     }
-    return restaurants.length;
-  }, [feed.data?.pages, restaurants.length]);
 
-  const homeCategories = discovery.data?.categories ?? [];
+    if (vegMode === 'pure_veg') {
+      matched = matched.filter((r) => r.isPureVeg === true);
+    }
 
-  const feedRows = useMemo(() => buildFeedRows(restaurants), [restaurants]);
+    if (activeFilter === 'fast') {
+      matched = [...matched].sort((a, b) => {
+        const ta = parseInt(String(a.deliveryTime || '40'), 10) || 40;
+        const tb = parseInt(String(b.deliveryTime || '40'), 10) || 40;
+        return ta - tb;
+      });
+    } else if (activeFilter === 'rating') {
+      matched = matched.filter((r) => (r.rating ?? 0) >= 4);
+    } else if (activeFilter === 'offers' || activeFilter === 'min_off') {
+      matched = [...matched].sort((a, b) => {
+        const ao = a.offer ? 0 : 1;
+        const bo = b.offer ? 0 : 1;
+        return ao - bo;
+      });
+    }
 
-  const favoriteIds = profile.data?.favoriteRestaurants ?? [];
-  const greeting =
-    user?.firstName?.trim() || user?.email?.split('@')[0] || 'there';
-
-  const toggleFavorite = (id: string) => {
-    if (!id) return;
-    if (favoriteIds.includes(id)) removeFavorite.mutate(id);
-    else addFavorite.mutate(id);
-  };
+    return matched;
+  }, [feed.data?.pages, city, vegMode, activeFilter]);
 
   const openRestaurant = (id: string) => {
     router.push({
@@ -224,6 +220,14 @@ export default function HomeScreen() {
     discovery.refetch();
   };
 
+  const onVegApply = (mode: VegMode) => {
+    setVegMode(mode);
+  };
+
+  const onFilterPress = (id: string) => {
+    setActiveFilter((prev) => (prev === id ? null : id));
+  };
+
   const onScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
@@ -231,37 +235,54 @@ export default function HomeScreen() {
   });
 
   useAnimatedReaction(
-    () => pinAt.value > 0 && scrollY.value >= pinAt.value,
+    () => pinAt.value > 0 && scrollY.value >= pinAt.value - insets.top,
     (isPinned, prev) => {
-      homeCategoriesPinnedSV.value = isPinned ? 1 : 0;
       if (isPinned !== prev) {
-        runOnJS(syncCategoriesPinned)(isPinned);
+        runOnJS(setMindPinned)(!!isPinned);
       }
-    }
+    },
+    [insets.top]
   );
 
   const pinOverlayStyle = useAnimatedStyle(() => {
-    const show = pinAt.value > 0 && scrollY.value >= pinAt.value;
-    return {
-      opacity: show ? 1 : 0,
-    };
+    const show = pinAt.value > 0 && scrollY.value >= pinAt.value - insets.top;
+    return { opacity: show ? 1 : 0 };
   });
 
-  const inlineChromeStyle = useAnimatedStyle(() => {
-    const show = !(pinAt.value > 0 && scrollY.value >= pinAt.value);
-    return {
-      opacity: show ? 1 : 0,
-    };
+  const inlineMindStyle = useAnimatedStyle(() => {
+    const show = !(pinAt.value > 0 && scrollY.value >= pinAt.value - insets.top);
+    return { opacity: show ? 1 : 0 };
   });
+
+  useEffect(() => {
+    return () => setMindPinned(false);
+  }, []);
 
   const onConfirmLocation = async (result: {
     lat: number;
     lng: number;
     formattedAddress: string;
     label: string;
-    source: 'gps' | 'search';
+    source: 'gps' | 'search' | 'saved';
+    savedAddressId?: string;
   }) => {
     setPickerOpen(false);
+
+    if (result.source === 'saved') {
+      setDeliveryLocation({
+        label: result.label,
+        formattedAddress: result.formattedAddress,
+        city: normalizeCityName(
+          extractCityFromAddress(result.formattedAddress)
+        ),
+        lat: result.lat,
+        lng: result.lng,
+        source: 'saved',
+        savedAddressId: result.savedAddressId,
+        updatedAt: Date.now(),
+      });
+      return;
+    }
 
     const applyLocal = (loc: {
       label: string;
@@ -285,8 +306,8 @@ export default function HomeScreen() {
         lng: loc.lng,
         source: loc.source,
       };
-      const city = normalizeCityName(loc.city);
-      if (city) next.city = city;
+      const cityName = normalizeCityName(loc.city);
+      if (cityName) next.city = cityName;
       setDeliveryLocation({
         ...next,
         savedAddressId: undefined,
@@ -423,21 +444,26 @@ export default function HomeScreen() {
     />
   );
 
-  const headerProps = {
-    greeting,
-    tier: profile.data?.tier,
-    loyaltyPoints: profile.data?.loyaltyPoints,
-    topInset: insets.top,
-    deliveryTitle,
-    deliverySubtitle,
-    isDetectingLocation,
-    onLocationPress: () => setPickerOpen(true),
-    showSearch: true as const,
-  };
+  const chrome = (
+    <SwiggyHomeChrome
+      topInset={insets.top}
+      greeting={greeting}
+      deliveryTitle={deliveryTitle}
+      deliverySubtitle={deliverySubtitle}
+      isDetectingLocation={isDetectingLocation}
+      onLocationPress={() => setPickerOpen(true)}
+      vegActive={vegMode === 'pure_veg'}
+      onVegPress={() => setVegModalOpen(true)}
+      banners={offers.data?.banners ?? home.data?.banners}
+      deals={offers.data?.deals ?? deals.data}
+      activeFilter={activeFilter}
+      onFilterPress={onFilterPress}
+    />
+  );
 
   /**
-   * Scroll order: red header (with search) → offers → categories.
-   * Pin when categories hit the top; sticky overlay = search + categories.
+   * Title scrolls away with content above.
+   * Only the mind *items* pin when they reach the top (shrunk overlay).
    */
   const listHeader = (
     <View>
@@ -446,48 +472,20 @@ export default function HomeScreen() {
           pinAt.value = e.nativeEvent.layout.height;
         }}
       >
-        <HomeHeader {...headerProps} />
-        <OfferBannerTicker
-          banners={offers.data?.banners ?? home.data?.banners}
-          deals={offers.data?.deals ?? deals.data}
-        />
-      </View>
+        {chrome}
 
-      {/* In-flow categories only — search is already in the red header */}
-      <Animated.View
-        style={inlineChromeStyle}
-        pointerEvents={pinned ? 'none' : 'auto'}
-      >
-        <HomeStickyChrome
-          categories={homeCategories}
-          categoriesLoading={discovery.isLoading}
-          topInset={0}
-          elevated={false}
-          showSearch={false}
-          compactCategories={false}
-        />
-      </Animated.View>
+        <Text style={styles.mindTitle}>What&apos;s on your mind?</Text>
 
-      <View style={styles.paddedBlock}>
-        <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>
-            {city ? `Restaurants in ${city}` : 'Choose delivery city'}
-          </Text>
-          <Text style={styles.sectionSub}>
-            {city
-              ? `${totalInCity} place${totalInCity === 1 ? '' : 's'} in ${city}`
-              : 'Set your location to see local restaurants'}
-          </Text>
-        </View>
         {!city && !isDetectingLocation ? (
-          <View style={styles.hintCard}>
+          <View style={[styles.paddedBlock, styles.hintCard]}>
             <Text style={styles.hintText}>
               Set your delivery location above to see restaurants in your city.
             </Text>
           </View>
         ) : null}
+
         {feed.isError ? (
-          <View style={styles.errorWrap}>
+          <View style={[styles.paddedBlock, styles.errorWrap]}>
             <ErrorView
               message={
                 feed.error instanceof Error
@@ -499,72 +497,93 @@ export default function HomeScreen() {
           </View>
         ) : null}
       </View>
+
+      <Animated.View
+        style={inlineMindStyle}
+        pointerEvents={mindPinned ? 'none' : 'auto'}
+      >
+        <WhatsOnYourMind categories={mindCategories} hideTitle />
+      </Animated.View>
+
+      <HomeFilterChips
+        activeFilter={activeFilter}
+        onFilterPress={onFilterPress}
+      />
+
+      {restaurants.length > 0 || (feed.isLoading && !!city) ? (
+        <PopularRestaurantsSection
+          restaurants={restaurants}
+          totalCount={
+            feed.data?.pages?.[0]?.meta?.total ?? restaurants.length
+          }
+          favoriteIds={favoriteIds}
+          onToggleFavorite={(id) => {
+            const r = restaurants.find((x) => x.id === id);
+            toggleFavorite(id, r ? { restaurant: r } : undefined);
+          }}
+          onPressRestaurant={openRestaurant}
+          loadingMore={feed.isFetchingNextPage}
+          loading={feed.isLoading && restaurants.length === 0}
+        />
+      ) : null}
     </View>
   );
 
   if (feed.isLoading && restaurants.length === 0 && city) {
     return (
       <View style={styles.root}>
-        <StatusBar style="light" />
-        <HomeHeader {...headerProps} showSearch />
+        <StatusBar style="dark" />
+        {chrome}
         <LoadingView label="Finding restaurants near you…" />
         {locationPicker}
         {saveLabelModal}
+        <VegModeModal
+          visible={vegModalOpen}
+          onClose={() => setVegModalOpen(false)}
+          onApply={onVegApply}
+        />
       </View>
     );
   }
 
   return (
     <View style={styles.root}>
-      <StatusBar style={pinned ? 'dark' : 'light'} />
+      <StatusBar style="dark" />
 
       <Animated.FlatList
-        data={feedRows}
+        data={[] as { key: string }[]}
         keyExtractor={(item) => item.key}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={false}
         scrollEventThrottle={16}
         onScroll={onScroll}
-        contentContainerStyle={{
-          paddingBottom:
-            insets.bottom + 28 + (pinned ? APP_BOTTOM_NAV_INSET : 0),
-        }}
-        ListHeaderComponent={listHeader}
-        ListEmptyComponent={
-          !feed.isLoading && restaurants.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>
-                {city
-                  ? `No restaurants in ${city} yet`
-                  : 'No restaurants found'}
-              </Text>
-              <Text style={styles.emptyText}>
-                {city
-                  ? 'Partners in your city will appear here once they register. Pull to refresh.'
-                  : 'Set your delivery location or pull to refresh.'}
-              </Text>
-            </View>
-          ) : null
-        }
-        ListFooterComponent={
-          feed.isFetchingNextPage ? (
-            <View style={styles.footer}>
-              <ActivityIndicator color={authTheme.brand} />
-              <Text style={styles.footerText}>Loading more…</Text>
-            </View>
-          ) : !feed.hasNextPage && restaurants.length > 0 ? (
-            <Text style={styles.endText}>
-              You&apos;ve seen all {totalInCity} restaurants
-              {city ? ` in ${city}` : ''}
-            </Text>
-          ) : null
-        }
         onEndReached={() => {
           if (feed.hasNextPage && !feed.isFetchingNextPage) {
             feed.fetchNextPage();
           }
         }}
         onEndReachedThreshold={0.4}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 28 + APP_BOTTOM_NAV_INSET,
+          flexGrow: 1,
+        }}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={
+          !feed.isLoading && restaurants.length === 0 && !!city ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>
+                {vegMode === 'pure_veg'
+                  ? `No pure veg restaurants in ${city}`
+                  : `No restaurants in ${city} yet`}
+              </Text>
+              <Text style={styles.emptyText}>
+                {vegMode === 'pure_veg'
+                  ? 'Try “All restaurants” in the VEG filter, or pull to refresh.'
+                  : 'Partners in your city will appear here once they register. Pull to refresh.'}
+              </Text>
+            </View>
+          ) : null
+        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -573,39 +592,28 @@ export default function HomeScreen() {
             progressViewOffset={insets.top}
           />
         }
-        renderItem={({ item }) => (
-          <View style={styles.paddedBlock}>
-            <RestaurantFeedCard
-              restaurant={item.restaurant}
-              isFavorite={favoriteIds.includes(item.restaurant.id)}
-              onToggleFavorite={toggleFavorite}
-              onPress={() => openRestaurant(item.restaurant.id)}
-            />
-          </View>
-        )}
+        renderItem={() => null}
       />
 
-      {/* Pinned overlay: search + categories (appears when categories hit top) */}
+      {/* Sticky mind items only (title does NOT stick) */}
       <Animated.View
         style={[
           styles.pinOverlay,
           { paddingTop: insets.top },
           pinOverlayStyle,
         ]}
-        pointerEvents={pinned ? 'auto' : 'none'}
+        pointerEvents={mindPinned ? 'auto' : 'none'}
       >
-        <HomeStickyChrome
-          categories={homeCategories}
-          categoriesLoading={discovery.isLoading}
-          topInset={0}
-          elevated
-          showSearch
-          compactCategories
-        />
+        <WhatsOnYourMind categories={mindCategories} compact hideTitle />
       </Animated.View>
 
       {locationPicker}
       {saveLabelModal}
+      <VegModeModal
+        visible={vegModalOpen}
+        onClose={() => setVegModalOpen(false)}
+        onApply={onVegApply}
+      />
     </View>
   );
 }
@@ -613,7 +621,16 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#F7F7F8',
+    backgroundColor: HOME_BG,
+  },
+  mindTitle: {
+    fontFamily: fonts.display,
+    fontSize: 20,
+    color: '#02060C',
+    letterSpacing: -0.4,
+    paddingHorizontal: 16,
+    marginTop: 18,
+    marginBottom: 4,
   },
   pinOverlay: {
     position: 'absolute',
@@ -622,32 +639,22 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 100,
     backgroundColor: '#FFFFFF',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+      },
+      android: { elevation: 6 },
+      default: {},
+    }),
   },
   paddedBlock: {
     paddingHorizontal: 16,
   },
-  sectionHead: {
-    marginTop: 14,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: authTheme.text,
-    letterSpacing: -0.3,
-  },
-  sectionSub: {
-    marginTop: 2,
-    fontSize: 12,
-    fontWeight: '600',
-    color: authTheme.textMuted,
-  },
   hintCard: {
+    marginTop: 8,
     marginBottom: 12,
     backgroundColor: authTheme.brandSoft,
     borderRadius: 12,
@@ -656,9 +663,9 @@ const styles = StyleSheet.create({
     borderColor: authTheme.brandMuted,
   },
   hintText: {
+    fontFamily: fonts.uiSemi,
     fontSize: 13,
     color: authTheme.brand,
-    fontWeight: '600',
     textAlign: 'center',
   },
   errorWrap: {
@@ -675,33 +682,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyTitle: {
+    fontFamily: fonts.displayBold,
     fontSize: 16,
-    fontWeight: '800',
     color: authTheme.text,
     textAlign: 'center',
   },
   emptyText: {
     marginTop: 6,
+    fontFamily: fonts.ui,
     fontSize: 13,
     color: authTheme.textMuted,
     textAlign: 'center',
     lineHeight: 19,
-  },
-  footer: {
-    paddingVertical: 18,
-    alignItems: 'center',
-    gap: 8,
-  },
-  footerText: {
-    fontSize: 12,
-    color: authTheme.textMuted,
-    fontWeight: '600',
-  },
-  endText: {
-    textAlign: 'center',
-    paddingVertical: 16,
-    fontSize: 12,
-    color: authTheme.textDim,
-    fontWeight: '600',
   },
 });

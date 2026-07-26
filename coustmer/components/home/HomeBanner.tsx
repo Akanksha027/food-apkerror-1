@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     padding: 16,
-    backgroundColor: 'rgba(122, 14, 34, 0.35)',
+    backgroundColor: 'rgba(255, 90, 65, 0.35)',
   },
   title: {
     color: '#FFFFFF',

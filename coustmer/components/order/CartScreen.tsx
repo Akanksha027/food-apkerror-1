@@ -1,20 +1,26 @@
+import MaskedView from '@react-native-masked-view/masked-view';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import {
-  Bookmark,
-  Bike,
-  MapPin,
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Home,
   Minus,
+  MoreVertical,
+  Pencil,
   Plus,
-  Store,
-  Tag,
-  Trash2,
+  Sparkles,
+  X,
 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -23,85 +29,208 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ScreenHeader } from '@/components/common/ScreenHeader';
 import { EmptyView, ErrorView, LoadingView } from '@/components/common/StateViews';
-import { APP_BOTTOM_NAV_INSET } from '@/components/navigation/AppBottomNav';
+import { SmoothPressable } from '@/components/common/SmoothPressable';
 import { VegBadge } from '@/components/restaurant/MenuBadges';
 import { authTheme } from '@/constants/auth-theme';
+import { fonts } from '@/constants/typography';
 import {
-  useApplyCoupon,
   useCart,
-  useCartHealth,
   useClearRemoteCart,
   useRemoveCartItem,
-  useRemoveCoupon,
   useSaveCart,
   useUpdateCartDeliveryAddress,
-  useUpdateCartDeliveryType,
   useUpdateCartItem,
-  useUpdateCartTip,
   useValidateCart,
 } from '@/lib/cart/hooks';
+import { addMenuItemToCart } from '@/lib/order/add-to-cart';
 import { parseDeliveryAddress } from '@/lib/order/parse-address';
+import { usePaymentMethods } from '@/lib/payment/hooks';
+import { useUserProfile } from '@/lib/profile/hooks';
+import { useFullMenu } from '@/lib/restaurant/hooks';
+import type { MenuItem } from '@/lib/restaurant/types';
 import { useAuthStore } from '@/store/auth-store';
 import { useCartStore } from '@/store/cart-store';
 import { useDeliveryLocationStore } from '@/store/delivery-location-store';
 
-const TIP_OPTIONS = [0, 20, 30, 50];
+const PAGE_BG = '#F0F0F5';
+const TEXT = '#02060C';
+const TEXT_SEC = '#686B78';
+const TEXT_MUTED = '#9197A6';
+const BORDER = '#E2E2E7';
+const GREEN = '#1BA672';
+const GREEN_SOFT = '#E8F8F0';
+const GREEN_BORDER = '#B6E5CB';
+const ORANGE = '#FF5A41';
+const PAY_GREEN = '#1BA672';
+const PAYTM_ICON = 'https://img.icons8.com/color/96/paytm.png';
+
+type TipId = 'cutlery' | 'payment' | null;
+
+function OneWord() {
+  return (
+    <MaskedView
+      style={styles.oneWordMask}
+      maskElement={
+        <Text style={styles.oneWordText} numberOfLines={1}>
+          one
+        </Text>
+      }
+    >
+      <LinearGradient
+        colors={['#FF5A41', '#E53935']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+    </MaskedView>
+  );
+}
+
+function BlackTip({
+  text,
+  top,
+  onClose,
+  align = 'center',
+}: {
+  text: string;
+  top: number;
+  onClose: () => void;
+  align?: 'left' | 'center' | 'right';
+}) {
+  const alignSelf =
+    align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';
+  const tipLeft =
+    align === 'left' ? 24 : align === 'right' ? undefined : undefined;
+  const tipRight = align === 'right' ? 28 : undefined;
+
+  return (
+    <View
+      style={[styles.tipLayer, { top }]}
+      pointerEvents="box-none"
+    >
+      <View
+        style={[
+          styles.tipBubble,
+          { alignSelf, marginLeft: tipLeft, marginRight: tipRight },
+        ]}
+      >
+        <Text style={styles.tipText}>{text}</Text>
+        <Pressable onPress={onClose} hitSlop={10} style={styles.tipClose}>
+          <X color="#FFFFFF" size={14} strokeWidth={2.6} />
+        </Pressable>
+      </View>
+      <View
+        style={[
+          styles.tipTail,
+          align === 'left' && { alignSelf: 'flex-start', marginLeft: 72 },
+          align === 'right' && { alignSelf: 'flex-end', marginRight: 88 },
+          align === 'center' && { alignSelf: 'center' },
+        ]}
+      />
+    </View>
+  );
+}
 
 export function CartScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const token = useAuthStore((s) => s.token);
+  const authUser = useAuthStore((s) => s.user);
   const isLoggedIn = Boolean(token);
 
   const restaurant = useCartStore((s) => s.restaurant);
   const items = useCartStore((s) => s.items);
   const specialInstructions = useCartStore((s) => s.specialInstructions);
-  const tip = useCartStore((s) => s.tip);
-  const couponCode = useCartStore((s) => s.couponCode);
   const discount = useCartStore((s) => s.discount);
-  const deliveryType = useCartStore((s) => s.deliveryType);
-  const deliveryFee = useCartStore((s) => s.deliveryFee);
-  const tax = useCartStore((s) => s.tax);
-  const setSpecialInstructions = useCartStore((s) => s.setSpecialInstructions);
-  const setTipLocal = useCartStore((s) => s.setTip);
-  const setDeliveryTypeLocal = useCartStore((s) => s.setDeliveryType);
   const clearLocal = useCartStore((s) => s.clearCart);
   const removeLocal = useCartStore((s) => s.removeItem);
+  const setSpecialInstructions = useCartStore((s) => s.setSpecialInstructions);
   const subtotal = useCartStore((s) => s.subtotal());
   const estimatedTotal = useCartStore((s) => s.estimatedTotal());
 
   const location = useDeliveryLocationStore((s) => s.location);
+  const profile = useUserProfile();
+  const paymentMethods = usePaymentMethods();
+  const menu = useFullMenu(restaurant?.id ?? '', {
+    name: restaurant?.name,
+  });
 
   const remoteCart = useCart();
-  const health = useCartHealth();
   const updateItem = useUpdateCartItem();
   const removeItem = useRemoveCartItem();
   const clearRemote = useClearRemoteCart();
-  const applyCoupon = useApplyCoupon();
-  const removeCoupon = useRemoveCoupon();
-  const updateTip = useUpdateCartTip();
   const updateAddress = useUpdateCartDeliveryAddress();
-  const updateDeliveryType = useUpdateCartDeliveryType();
   const validateCart = useValidateCart();
   const saveCart = useSaveCart();
 
-  const [couponInput, setCouponInput] = useState(couponCode ?? '');
-  const [banner, setBanner] = useState<string | null>(null);
-  const [bannerType, setBannerType] = useState<'error' | 'success'>('success');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [cutleryNeeded, setCutleryNeeded] = useState(false);
+  const [oneAdded, setOneAdded] = useState(false);
+  const [cookingOpen, setCookingOpen] = useState(false);
+  const [cookingDraft, setCookingDraft] = useState(specialInstructions);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeTip, setActiveTip] = useState<TipId>(null);
+  const [cutleryTipTop, setCutleryTipTop] = useState(0);
+  const [payTipTop, setPayTipTop] = useState(0);
+  const tipsStarted = useRef(false);
+  const cutleryRef = useRef<View>(null);
+  const payUsingRef = useRef<View>(null);
 
-  const showBanner = (message: string, type: 'error' | 'success' = 'success') => {
-    setBannerType(type);
-    setBanner(message);
-  };
+  const displayName =
+    profile.data?.displayName ||
+    [profile.data?.firstName, profile.data?.lastName].filter(Boolean).join(' ') ||
+    authUser?.firstName ||
+    'Guest';
+
+  const phoneDigits = (
+    profile.data?.phone ||
+    authUser?.phone ||
+    ''
+  ).replace(/\D/g, '');
+  const phone =
+    phoneDigits.length >= 10 ? phoneDigits.slice(-10) : phoneDigits || '—';
+
+  const addressLabel = location?.label || 'Home';
+  const addressLine =
+    location?.formattedAddress || 'Add a delivery address';
+
+  const savedAmount = useMemo(() => {
+    if (discount > 0) return Math.round(discount);
+    const mrp = items.reduce(
+      (sum, item) => sum + Math.round(item.price * 0.35) * item.quantity,
+      0
+    );
+    return mrp;
+  }, [discount, items]);
+
+  const defaultMethod = useMemo(() => {
+    const all = paymentMethods.data ?? [];
+    return all.find((m) => m.isDefault) || all[0] || null;
+  }, [paymentMethods.data]);
+
+  const payLabel = defaultMethod
+    ? defaultMethod.type === 'upi'
+      ? defaultMethod.label?.includes('Paytm')
+        ? 'Paytm UPI'
+        : defaultMethod.label || 'UPI'
+      : defaultMethod.label || defaultMethod.type.toUpperCase()
+    : 'Paytm UPI';
+
+  const mealSuggestions = useMemo(() => {
+    const inCart = new Set(
+      items.map((i) => i.menuItemId || i.id).filter(Boolean)
+    );
+    return menu.items
+      .filter((m) => m.isAvailable !== false && !inCart.has(m.id))
+      .slice(0, 10);
+  }, [menu.items, items]);
 
   useEffect(() => {
-    setCouponInput(couponCode ?? '');
-  }, [couponCode]);
+    setCookingDraft(specialInstructions);
+  }, [specialInstructions]);
 
   useEffect(() => {
     if (!location || !isLoggedIn) return;
@@ -112,25 +241,71 @@ export function CartScreen() {
       lat: location.lat,
       lng: location.lng,
     });
-    void updateAddress.mutateAsync({
-      label: parsed.label,
-      formattedAddress: parsed.formattedAddress,
-      street: parsed.street,
-      area: parsed.area,
-      city: parsed.city,
-      state: parsed.state,
-      pincode: parsed.pincode,
-      lat: parsed.lat,
-      lng: parsed.lng,
-    }).catch(() => {
-      // optional sync
-    });
+    void updateAddress
+      .mutateAsync({
+        label: parsed.label,
+        formattedAddress: parsed.formattedAddress,
+        street: parsed.street,
+        area: parsed.area,
+        city: parsed.city,
+        state: parsed.state,
+        pincode: parsed.pincode,
+        lat: parsed.lat,
+        lng: parsed.lng,
+      })
+      .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location?.formattedAddress, isLoggedIn]);
 
+  const measureCutleryTip = () => {
+    cutleryRef.current?.measureInWindow((_x, y, _w, h) => {
+      setCutleryTipTop(Math.max(y - 56, insets.top + 80));
+    });
+  };
+
+  const measurePayTip = () => {
+    payUsingRef.current?.measureInWindow((_x, y) => {
+      setPayTipTop(Math.max(y - 62, insets.top + 120));
+    });
+  };
+
+  useEffect(() => {
+    if (!items.length) {
+      tipsStarted.current = false;
+      setActiveTip(null);
+    }
+  }, [items.length]);
+
+  useEffect(() => {
+    if (!items.length || !restaurant || tipsStarted.current) return;
+    tipsStarted.current = true;
+    const t = setTimeout(() => {
+      measureCutleryTip();
+      setActiveTip('cutlery');
+    }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length, restaurant]);
+
+  const dismissTip = () => {
+    if (activeTip === 'cutlery') {
+      setActiveTip(null);
+      setTimeout(() => {
+        measurePayTip();
+        setActiveTip('payment');
+      }, 450);
+      return;
+    }
+    setActiveTip(null);
+  };
+
   const onRefresh = () => {
     remoteCart.refetch();
-    health.refetch();
+  };
+
+  const goBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/home');
   };
 
   const syncQty = async (itemId: string, quantity: number) => {
@@ -144,7 +319,10 @@ export function CartScreen() {
         await updateItem.mutateAsync({ itemId, payload: { quantity } });
       }
     } catch (e) {
-      showBanner(e instanceof Error ? e.message : 'Could not update item', 'error');
+      Alert.alert(
+        'Update failed',
+        e instanceof Error ? e.message : 'Could not update item'
+      );
       remoteCart.refetch();
     } finally {
       setBusyId(null);
@@ -152,6 +330,7 @@ export function CartScreen() {
   };
 
   const handleClear = () => {
+    setMenuOpen(false);
     Alert.alert('Clear cart?', 'Remove all items from your cart.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -168,63 +347,8 @@ export function CartScreen() {
     ]);
   };
 
-  const handleTip = async (amount: number) => {
-    setTipLocal(amount);
-    try {
-      await updateTip.mutateAsync({ tip: amount });
-    } catch (e) {
-      showBanner(e instanceof Error ? e.message : 'Could not update tip', 'error');
-    }
-  };
-
-  const handleDeliveryType = async (type: 'delivery' | 'takeaway') => {
-    setDeliveryTypeLocal(type);
-    try {
-      await updateDeliveryType.mutateAsync({ deliveryType: type });
-    } catch (e) {
-      showBanner(
-        e instanceof Error ? e.message : 'Could not update delivery type',
-        'error'
-      );
-    }
-  };
-
-  const handleApplyCoupon = async () => {
-    const code = couponInput.trim();
-    if (!code) {
-      showBanner('Enter a promo code', 'error');
-      return;
-    }
-    if (!isLoggedIn) {
-      showBanner('Sign in to apply coupons', 'error');
-      return;
-    }
-    try {
-      const cart = await applyCoupon.mutateAsync({ code });
-      if (!cart.coupon?.code) {
-        showBanner('Invalid promo code', 'error');
-        return;
-      }
-      showBanner(`Coupon ${cart.coupon.code.toUpperCase()} applied`, 'success');
-    } catch {
-      showBanner('Invalid promo code', 'error');
-    }
-  };
-
-  const handleRemoveCoupon = async () => {
-    try {
-      await removeCoupon.mutateAsync();
-      setCouponInput('');
-      showBanner('Coupon removed', 'success');
-    } catch (e) {
-      showBanner(
-        e instanceof Error ? e.message : 'Could not remove coupon',
-        'error'
-      );
-    }
-  };
-
   const handleSave = async () => {
+    setMenuOpen(false);
     if (!isLoggedIn) {
       Alert.alert('Sign in required', 'Log in to save carts for later.');
       return;
@@ -235,9 +359,12 @@ export function CartScreen() {
           ? `${restaurant.name} · ${new Date().toLocaleDateString()}`
           : undefined,
       });
-      showBanner('Cart saved for later', 'success');
+      Alert.alert('Saved', 'Cart saved for later');
     } catch (e) {
-      showBanner(e instanceof Error ? e.message : 'Could not save cart', 'error');
+      Alert.alert(
+        'Could not save',
+        e instanceof Error ? e.message : 'Try again'
+      );
     }
   };
 
@@ -254,586 +381,1042 @@ export function CartScreen() {
         return;
       }
     } catch {
-      // If validate endpoint fails, still allow checkout locally
+      // allow local checkout
     }
     router.push('/checkout');
   };
 
+  const addSuggestion = (item: MenuItem) => {
+    if (!restaurant) return;
+    addMenuItemToCart(item, restaurant);
+  };
+
+  const itemMrp = (price: number) => Math.round(price / 0.72);
+
   if (remoteCart.isLoading && !items.length) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={[styles.root, { paddingTop: insets.top }]}>
         <LoadingView label="Loading cart…" />
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!items.length || !restaurant) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.pad}>
-          <ScreenHeader
-            title="Cart"
-            right={
-              <Pressable
-                style={styles.iconBtn}
-                onPress={() => router.push('/cart/saved' as import('expo-router').Href)}
-              >
-                <Bookmark color={authTheme.brand} size={18} />
-              </Pressable>
-            }
-          />
-          {remoteCart.isError ? (
-            <ErrorView
-              message={
-                remoteCart.error instanceof Error
-                  ? remoteCart.error.message
-                  : 'Could not sync cart'
-              }
-              onRetry={onRefresh}
-            />
-          ) : (
-            <EmptyView
-              title="Your cart is empty"
-              subtitle="Add dishes from a restaurant to get started."
-            />
-          )}
-          <Pressable
-            style={styles.browseBtn}
-            onPress={() => router.push('/restaurants')}
-          >
-            <Text style={styles.browseText}>Browse restaurants</Text>
-          </Pressable>
-          <Pressable
-            style={styles.savedLink}
-            onPress={() => router.push('/cart/saved' as import('expo-router').Href)}
-          >
-            <Text style={styles.savedLinkText}>View saved carts</Text>
-          </Pressable>
+      <View style={[styles.root, { paddingTop: insets.top }]}>
+        <View style={styles.emptyHeader}>
+          <SmoothPressable onPress={goBack} style={styles.iconBtn} pressScale={0.9}>
+            <ArrowLeft color={TEXT} size={22} strokeWidth={2.2} />
+          </SmoothPressable>
+          <Text style={styles.emptyTitle}>Cart</Text>
+          <View style={styles.iconBtn} />
         </View>
-      </SafeAreaView>
+        {remoteCart.isError ? (
+          <ErrorView
+            message={
+              remoteCart.error instanceof Error
+                ? remoteCart.error.message
+                : 'Could not sync cart'
+            }
+            onRetry={onRefresh}
+          />
+        ) : (
+          <EmptyView
+            title="Your cart is empty"
+            subtitle="Add dishes from a restaurant to get started."
+          />
+        )}
+        <Pressable
+          style={styles.browseBtn}
+          onPress={() => router.push('/restaurants')}
+        >
+          <Text style={styles.browseText}>Browse restaurants</Text>
+        </Pressable>
+      </View>
     );
   }
 
+  const footerPad = 12 + Math.max(insets.bottom, 10);
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.pad}>
-        <ScreenHeader
-          title="Cart"
-          subtitle={restaurant.name}
-          right={
-            <View style={styles.headerActions}>
-              <Pressable
-                style={styles.iconBtn}
-                onPress={() =>
-                  router.push('/cart/saved' as import('expo-router').Href)
-                }
-              >
-                <Bookmark color={authTheme.brand} size={18} />
-              </Pressable>
-              <Pressable onPress={handleClear} hitSlop={8}>
-                <Trash2 color={authTheme.error} size={18} />
-              </Pressable>
-            </View>
-          }
-        />
-        <Text style={styles.health}>
-          Cart service ·{' '}
-          {health.isLoading
-            ? 'checking…'
-            : health.isSuccess
-              ? health.data?.status ?? 'ok'
-              : 'offline mode'}
-        </Text>
+    <View style={styles.root}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 4 }]}>
+        <SmoothPressable onPress={goBack} style={styles.iconBtn} pressScale={0.9}>
+          <ArrowLeft color={TEXT} size={22} strokeWidth={2.2} />
+        </SmoothPressable>
+
+        <View style={styles.topCenter}>
+          <Text style={styles.restoName} numberOfLines={1}>
+            {restaurant.name}
+          </Text>
+          <Pressable
+            style={styles.addressRow}
+            onPress={() =>
+              router.push('/profile/addresses' as import('expo-router').Href)
+            }
+          >
+            <Home color={TEXT} size={13} strokeWidth={2.2} />
+            <Text style={styles.addressLabel} numberOfLines={1}>
+              {addressLabel}
+            </Text>
+            <Text style={styles.addressPipe}>|</Text>
+            <Text style={styles.addressText} numberOfLines={1}>
+              {addressLine}
+            </Text>
+            <ChevronDown color={TEXT_MUTED} size={14} strokeWidth={2.2} />
+          </Pressable>
+        </View>
+
+        <SmoothPressable
+          onPress={() => setMenuOpen(true)}
+          style={styles.iconBtn}
+          pressScale={0.9}
+        >
+          <MoreVertical color={TEXT} size={20} strokeWidth={2.2} />
+        </SmoothPressable>
       </View>
+
+      {savedAmount > 0 ? (
+        <View style={styles.savingsBanner}>
+          <Sparkles color={GREEN} size={14} strokeWidth={2} />
+          <Text style={styles.savingsText}>
+            <Text style={styles.savingsBold}>₹{savedAmount} saved!</Text>
+            {'  '}On this order
+          </Text>
+        </View>
+      ) : null}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: 118 + footerPad },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={remoteCart.isRefetching}
             onRefresh={onRefresh}
-            tintColor={authTheme.brand}
+            tintColor={ORANGE}
           />
         }
       >
-        {banner ? (
-          <Pressable onPress={() => setBanner(null)}>
-            <Text
-              style={[
-                styles.banner,
-                bannerType === 'error' ? styles.bannerError : styles.bannerSuccess,
-              ]}
-            >
-              {banner}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        {items.map((item) => (
-          <View key={item.id} style={styles.row}>
-            {item.imageUrl ? (
-              <Image
-                source={{ uri: item.imageUrl }}
-                style={styles.thumb}
-                contentFit="cover"
-              />
-            ) : (
-              <View style={[styles.thumb, styles.thumbEmpty]} />
-            )}
-            <View style={styles.rowBody}>
-              <View style={styles.titleRow}>
-                <VegBadge isVeg={item.isVeg} />
-                <Text style={styles.name} numberOfLines={2}>
-                  {item.name}
-                </Text>
-              </View>
-              <Text style={styles.price}>₹{item.price.toFixed(0)}</Text>
-              <View style={styles.qtyRow}>
-                <Pressable
-                  style={styles.qtyBtn}
-                  disabled={busyId === item.id}
-                  onPress={() => syncQty(item.id, item.quantity - 1)}
-                >
-                  <Minus color={authTheme.brand} size={14} />
-                </Pressable>
-                <Text style={styles.qty}>
-                  {busyId === item.id ? '…' : item.quantity}
-                </Text>
-                <Pressable
-                  style={styles.qtyBtn}
-                  disabled={busyId === item.id}
-                  onPress={() => syncQty(item.id, item.quantity + 1)}
-                >
-                  <Plus color={authTheme.brand} size={14} />
-                </Pressable>
-                <Pressable
-                  style={styles.removeBtn}
-                  onPress={() => syncQty(item.id, 0)}
-                >
-                  <Text style={styles.removeText}>Remove</Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        ))}
-
-        <Text style={styles.sectionLabel}>Delivery type</Text>
-        <View style={styles.typeRow}>
-          <Pressable
-            style={[
-              styles.typeChip,
-              deliveryType === 'delivery' && styles.typeChipActive,
-            ]}
-            onPress={() => handleDeliveryType('delivery')}
-          >
-            <Bike
-              color={deliveryType === 'delivery' ? '#FFFFFF' : authTheme.brand}
-              size={16}
-            />
-            <Text
-              style={[
-                styles.typeText,
-                deliveryType === 'delivery' && styles.typeTextActive,
-              ]}
-            >
-              Delivery
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.typeChip,
-              deliveryType === 'takeaway' && styles.typeChipActive,
-            ]}
-            onPress={() => handleDeliveryType('takeaway')}
-          >
-            <Store
-              color={deliveryType === 'takeaway' ? '#FFFFFF' : authTheme.brand}
-              size={16}
-            />
-            <Text
-              style={[
-                styles.typeText,
-                deliveryType === 'takeaway' && styles.typeTextActive,
-              ]}
-            >
-              Takeaway
-            </Text>
-          </Pressable>
-        </View>
-
-        {location ? (
-          <View style={styles.addressCard}>
-            <MapPin color={authTheme.brand} size={16} />
+        {/* Ordering for */}
+        <View style={styles.card}>
+          <View style={styles.orderForRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.addressTitle}>{location.label}</Text>
-              <Text style={styles.addressText} numberOfLines={2}>
-                {location.formattedAddress}
+              <Text style={styles.orderForTitle}>
+                You are ordering for{' '}
+                <Text style={styles.orderForName}>
+                  {displayName} 🎁
+                </Text>
+              </Text>
+              <Text style={styles.orderForSub}>
+                We will share order tracking and delivery communication on{' '}
+                {phone}
               </Text>
             </View>
-          </View>
-        ) : null}
-
-        <Text style={styles.sectionLabel}>Coupon</Text>
-        <View style={styles.couponRow}>
-          <Tag color={authTheme.brand} size={16} />
-          <TextInput
-            style={styles.couponInput}
-            value={couponInput}
-            onChangeText={setCouponInput}
-            placeholder="Promo code"
-            placeholderTextColor={authTheme.textDim}
-            autoCapitalize="characters"
-          />
-          {couponCode ? (
-            <Pressable onPress={handleRemoveCoupon} disabled={removeCoupon.isPending}>
-              <Text style={styles.removeText}>Remove</Text>
-            </Pressable>
-          ) : (
             <Pressable
-              style={styles.applyBtn}
-              onPress={handleApplyCoupon}
-              disabled={applyCoupon.isPending}
+              onPress={() =>
+                router.push('/profile/contact' as import('expo-router').Href)
+              }
             >
-              {applyCoupon.isPending ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text style={styles.applyText}>Apply</Text>
-              )}
+              <Text style={styles.editLink}>EDIT</Text>
             </Pressable>
-          )}
+          </View>
         </View>
 
-        <Text style={styles.sectionLabel}>Cooking instructions</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Less spicy, no onion…"
-          placeholderTextColor={authTheme.textDim}
-          value={specialInstructions}
-          onChangeText={setSpecialInstructions}
-          multiline
-        />
-
-        <Text style={styles.sectionLabel}>Delivery tip</Text>
-        <View style={styles.tipRow}>
-          {TIP_OPTIONS.map((amount) => (
+        {/* One lite upsell */}
+        <View style={styles.oneCard}>
+          <View style={styles.oneLeft}>
+            <View style={styles.oneTitleRow}>
+              <Text style={styles.onePrefix}>Add </Text>
+              <OneWord />
+              <Text style={styles.onePrefix}> at ₹1</Text>
+            </View>
+            <Text style={styles.oneSub}>
+              Get unlimited free deliveries & more for 3 months{' '}
+              <Text style={styles.oneChevron}>{'>'}</Text>
+            </Text>
+          </View>
+          <View style={styles.oneRight}>
+            <Text style={styles.onePrice}>₹1</Text>
             <Pressable
-              key={amount}
-              style={[styles.tipChip, tip === amount && styles.tipChipActive]}
-              onPress={() => handleTip(amount)}
+              style={[styles.oneAddBtn, oneAdded && styles.oneAddBtnOn]}
+              onPress={() => setOneAdded((v) => !v)}
             >
               <Text
-                style={[
-                  styles.tipChipText,
-                  tip === amount && styles.tipChipTextActive,
-                ]}
+                style={[styles.oneAddText, oneAdded && styles.oneAddTextOn]}
               >
-                {amount === 0 ? 'No tip' : `₹${amount}`}
+                {oneAdded ? 'Added' : 'Add'}
               </Text>
             </Pressable>
-          ))}
+          </View>
         </View>
 
-        <View style={styles.summary}>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Item total</Text>
-            <Text style={styles.summaryValue}>₹{subtotal.toFixed(0)}</Text>
+        {/* Items + actions */}
+        <View style={styles.card}>
+          {items.map((item, index) => {
+            const mrp = itemMrp(item.price);
+            return (
+              <View
+                key={item.id}
+                style={[
+                  styles.itemRow,
+                  index > 0 && styles.itemRowBorder,
+                ]}
+              >
+                <View style={styles.itemLeft}>
+                  <VegBadge isVeg={item.isVeg ?? true} />
+                  <Text style={styles.itemName} numberOfLines={2}>
+                    {item.name}
+                  </Text>
+                </View>
+
+                <View style={styles.stepper}>
+                  <Pressable
+                    style={styles.stepBtn}
+                    disabled={busyId === item.id}
+                    onPress={() => syncQty(item.id, item.quantity - 1)}
+                  >
+                    <Minus color={GREEN} size={14} strokeWidth={2.8} />
+                  </Pressable>
+                  <Text style={styles.stepQty}>
+                    {busyId === item.id ? '…' : item.quantity}
+                  </Text>
+                  <Pressable
+                    style={styles.stepBtn}
+                    disabled={busyId === item.id}
+                    onPress={() => syncQty(item.id, item.quantity + 1)}
+                  >
+                    <Plus color={GREEN} size={14} strokeWidth={2.8} />
+                  </Pressable>
+                </View>
+
+                <View style={styles.priceCol}>
+                  {mrp > item.price ? (
+                    <Text style={styles.mrp}>₹{mrp}</Text>
+                  ) : null}
+                  <Text style={styles.itemPrice}>
+                    ₹{(item.price * item.quantity).toFixed(0)}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+
+          <View style={styles.actionRow}>
+            <Pressable
+              style={styles.actionChip}
+              onPress={() =>
+                router.push(
+                  `/restaurants/${restaurant.id}` as import('expo-router').Href
+                )
+              }
+            >
+              <Text style={styles.actionChipText}>+ Add Items</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.actionChip}
+              onPress={() => {
+                setCookingDraft(specialInstructions);
+                setCookingOpen(true);
+              }}
+            >
+              <Pencil color={TEXT_SEC} size={12} strokeWidth={2.2} />
+              <Text style={styles.actionChipText} numberOfLines={1}>
+                Cooking requests
+              </Text>
+            </Pressable>
+
+            <View ref={cutleryRef} collapsable={false} style={{ flex: 1 }}>
+              <Pressable
+                style={[styles.actionChip, { width: '100%' }]}
+                onPress={() => {
+                  setCutleryNeeded((v) => !v);
+                  if (activeTip === 'cutlery') dismissTip();
+                }}
+              >
+                <View
+                  style={[
+                    styles.cutleryBox,
+                    cutleryNeeded && styles.cutleryBoxOn,
+                  ]}
+                >
+                  {cutleryNeeded ? (
+                    <Check color="#FFFFFF" size={10} strokeWidth={3} />
+                  ) : null}
+                </View>
+                <Text style={styles.actionChipText} numberOfLines={1}>
+                  Cutlery Needed
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+
+        {/* Complete your meal */}
+        {mealSuggestions.length > 0 ? (
+          <View style={styles.mealSection}>
+            <Text style={styles.mealTitle}>COMPLETE YOUR MEAL</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.mealScroll}
+            >
+              {mealSuggestions.map((item) => (
+                <View key={item.id} style={styles.mealCard}>
+                  <View style={styles.mealImageWrap}>
+                    {item.imageUrl ? (
+                      <Image
+                        source={{ uri: item.imageUrl }}
+                        style={styles.mealImage}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={[styles.mealImage, styles.mealImageEmpty]} />
+                    )}
+                    <Pressable
+                      style={styles.mealPlus}
+                      onPress={() => addSuggestion(item)}
+                    >
+                      <Plus color={GREEN} size={16} strokeWidth={2.8} />
+                    </Pressable>
+                  </View>
+                  <View style={styles.mealMeta}>
+                    <VegBadge isVeg={item.isVeg ?? true} />
+                    <Text style={styles.mealName} numberOfLines={2}>
+                      {item.name}
+                    </Text>
+                    <Text style={styles.mealPrice}>₹{item.price.toFixed(0)}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        {/* Compact bill */}
+        <View style={styles.card}>
+          <View style={styles.billRow}>
+            <Text style={styles.billLabel}>Item total</Text>
+            <Text style={styles.billValue}>₹{subtotal.toFixed(0)}</Text>
           </View>
           {discount > 0 ? (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>
-                Discount{couponCode ? ` (${couponCode})` : ''}
-              </Text>
-              <Text style={[styles.summaryValue, styles.discount]}>
+            <View style={styles.billRow}>
+              <Text style={[styles.billLabel, { color: GREEN }]}>Discount</Text>
+              <Text style={[styles.billValue, { color: GREEN }]}>
                 -₹{discount.toFixed(0)}
               </Text>
             </View>
           ) : null}
-          {deliveryFee > 0 ? (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Delivery fee</Text>
-              <Text style={styles.summaryValue}>₹{deliveryFee.toFixed(0)}</Text>
+          {oneAdded ? (
+            <View style={styles.billRow}>
+              <Text style={styles.billLabel}>one membership</Text>
+              <Text style={styles.billValue}>₹1</Text>
             </View>
           ) : null}
-          {tax > 0 ? (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Tax</Text>
-              <Text style={styles.summaryValue}>₹{tax.toFixed(0)}</Text>
+          <View style={[styles.billRow, styles.billTotal]}>
+            <Text style={styles.billTotalLabel}>TO PAY</Text>
+            <Text style={styles.billTotalValue}>
+              ₹{(estimatedTotal + (oneAdded ? 1 : 0)).toFixed(0)}
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Bottom pay bar */}
+      <View style={[styles.payBar, { paddingBottom: footerPad }]}>
+        <View ref={payUsingRef} collapsable={false} style={styles.payUsing}>
+          <Pressable
+            onPress={() => {
+              if (activeTip === 'payment') dismissTip();
+              router.push('/checkout');
+            }}
+          >
+            <View style={styles.payUsingTop}>
+              <Text style={styles.payUsingLabel}>PAY USING</Text>
+              <ChevronUp color={TEXT_MUTED} size={12} strokeWidth={2.4} />
             </View>
-          ) : null}
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Delivery tip</Text>
-            <Text style={styles.summaryValue}>₹{tip.toFixed(0)}</Text>
-          </View>
-          <View style={[styles.summaryRow, styles.summaryTotal]}>
-            <Text style={styles.totalLabel}>To pay</Text>
-            <Text style={styles.totalValue}>₹{estimatedTotal.toFixed(0)}</Text>
-          </View>
+            <View style={styles.payMethodRow}>
+              <Image
+                source={{ uri: PAYTM_ICON }}
+                style={styles.paytmIcon}
+                contentFit="contain"
+              />
+              <Text style={styles.payMethodName} numberOfLines={1}>
+                {payLabel}
+              </Text>
+              <ChevronRight color={TEXT_MUTED} size={16} strokeWidth={2.2} />
+            </View>
+          </Pressable>
         </View>
 
         <Pressable
-          style={styles.saveBtn}
-          onPress={handleSave}
-          disabled={saveCart.isPending}
-        >
-          {saveCart.isPending ? (
-            <ActivityIndicator color={authTheme.brand} />
-          ) : (
-            <>
-              <Bookmark color={authTheme.brand} size={16} />
-              <Text style={styles.saveText}>Save cart for later</Text>
-            </>
-          )}
-        </Pressable>
-      </ScrollView>
-
-      <View
-        style={[
-          styles.footer,
-          { paddingBottom: 16 + APP_BOTTOM_NAV_INSET + Math.max(insets.bottom - 10, 0) },
-        ]}
-      >
-        <Pressable
+          style={styles.payBtn}
           onPress={handleCheckout}
-          style={styles.checkoutBtn}
           disabled={validateCart.isPending}
         >
-          <LinearGradient
-            colors={[authTheme.brand, authTheme.brandDark]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.checkoutGradient}
-          >
-            {validateCart.isPending ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <>
-                <Text style={styles.checkoutText}>Proceed to checkout</Text>
-                <Text style={styles.checkoutAmount}>
-                  ₹{estimatedTotal.toFixed(0)}
-                </Text>
-              </>
-            )}
-          </LinearGradient>
+          {validateCart.isPending ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.payBtnText}>
+              Pay ₹{(estimatedTotal + (oneAdded ? 1 : 0)).toFixed(0)}
+            </Text>
+          )}
         </Pressable>
       </View>
-    </SafeAreaView>
+
+      {/* Sequential black tips — one at a time, dismiss with × */}
+      {activeTip === 'cutlery' && cutleryTipTop > 0 ? (
+        <BlackTip
+          text="Tap here if you need cutlery"
+          top={cutleryTipTop}
+          onClose={dismissTip}
+          align="right"
+        />
+      ) : null}
+      {activeTip === 'payment' && payTipTop > 0 ? (
+        <BlackTip
+          text="Tap here to choose other payment methods"
+          top={payTipTop}
+          onClose={dismissTip}
+          align="left"
+        />
+      ) : null}
+
+      {/* Cooking requests modal */}
+      <Modal
+        visible={cookingOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCookingOpen(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setCookingOpen(false)}
+        >
+          <Pressable style={styles.modalCard} onPress={() => undefined}>
+            <Text style={styles.modalTitle}>Cooking requests</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Less spicy, no onion…"
+              placeholderTextColor={TEXT_MUTED}
+              value={cookingDraft}
+              onChangeText={setCookingDraft}
+              multiline
+              autoFocus
+            />
+            <Pressable
+              style={styles.modalSave}
+              onPress={() => {
+                setSpecialInstructions(cookingDraft.trim());
+                setCookingOpen(false);
+              }}
+            >
+              <Text style={styles.modalSaveText}>Save</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Overflow menu */}
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuOpen(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setMenuOpen(false)}
+        >
+          <View style={[styles.menuSheet, { top: insets.top + 48 }]}>
+            <Pressable style={styles.menuItem} onPress={handleSave}>
+              <Text style={styles.menuItemText}>Save cart for later</Text>
+            </Pressable>
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuOpen(false);
+                router.push('/cart/saved' as import('expo-router').Href);
+              }}
+            >
+              <Text style={styles.menuItemText}>View saved carts</Text>
+            </Pressable>
+            <Pressable style={styles.menuItem} onPress={handleClear}>
+              <Text style={[styles.menuItemText, { color: '#E53935' }]}>
+                Clear cart
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: authTheme.bg },
-  pad: { paddingHorizontal: 20, paddingTop: 8, gap: 6 },
-  health: { color: authTheme.textDim, fontSize: 11, fontWeight: '600' },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: authTheme.brandSoft,
-  },
-  scroll: { paddingHorizontal: 20, paddingBottom: 120 + APP_BOTTOM_NAV_INSET, gap: 12 },
-  banner: {
-    fontWeight: '700',
-    padding: 12,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  bannerSuccess: {
-    color: authTheme.brand,
-    backgroundColor: authTheme.brandSoft,
-  },
-  bannerError: {
-    color: '#B91C1C',
-    backgroundColor: 'rgba(220, 38, 38, 0.1)',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-    backgroundColor: authTheme.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: authTheme.cardBorder,
-    padding: 12,
-  },
-  thumb: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
-    backgroundColor: authTheme.surface,
-  },
-  thumbEmpty: { backgroundColor: authTheme.brandSoft },
-  rowBody: { flex: 1, gap: 6 },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  name: {
+  root: {
     flex: 1,
-    color: authTheme.text,
-    fontWeight: '800',
-    fontSize: 15,
+    backgroundColor: PAGE_BG,
   },
-  price: { color: authTheme.text, fontWeight: '700', fontSize: 14 },
-  qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  qtyBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: authTheme.brand,
+  emptyHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingBottom: 8,
   },
-  qty: {
-    fontWeight: '800',
-    color: authTheme.text,
-    minWidth: 16,
-    textAlign: 'center',
+  emptyTitle: {
+    fontFamily: fonts.displayBold,
+    fontSize: 18,
+    color: TEXT,
   },
-  removeBtn: { marginLeft: 'auto' },
-  removeText: { color: authTheme.error, fontWeight: '700', fontSize: 12 },
-  sectionLabel: {
+  browseBtn: {
+    alignSelf: 'center',
     marginTop: 8,
-    color: authTheme.text,
-    fontWeight: '800',
+    backgroundColor: ORANGE,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  browseText: {
+    fontFamily: fonts.uiBold,
+    color: '#FFFFFF',
     fontSize: 14,
   },
-  typeRow: { flexDirection: 'row', gap: 10 },
-  typeChip: {
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 6,
+    paddingBottom: 10,
+    backgroundColor: '#FFFFFF',
+    gap: 4,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topCenter: {
+    flex: 1,
+    paddingTop: 6,
+    gap: 4,
+  },
+  restoName: {
+    fontFamily: fonts.displayBold,
+    fontSize: 17,
+    color: TEXT,
+    letterSpacing: -0.2,
+  },
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  addressLabel: {
+    fontFamily: fonts.uiBold,
+    fontSize: 12,
+    color: TEXT,
+    maxWidth: 72,
+  },
+  addressPipe: {
+    fontFamily: fonts.ui,
+    fontSize: 12,
+    color: TEXT_MUTED,
+  },
+  addressText: {
+    flex: 1,
+    fontFamily: fonts.ui,
+    fontSize: 12,
+    color: TEXT_SEC,
+  },
+  savingsBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 12,
+    marginTop: 10,
+    marginBottom: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: GREEN_SOFT,
+    borderWidth: 1,
+    borderColor: GREEN_BORDER,
+    borderRadius: 10,
+  },
+  savingsText: {
+    fontFamily: fonts.ui,
+    fontSize: 13,
+    color: GREEN,
+  },
+  savingsBold: {
+    fontFamily: fonts.uiBold,
+    color: GREEN,
+  },
+  scroll: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    gap: 12,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
+  },
+  orderForRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  orderForTitle: {
+    fontFamily: fonts.ui,
+    fontSize: 14,
+    color: TEXT,
+    lineHeight: 20,
+  },
+  orderForName: {
+    fontFamily: fonts.uiBold,
+    color: TEXT,
+  },
+  orderForSub: {
+    marginTop: 6,
+    fontFamily: fonts.ui,
+    fontSize: 12,
+    color: TEXT_SEC,
+    lineHeight: 17,
+  },
+  editLink: {
+    fontFamily: fonts.uiBold,
+    fontSize: 13,
+    color: ORANGE,
+    letterSpacing: 0.3,
+    paddingTop: 2,
+  },
+  oneCard: {
+    backgroundColor: '#FFF5F3',
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#FFD5CD',
+  },
+  oneLeft: {
+    flex: 1,
+    gap: 4,
+  },
+  oneTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  onePrefix: {
+    fontFamily: fonts.displayBold,
+    fontSize: 15,
+    color: '#C62828',
+  },
+  oneWordMask: {
+    width: 36,
+    height: 22,
+  },
+  oneWordText: {
+    fontFamily: fonts.script,
+    fontSize: 20,
+    color: '#000',
+    lineHeight: 22,
+  },
+  oneSub: {
+    fontFamily: fonts.ui,
+    fontSize: 12.5,
+    color: TEXT_SEC,
+    lineHeight: 17,
+  },
+  oneChevron: {
+    fontFamily: fonts.uiBold,
+    color: TEXT,
+  },
+  oneRight: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  onePrice: {
+    fontFamily: fonts.uiBold,
+    fontSize: 13,
+    color: TEXT,
+  },
+  oneAddBtn: {
+    borderWidth: 1.2,
+    borderColor: GREEN,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: '#FFFFFF',
+  },
+  oneAddBtnOn: {
+    backgroundColor: GREEN,
+  },
+  oneAddText: {
+    fontFamily: fonts.uiBold,
+    fontSize: 13,
+    color: GREEN,
+  },
+  oneAddTextOn: {
+    color: '#FFFFFF',
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 10,
+  },
+  itemRowBorder: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: BORDER,
+  },
+  itemLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingTop: 2,
+  },
+  itemName: {
+    flex: 1,
+    fontFamily: fonts.uiBold,
+    fontSize: 14,
+    color: TEXT,
+    lineHeight: 19,
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#D4D4D8',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    marginTop: 2,
+  },
+  stepBtn: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepQty: {
+    minWidth: 18,
+    textAlign: 'center',
+    fontFamily: fonts.uiBold,
+    fontSize: 13,
+    color: GREEN,
+  },
+  priceCol: {
+    alignItems: 'flex-end',
+    minWidth: 48,
+    paddingTop: 2,
+  },
+  mrp: {
+    fontFamily: fonts.ui,
+    fontSize: 11,
+    color: TEXT_MUTED,
+    textDecorationLine: 'line-through',
+  },
+  itemPrice: {
+    fontFamily: fonts.uiBold,
+    fontSize: 14,
+    color: TEXT,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    paddingTop: 4,
+  },
+  actionChip: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: authTheme.cardBorder,
-    backgroundColor: authTheme.card,
-  },
-  typeChipActive: {
-    backgroundColor: authTheme.brand,
-    borderColor: authTheme.brand,
-  },
-  typeText: { color: authTheme.text, fontWeight: '700', fontSize: 13 },
-  typeTextActive: { color: '#FFFFFF' },
-  addressCard: {
-    flexDirection: 'row',
-    gap: 10,
-    alignItems: 'flex-start',
-    backgroundColor: authTheme.surface,
-    borderRadius: 14,
-    padding: 12,
-  },
-  addressTitle: { color: authTheme.text, fontWeight: '800', fontSize: 13 },
-  addressText: { color: authTheme.textMuted, fontSize: 12, marginTop: 2 },
-  couponRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1.5,
-    borderColor: authTheme.inputBorder,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: authTheme.card,
-  },
-  couponInput: { flex: 1, color: authTheme.text, paddingVertical: 6 },
-  applyBtn: {
-    backgroundColor: authTheme.brand,
+    gap: 5,
+    borderWidth: 1,
+    borderColor: BORDER,
     borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minWidth: 64,
-    alignItems: 'center',
-  },
-  applyText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12 },
-  input: {
-    minHeight: 80,
-    borderWidth: 1.5,
-    borderColor: authTheme.inputBorder,
-    borderRadius: 14,
-    padding: 12,
-    textAlignVertical: 'top',
-    color: authTheme.text,
-    backgroundColor: authTheme.card,
-  },
-  tipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tipChip: {
-    paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: authTheme.cardBorder,
-    backgroundColor: authTheme.card,
+    paddingHorizontal: 6,
+    backgroundColor: '#FFFFFF',
   },
-  tipChipActive: {
-    backgroundColor: authTheme.brand,
-    borderColor: authTheme.brand,
+  actionChipText: {
+    fontFamily: fonts.uiMedium,
+    fontSize: 11,
+    color: TEXT_SEC,
   },
-  tipChipText: { color: authTheme.text, fontWeight: '700', fontSize: 13 },
-  tipChipTextActive: { color: '#FFFFFF' },
-  summary: {
-    marginTop: 8,
-    backgroundColor: authTheme.surface,
-    borderRadius: 16,
-    padding: 14,
-    gap: 10,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  summaryLabel: { color: authTheme.textMuted, fontSize: 13 },
-  summaryValue: { color: authTheme.text, fontWeight: '700', fontSize: 13 },
-  discount: { color: '#16A34A' },
-  summaryTotal: {
-    borderTopWidth: 1,
-    borderTopColor: authTheme.cardBorder,
-    paddingTop: 10,
-  },
-  totalLabel: { color: authTheme.text, fontWeight: '800', fontSize: 15 },
-  totalValue: { color: authTheme.text, fontWeight: '900', fontSize: 16 },
-  saveBtn: {
-    flexDirection: 'row',
+  cutleryBox: {
+    width: 14,
+    height: 14,
+    borderRadius: 3,
+    borderWidth: 1.4,
+    borderColor: TEXT_MUTED,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: authTheme.brandSoft,
   },
-  saveText: { color: authTheme.brand, fontWeight: '800' },
-  footer: {
+  cutleryBoxOn: {
+    backgroundColor: GREEN,
+    borderColor: GREEN,
+  },
+  mealSection: {
+    gap: 10,
+  },
+  mealTitle: {
+    fontFamily: fonts.uiBold,
+    fontSize: 12,
+    color: TEXT_MUTED,
+    letterSpacing: 0.8,
+    paddingHorizontal: 2,
+  },
+  mealScroll: {
+    gap: 10,
+    paddingRight: 8,
+  },
+  mealCard: {
+    width: 118,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  mealImageWrap: {
+    position: 'relative',
+  },
+  mealImage: {
+    width: 118,
+    height: 118,
+    backgroundColor: '#EEE',
+  },
+  mealImageEmpty: {
+    backgroundColor: '#FFE8E2',
+  },
+  mealPlus: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  mealMeta: {
+    padding: 8,
+    gap: 4,
+  },
+  mealName: {
+    fontFamily: fonts.uiMedium,
+    fontSize: 12,
+    color: TEXT,
+    lineHeight: 15,
+    minHeight: 30,
+  },
+  mealPrice: {
+    fontFamily: fonts.uiBold,
+    fontSize: 13,
+    color: TEXT,
+  },
+  billRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  billLabel: {
+    fontFamily: fonts.ui,
+    fontSize: 13,
+    color: TEXT_SEC,
+  },
+  billValue: {
+    fontFamily: fonts.uiMedium,
+    fontSize: 13,
+    color: TEXT,
+  },
+  billTotal: {
+    marginTop: 8,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: BORDER,
+  },
+  billTotalLabel: {
+    fontFamily: fonts.uiBold,
+    fontSize: 13,
+    color: TEXT,
+  },
+  billTotalValue: {
+    fontFamily: fonts.displayBold,
+    fontSize: 15,
+    color: TEXT,
+  },
+  payBar: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    padding: 16,
-    backgroundColor: authTheme.bg,
-    borderTopWidth: 1,
-    borderTopColor: authTheme.cardBorder,
-  },
-  checkoutBtn: { borderRadius: 16, overflow: 'hidden' },
-  checkoutGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 16,
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: BORDER,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: -3 },
+    elevation: 12,
   },
-  checkoutText: { color: '#FFFFFF', fontWeight: '900', fontSize: 15 },
-  checkoutAmount: { color: '#FFFFFF', fontWeight: '900', fontSize: 15 },
-  browseBtn: {
-    alignSelf: 'center',
-    marginTop: 8,
-    backgroundColor: authTheme.brand,
-    paddingHorizontal: 18,
+  payUsing: {
+    flex: 1,
+    gap: 4,
+  },
+  payUsingTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  payUsingLabel: {
+    fontFamily: fonts.uiBold,
+    fontSize: 10,
+    color: TEXT_MUTED,
+    letterSpacing: 0.6,
+  },
+  payMethodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  paytmIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 4,
+  },
+  payMethodName: {
+    flexShrink: 1,
+    fontFamily: fonts.uiBold,
+    fontSize: 14,
+    color: TEXT,
+  },
+  payBtn: {
+    backgroundColor: PAY_GREEN,
+    borderRadius: 10,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    minWidth: 128,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payBtnText: {
+    fontFamily: fonts.uiBold,
+    fontSize: 15,
+    color: '#FFFFFF',
+  },
+  tipLayer: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    zIndex: 40,
+  },
+  tipBubble: {
+    maxWidth: 280,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 10,
     paddingVertical: 12,
-    borderRadius: 12,
+    paddingLeft: 14,
+    paddingRight: 10,
   },
-  browseText: { color: '#FFFFFF', fontWeight: '800' },
-  savedLink: { alignSelf: 'center', marginTop: 14 },
-  savedLinkText: { color: authTheme.brand, fontWeight: '700' },
+  tipText: {
+    flex: 1,
+    fontFamily: fonts.uiMedium,
+    fontSize: 13,
+    color: '#FFFFFF',
+    lineHeight: 18,
+  },
+  tipClose: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tipTail: {
+    width: 12,
+    height: 12,
+    backgroundColor: '#1A1A1A',
+    transform: [{ rotate: '45deg' }],
+    marginTop: -7,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  modalTitle: {
+    fontFamily: fonts.displayBold,
+    fontSize: 16,
+    color: TEXT,
+  },
+  modalInput: {
+    minHeight: 90,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 12,
+    padding: 12,
+    textAlignVertical: 'top',
+    fontFamily: fonts.ui,
+    fontSize: 14,
+    color: TEXT,
+  },
+  modalSave: {
+    backgroundColor: ORANGE,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalSaveText: {
+    fontFamily: fonts.uiBold,
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
+  menuSheet: {
+    position: 'absolute',
+    right: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    minWidth: 190,
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  menuItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  menuItemText: {
+    fontFamily: fonts.uiMedium,
+    fontSize: 14,
+    color: TEXT,
+  },
 });

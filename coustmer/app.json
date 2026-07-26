@@ -5,7 +5,12 @@
     "version": "1.0.0",
     "scheme": "fooddeliveryapp",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./public/logo.jpeg",
+    "splash": {
+      "image": "./public/logo.jpeg",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
     "userInterfaceStyle": "automatic",
     "plugins": [
       "expo-router",

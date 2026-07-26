@@ -16,7 +16,7 @@ export const DUMMY_CATEGORIES: HomeCategory[] = [
     slug: 'all',
     imageUrl:
       'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300&h=300&fit=crop&q=80',
-    color: '#7A0E22',
+    color: '#FF5A41',
     sortOrder: 0,
   },
   {

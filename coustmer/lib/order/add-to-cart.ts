@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { cartApi } from '@/lib/cart/api';
 import { applyServerCartToStore } from '@/lib/cart/sync';
 import type { MenuItem } from '@/lib/restaurant/types';
+import type { CartItem } from '@/store/cart-store';
 import { useCartStore } from '@/store/cart-store';
 
 type RestaurantRef = {
@@ -11,7 +12,7 @@ type RestaurantRef = {
 };
 
 async function addRemote(
-  item: MenuItem,
+  item: Omit<CartItem, 'quantity'> & { quantity?: number },
   restaurant: RestaurantRef,
   options?: { onAdded?: () => void }
 ) {
@@ -24,6 +25,10 @@ async function addRemote(
       price: item.price,
       isVeg: item.isVeg,
       imageUrl: item.imageUrl,
+      specialInstructions:
+        typeof item.specialInstructions === 'string'
+          ? item.specialInstructions
+          : undefined,
     },
     restaurant
   );
@@ -66,6 +71,10 @@ export function addMenuItemToCart(
       price: item.price,
       isVeg: item.isVeg,
       imageUrl: item.imageUrl,
+      specialInstructions:
+        typeof item.specialInstructions === 'string'
+          ? item.specialInstructions
+          : undefined,
     },
     restaurant
   );
@@ -92,27 +101,36 @@ export function addMenuItemToCart(
     return true;
   }
 
-  Alert.alert(
-    'Replace cart?',
-    `Your cart has items from another restaurant. Clear it and add from ${restaurant.name}?`,
-    [
-      { text: 'Keep current', style: 'cancel' },
-      {
-        text: 'Replace',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await cartApi.clearCart();
-            } catch {
-              // ignore
-            }
-            store.clearCart();
-            await addRemote(item, restaurant, options);
-          })();
-        },
-      },
-    ]
-  );
+  store.promptReplaceCart({
+    item: {
+      id: item.id,
+      menuItemId: item.id,
+      name: item.name,
+      price: item.price,
+      isVeg: item.isVeg,
+      imageUrl: item.imageUrl,
+      specialInstructions:
+        typeof item.specialInstructions === 'string'
+          ? item.specialInstructions
+          : undefined,
+    },
+    restaurant,
+    options,
+  });
   return false;
+}
+
+export async function executeReplaceCart(
+  item: Omit<CartItem, 'quantity'> & { quantity?: number },
+  restaurant: RestaurantRef,
+  options?: { onAdded?: () => void }
+) {
+  const store = useCartStore.getState();
+  try {
+    await cartApi.clearCart();
+  } catch {
+    // ignore
+  }
+  store.clearCart();
+  await addRemote(item, restaurant, options);
 }

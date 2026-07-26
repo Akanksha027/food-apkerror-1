@@ -51,8 +51,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E8E8E8',
   },
   wrapCategoriesOnly: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E8E8E8',
+    borderTopWidth: 0,
+    backgroundColor: 'transparent',
   },
   wrapElevated: {
     ...Platform.select({

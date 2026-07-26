@@ -12,10 +12,12 @@ import {
 import { RestaurantCard } from '@/components/home/RestaurantCard';
 import { authTheme } from '@/constants/auth-theme';
 import { useRecentActivity } from '@/lib/customer/hooks';
+import { useFavoriteToggle } from '@/lib/customer/useFavoriteToggle';
 
 export default function RecentScreen() {
   const router = useRouter();
   const { data, isLoading, isError, error, refetch } = useRecentActivity();
+  const { favoriteIds, toggleFavorite } = useFavoriteToggle();
 
   const hasSearches = (data?.recentSearches.length ?? 0) > 0;
   const hasRestaurants = (data?.recentRestaurants.length ?? 0) > 0;
@@ -80,6 +82,28 @@ export default function RecentScreen() {
                       )}
                       restaurant={restaurant}
                       fullWidth
+                      isFavorite={favoriteIds.includes(
+                        String(
+                          restaurant.id ??
+                            (restaurant as Record<string, unknown>)._id ??
+                            ''
+                        )
+                      )}
+                      onToggleFavorite={(id) =>
+                        toggleFavorite(id, { restaurant })
+                      }
+                      onPress={() => {
+                        const id = String(
+                          restaurant.id ??
+                            (restaurant as Record<string, unknown>)._id ??
+                            ''
+                        );
+                        if (id) {
+                          router.push(
+                            `/restaurants/${id}` as import('expo-router').Href
+                          );
+                        }
+                      }}
                     />
                   ))}
                 </View>

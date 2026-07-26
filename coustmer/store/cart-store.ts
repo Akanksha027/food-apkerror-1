@@ -18,6 +18,12 @@ type CartRestaurant = {
   name: string;
 };
 
+export type ReplaceCartPromptData = {
+  item: Omit<CartItem, 'quantity'> & { quantity?: number };
+  restaurant: CartRestaurant;
+  options?: { onAdded?: () => void };
+};
+
 export type CartHydratePayload = {
   restaurant: CartRestaurant | null;
   items: CartItem[];
@@ -44,6 +50,9 @@ type CartState = {
   deliveryFee: number;
   tax: number;
   serverTotal: number | null;
+  replaceCartPrompt: ReplaceCartPromptData | null;
+  promptReplaceCart: (prompt: ReplaceCartPromptData) => void;
+  clearReplaceCartPrompt: () => void;
   addItem: (
     item: Omit<CartItem, 'quantity'> & { quantity?: number },
     restaurant: CartRestaurant
@@ -79,6 +88,10 @@ export const useCartStore = create<CartState>()(
       deliveryFee: 0,
       tax: 0,
       serverTotal: null,
+      replaceCartPrompt: null,
+
+      promptReplaceCart: (prompt) => set({ replaceCartPrompt: prompt }),
+      clearReplaceCartPrompt: () => set({ replaceCartPrompt: null }),
 
       addItem: (item, restaurant) => {
         const state = get();

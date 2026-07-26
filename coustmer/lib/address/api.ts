@@ -61,9 +61,9 @@ async function request<T>(
       withCredentials: true,
       headers: isMutating
         ? {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          }
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        }
         : { Accept: 'application/json' },
     });
 
@@ -111,17 +111,17 @@ function readCoords(raw: Record<string, unknown>): { lat: number; lng: number } 
 
   let lat = Number(
     raw.lat ??
-      raw.latitude ??
-      location.lat ??
-      location.latitude ??
-      nestedLoc.lat
+    raw.latitude ??
+    location.lat ??
+    location.latitude ??
+    nestedLoc.lat
   );
   let lng = Number(
     raw.lng ??
-      raw.longitude ??
-      location.lng ??
-      location.longitude ??
-      nestedLoc.lng
+    raw.longitude ??
+    location.lng ??
+    location.longitude ??
+    nestedLoc.lng
   );
 
   const coords =
@@ -151,12 +151,12 @@ export function mapSavedAddress(raw: Record<string, unknown>): SavedAddress {
     ),
     formattedAddress: String(
       raw.formattedAddress ??
-        raw.formatted_address ??
-        raw.fullAddress ??
-        raw.addressLine ??
-        (typeof raw.address === 'string' ? raw.address : '') ??
-        addressObj.formattedAddress ??
-        ''
+      raw.formatted_address ??
+      raw.fullAddress ??
+      raw.addressLine ??
+      (typeof raw.address === 'string' ? raw.address : '') ??
+      addressObj.formattedAddress ??
+      ''
     ),
     street:
       (raw.street as string) ||
@@ -178,10 +178,10 @@ export function mapSavedAddress(raw: Record<string, unknown>): SavedAddress {
       undefined,
     pincode: String(
       raw.pincode ??
-        raw.postalCode ??
-        raw.zip ??
-        addressObj.pincode ??
-        ''
+      raw.postalCode ??
+      raw.zip ??
+      addressObj.pincode ??
+      ''
     ).trim() || undefined,
     landmark:
       (raw.landmark as string) ||
@@ -213,20 +213,20 @@ function mapSuggestion(item: Record<string, unknown>): AddressSuggestion {
     | undefined;
   const mainText = String(
     item.description ??
-      item.label ??
-      item.text ??
-      item.formattedAddress ??
-      item.formatted_address ??
-      item.mainText ??
-      item.main_text ??
-      structured?.main_text ??
-      ''
+    item.label ??
+    item.text ??
+    item.formattedAddress ??
+    item.formatted_address ??
+    item.mainText ??
+    item.main_text ??
+    structured?.main_text ??
+    ''
   );
   const secondary = String(
     item.secondaryText ??
-      item.secondary_text ??
-      structured?.secondary_text ??
-      ''
+    item.secondary_text ??
+    structured?.secondary_text ??
+    ''
   );
   const description =
     mainText && secondary && !mainText.includes(secondary)
@@ -285,11 +285,11 @@ function toApiBody(payload: CreateAddressPayload | UpdateAddressPayload) {
     location:
       payload.lat != null && payload.lng != null
         ? {
-            type: 'Point',
-            coordinates: [payload.lng, payload.lat],
-            lat: payload.lat,
-            lng: payload.lng,
-          }
+          type: 'Point',
+          coordinates: [payload.lng, payload.lat],
+          lat: payload.lat,
+          lng: payload.lng,
+        }
         : undefined,
     isDefault: payload.setAsDefault,
     setAsDefault: payload.setAsDefault,

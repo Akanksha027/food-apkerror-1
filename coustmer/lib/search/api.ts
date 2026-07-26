@@ -419,15 +419,20 @@ function resolveCuisineFromQuery(q: string): string | undefined {
   });
   if (exact) return exact.slug;
 
-  // Common dish aliases → category
+  // Common dish aliases → category (short prefixes for live typing, e.g. "piz")
   if (/burg|fries|wing/.test(needle)) return 'burger';
-  if (/pizz|margherita|pepperoni/.test(needle)) return 'pizza';
-  if (/biryan|dum|hyderabadi/.test(needle)) return 'biryani';
+  if (/piz|margherita|pepperoni/.test(needle)) return 'pizza';
+  if (/biry|dum|hyderabadi/.test(needle)) return 'biryani';
   if (/momos?|manchurian|hakka|noodle|fried rice/.test(needle)) return 'chinese';
   if (/dosa|idli|uttapam|sambar/.test(needle)) return 'south-indian';
   if (/paneer|butter chicken|dal|naan|tandoor/.test(needle)) return 'north-indian';
-  if (/cake|brownie|pastr|dessert|ice cream/.test(needle)) return 'dessert';
+  if (/cake|brownie|pastr|dessert|ice cream|icecream/.test(needle)) return 'dessert';
   if (/chai|coffee|shake|juice|lassi/.test(needle)) return 'beverages';
+  if (/sandw/.test(needle)) return 'sandwich';
+  if (/past/.test(needle)) return 'pasta';
+  if (/thal/.test(needle)) return 'thali';
+  if (/roll/.test(needle)) return 'rolls';
+  if (/sweet|mithai|ladoo|gulab/.test(needle)) return 'sweets';
 
   return undefined;
 }
@@ -478,6 +483,17 @@ function dishMatchesQuery(
     categoryMatchesQuery(extras.categoryName, needle)
   ) {
     return true;
+  }
+  // "piz" → pizza cuisine → match dishes whose name contains "pizza"
+  const cuisineSlug = resolveCuisineFromQuery(needle);
+  if (cuisineSlug) {
+    const food = FOOD_CATEGORIES.find((c) => c.slug === cuisineSlug);
+    if (food) {
+      const label = food.label.toLowerCase();
+      const slugWords = food.slug.replace(/-/g, ' ');
+      const dishName = name.toLowerCase();
+      if (dishName.includes(label) || dishName.includes(slugWords)) return true;
+    }
   }
   return false;
 }

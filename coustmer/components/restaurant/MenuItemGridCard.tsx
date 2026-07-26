@@ -1,0 +1,195 @@
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Plus } from 'lucide-react-native';
+import { useEffect } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+
+import { VegBadge } from '@/components/restaurant/MenuBadges';
+import { authTheme } from '@/constants/auth-theme';
+import type { MenuItem } from '@/lib/restaurant/types';
+
+type Props = {
+  item: MenuItem;
+  onPress?: () => void;
+  onAdd?: () => void;
+  highlighted?: boolean;
+};
+
+function originalPrice(item: MenuItem): number | null {
+  const raw = item.originalPrice ?? item.mrp ?? item.compareAtPrice;
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isFinite(n) || n <= item.price) return null;
+  return n;
+}
+
+export function MenuItemGridCard({ item, onPress, onAdd, highlighted }: Props) {
+  const highlight = useSharedValue(0);
+  const was = originalPrice(item);
+
+  useEffect(() => {
+    if (highlighted) {
+      highlight.value = 0;
+      highlight.value = withSequence(
+        withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) }),
+        withDelay(
+          2400,
+          withTiming(0, { duration: 700, easing: Easing.inOut(Easing.quad) })
+        )
+      );
+    } else {
+      highlight.value = withTiming(0, { duration: 280 });
+    }
+  }, [highlighted, highlight]);
+
+  const highlightStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      highlight.value,
+      [0, 1],
+      ['transparent', 'rgba(255, 90, 65, 0.08)']
+    ),
+    borderRadius: 16,
+    transform: [{ scale: 1 + highlight.value * 0.01 }],
+  }));
+
+  return (
+    <Animated.View style={[styles.wrap, highlightStyle]}>
+      <Pressable onPress={onPress} style={styles.card}>
+        <View style={styles.imageWrap}>
+          {item.imageUrl ? (
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.image}
+              contentFit="cover"
+              recyclingKey={item.id}
+              transition={180}
+            />
+          ) : (
+            <LinearGradient colors={['#FFF7ED', '#FFEDD5']} style={styles.image} />
+          )}
+
+          {item.isAvailable !== false ? (
+            <Pressable
+              style={styles.addBtn}
+              hitSlop={6}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onAdd?.();
+              }}
+              accessibilityLabel={`Add ${item.name}`}
+            >
+              <Plus color="#FFFFFF" size={18} strokeWidth={2.8} />
+            </Pressable>
+          ) : (
+            <View style={styles.unavailablePill}>
+              <Text style={styles.unavailableText}>Sold out</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.titleRow}>
+          <VegBadge isVeg={item.isVeg} />
+          <Text style={styles.name} numberOfLines={2}>
+            {item.name}
+          </Text>
+        </View>
+
+        <View style={styles.priceRow}>
+          <Text style={styles.price}>₹{item.price.toFixed(0)}</Text>
+          {was != null ? (
+            <Text style={styles.wasPrice}>₹{was.toFixed(0)}</Text>
+          ) : null}
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+const styles = StyleSheet.create({
+  wrap: {
+    flex: 1,
+  },
+  card: {
+    paddingBottom: 10,
+  },
+  imageWrap: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#F3F4F6',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  addBtn: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: authTheme.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: authTheme.brandDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  unavailablePill: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  unavailableText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 10,
+    paddingRight: 4,
+  },
+  name: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    lineHeight: 18,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  price: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: authTheme.brand,
+  },
+  wasPrice: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    textDecorationLine: 'line-through',
+  },
+});

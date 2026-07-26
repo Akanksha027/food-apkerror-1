@@ -3,6 +3,7 @@ import { View } from 'react-native';
 
 import { AuthLoadingScreen } from '@/components/auth/AuthLoadingScreen';
 import { AppBottomNav } from '@/components/navigation/AppBottomNav';
+import { ReplaceCartModal } from '@/components/order/ReplaceCartModal';
 import { authTheme } from '@/constants/auth-theme';
 import { useAuthStore } from '@/store/auth-store';
 
@@ -16,7 +17,7 @@ export default function AppLayout() {
   }
 
   if (!token || !user) {
-    return <Redirect href="/login" />;
+    return <Redirect href="/?auth=login" />;
   }
 
   return (
@@ -27,8 +28,18 @@ export default function AppLayout() {
           animation: 'slide_from_right',
           contentStyle: { backgroundColor: authTheme.bg },
         }}
-      />
+      >
+        <Stack.Screen
+          name="search"
+          options={{
+            animation: 'fade',
+            presentation: 'transparentModal',
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
+        />
+      </Stack>
       <AppBottomNav />
+      <ReplaceCartModal />
     </View>
   );
 }

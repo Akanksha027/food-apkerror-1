@@ -1,5 +1,14 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Activity, CalendarClock, HeartPulse, Receipt } from 'lucide-react-native';
+import {
+  Activity,
+  ArrowLeft,
+  CalendarClock,
+  Package,
+  Receipt,
+  Sparkles,
+  X,
+} from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import {
   FlatList,
@@ -9,20 +18,21 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ScreenHeader } from '@/components/common/ScreenHeader';
 import {
   EmptyView,
   ErrorView,
   LoadingView,
 } from '@/components/common/StateViews';
+import { SmoothPressable } from '@/components/common/SmoothPressable';
 import { APP_BOTTOM_NAV_INSET } from '@/components/navigation/AppBottomNav';
 import { OrderCard } from '@/components/order/OrderCard';
 import { authTheme } from '@/constants/auth-theme';
+import { fonts } from '@/constants/typography';
+import { swiggyOrderUi as ui } from '@/constants/swiggy-order-ui';
 import {
   useActiveOrders,
-  useOrderServiceHealth,
   useOrders,
   useScheduledOrders,
 } from '@/lib/order/hooks';
@@ -51,9 +61,11 @@ function mergeOrders(...lists: Order[][]): Order[] {
 
 export function OrdersHubScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('all');
+  const [tipVisible, setTipVisible] = useState(true);
+  const [oneVisible, setOneVisible] = useState(true);
 
-  const health = useOrderServiceHealth();
   const all = useOrders({ limit: 50 });
   const active = useActiveOrders();
   const scheduled = useScheduledOrders();
@@ -61,8 +73,6 @@ export function OrdersHubScreen() {
   const allOrders = all.data?.orders ?? [];
 
   const orders: Order[] = useMemo(() => {
-    // /orders/active and /orders/scheduled are often empty or shaped differently
-    // than /orders — always merge with client-side filters from All so tabs stay in sync.
     if (tab === 'active') {
       const fromAll = allOrders.filter(
         (order) => isActiveOrderStatus(order.status) && !isScheduledOrder(order)
@@ -75,6 +85,15 @@ export function OrdersHubScreen() {
     }
     return allOrders;
   }, [tab, active.data, scheduled.data, allOrders]);
+
+  const activeCount = useMemo(() => {
+    return mergeOrders(
+      active.data ?? [],
+      allOrders.filter(
+        (o) => isActiveOrderStatus(o.status) && !isScheduledOrder(o)
+      )
+    ).length;
+  }, [active.data, allOrders]);
 
   const isLoading =
     tab === 'all'
@@ -98,7 +117,6 @@ export function OrdersHubScreen() {
         : scheduled.error ?? all.error;
 
   const refetch = () => {
-    health.refetch();
     all.refetch();
     active.refetch();
     scheduled.refetch();
@@ -107,66 +125,31 @@ export function OrdersHubScreen() {
   const refreshing =
     all.isRefetching || active.isRefetching || scheduled.isRefetching;
 
-  return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.pad}>
-        <ScreenHeader
-          title="My orders"
-          subtitle="History, active & scheduled"
-          right={
-            <Pressable
-              style={styles.cartLink}
-              onPress={() => router.push('/cart')}
-            >
-              <Receipt color={authTheme.brand} size={18} />
-            </Pressable>
-          }
-        />
+  const goBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/home');
+  };
 
-        <View style={styles.healthRow}>
-          <HeartPulse
-            color={health.isSuccess ? '#16A34A' : authTheme.textMuted}
-            size={14}
-          />
-          <Text style={styles.healthText}>
-            Order service:{' '}
-            {health.isLoading
-              ? 'checking…'
-              : health.isSuccess
-                ? health.data?.status ?? 'ok'
-                : health.isError
-                  ? 'unavailable'
-                  : '—'}
+  return (
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <SmoothPressable
+          onPress={goBack}
+          style={styles.backBtn}
+          pressScale={0.9}
+          hitSlop={8}
+        >
+          <ArrowLeft color={ui.text} size={22} strokeWidth={2.2} />
+        </SmoothPressable>
+        <View style={styles.headerCopy}>
+          <Text style={styles.title}>Your orders</Text>
+          <Text style={styles.subtitle}>
+            {activeCount > 0
+              ? `${activeCount} active right now`
+              : 'Track, reorder & browse past meals'}
           </Text>
         </View>
-
-        <View style={styles.tabs}>
-          {(
-            [
-              { id: 'all', label: 'All', icon: Receipt },
-              { id: 'active', label: 'Active', icon: Activity },
-              { id: 'scheduled', label: 'Scheduled', icon: CalendarClock },
-            ] as const
-          ).map((item) => {
-            const Icon = item.icon;
-            const selected = tab === item.id;
-            return (
-              <Pressable
-                key={item.id}
-                style={[styles.tab, selected && styles.tabActive]}
-                onPress={() => setTab(item.id)}
-              >
-                <Icon
-                  color={selected ? '#FFFFFF' : authTheme.textMuted}
-                  size={14}
-                />
-                <Text style={[styles.tabText, selected && styles.tabTextActive]}>
-                  {item.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <View style={styles.backBtn} />
       </View>
 
       {isLoading ? (
@@ -183,12 +166,108 @@ export function OrdersHubScreen() {
           data={orders}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={refetch}
               tintColor={authTheme.brand}
             />
+          }
+          ListHeaderComponent={
+            <View style={styles.listHeader}>
+              {tipVisible ? (
+                <View style={styles.tipBanner}>
+                  <View style={styles.tipIcon}>
+                    <Package color={authTheme.brand} size={20} strokeWidth={2} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.tipTitle}>Need help with an order?</Text>
+                    <Pressable onPress={() => router.push('/support')}>
+                      <Text style={styles.tipLink}>See how support works</Text>
+                    </Pressable>
+                  </View>
+                  <Pressable
+                    hitSlop={10}
+                    onPress={() => setTipVisible(false)}
+                    accessibilityLabel="Dismiss tip"
+                  >
+                    <X color={ui.textMuted} size={16} />
+                  </Pressable>
+                </View>
+              ) : null}
+
+              <View style={styles.tabs}>
+                {(
+                  [
+                    { id: 'all', label: 'All', icon: Receipt },
+                    { id: 'active', label: 'Active', icon: Activity },
+                    {
+                      id: 'scheduled',
+                      label: 'Scheduled',
+                      icon: CalendarClock,
+                    },
+                  ] as const
+                ).map((item) => {
+                  const Icon = item.icon;
+                  const selected = tab === item.id;
+                  return (
+                    <Pressable
+                      key={item.id}
+                      style={[styles.tab, selected && styles.tabActive]}
+                      onPress={() => setTab(item.id)}
+                    >
+                      <Icon
+                        color={selected ? authTheme.brand : ui.textMuted}
+                        size={14}
+                        strokeWidth={2.2}
+                      />
+                      <Text
+                        style={[
+                          styles.tabText,
+                          selected && styles.tabTextActive,
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          }
+          ListFooterComponent={
+            oneVisible ? (
+              <LinearGradient
+                colors={['#FFF5F3', '#FFE8E2']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.oneBanner}
+              >
+                <View style={styles.oneBadge}>
+                  <Sparkles color="#FFFFFF" size={12} strokeWidth={2.4} />
+                  <Text style={styles.oneBadgeText}>one</Text>
+                </View>
+                <Text style={styles.oneCopy}>
+                  Unlimited free deliveries & extra discounts
+                </Text>
+                <Pressable
+                  onPress={() => router.push('/deals' as import('expo-router').Href)}
+                  hitSlop={6}
+                >
+                  <Text style={styles.oneCta}>Join</Text>
+                </Pressable>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => setOneVisible(false)}
+                  style={styles.oneClose}
+                >
+                  <X color={authTheme.brand} size={14} />
+                </Pressable>
+              </LinearGradient>
+            ) : (
+              <View style={{ height: 8 }} />
+            )
           }
           ListEmptyComponent={
             <EmptyView
@@ -209,61 +288,156 @@ export function OrdersHubScreen() {
           renderItem={({ item }) => <OrderCard order={item} />}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: authTheme.bg },
-  pad: { paddingHorizontal: 20, paddingTop: 8, gap: 12 },
-  cartLink: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: authTheme.brandSoft,
+  root: {
+    flex: 1,
+    backgroundColor: ui.pageBg,
   },
-  healthRow: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: ui.border,
   },
-  healthText: {
-    color: authTheme.textMuted,
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCopy: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  title: {
+    fontFamily: fonts.displayBold,
+    fontSize: 18,
+    color: ui.text,
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontFamily: fonts.ui,
     fontSize: 12,
-    fontWeight: '600',
+    color: ui.textMuted,
+  },
+  list: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 28 + APP_BOTTOM_NAV_INSET,
+    flexGrow: 1,
+  },
+  listHeader: {
+    gap: 12,
+    marginBottom: 10,
+  },
+  tipBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFF5F3',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FFD5CD',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  tipIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tipTitle: {
+    fontFamily: fonts.uiSemi,
+    fontSize: 13,
+    color: ui.text,
+  },
+  tipLink: {
+    marginTop: 2,
+    fontFamily: fonts.uiBold,
+    fontSize: 13,
+    color: authTheme.brand,
   },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: authTheme.surface,
+    backgroundColor: '#FFFFFF',
     borderRadius: 14,
     padding: 4,
     gap: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: ui.border,
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 5,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 11,
   },
   tabActive: {
-    backgroundColor: authTheme.brand,
+    backgroundColor: authTheme.brandSoft,
   },
   tabText: {
-    color: authTheme.textMuted,
-    fontWeight: '700',
+    fontFamily: fonts.uiSemi,
+    color: ui.textMuted,
     fontSize: 12,
   },
   tabTextActive: {
-    color: '#FFFFFF',
+    fontFamily: fonts.uiBold,
+    color: authTheme.brand,
   },
-  list: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 32 + APP_BOTTOM_NAV_INSET,
+  oneBanner: {
+    marginTop: 10,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#FFD5CD',
+  },
+  oneBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: authTheme.brand,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  oneBadgeText: {
+    fontFamily: fonts.script,
+    color: '#FFFFFF',
+    fontSize: 13,
+    lineHeight: 16,
+  },
+  oneCopy: {
+    flex: 1,
+    fontFamily: fonts.uiMedium,
+    color: ui.text,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  oneCta: {
+    fontFamily: fonts.uiBold,
+    color: authTheme.brand,
+    fontSize: 13,
+  },
+  oneClose: {
+    marginLeft: 2,
   },
 });

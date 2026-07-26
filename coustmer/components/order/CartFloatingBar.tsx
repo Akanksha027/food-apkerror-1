@@ -1,13 +1,12 @@
 import { useRouter } from 'expo-router';
-import { ShoppingBag } from 'lucide-react-native';
+import { ChevronRight, ShoppingBag } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { authTheme } from '@/constants/auth-theme';
+import { swiggyOrderUi as ui } from '@/constants/swiggy-order-ui';
 import { useCartStore } from '@/store/cart-store';
 
 type Props = {
-  /** Extra bottom offset when stacked above another bar */
   bottomOffset?: number;
 };
 
@@ -25,29 +24,32 @@ export function CartFloatingBar({ bottomOffset = 0 }: Props) {
     <View
       style={[
         styles.wrap,
-        { paddingBottom: Math.max(insets.bottom, 12) + bottomOffset },
+        { paddingBottom: Math.max(insets.bottom, 10) + bottomOffset },
       ]}
       pointerEvents="box-none"
     >
       <Pressable
         style={styles.bar}
         onPress={() => router.push('/cart')}
+        accessibilityRole="button"
+        accessibilityLabel="View cart"
       >
-        <View style={styles.left}>
-          <View style={styles.badge}>
-            <ShoppingBag color="#FFFFFF" size={16} />
-            <Text style={styles.badgeCount}>{totalItems}</Text>
-          </View>
-          <View>
-            <Text style={styles.title} numberOfLines={1}>
-              {restaurant.name}
-            </Text>
-            <Text style={styles.subtitle}>
-              {totalItems} item{totalItems === 1 ? '' : 's'} · ₹{subtotal.toFixed(0)}
-            </Text>
-          </View>
+        <View style={styles.countPill}>
+          <ShoppingBag color="#FFFFFF" size={15} strokeWidth={2.4} />
+          <Text style={styles.countText}>{totalItems}</Text>
         </View>
-        <Text style={styles.cta}>View cart</Text>
+        <View style={styles.mid}>
+          <Text style={styles.title} numberOfLines={1}>
+            {restaurant.name}
+          </Text>
+          <Text style={styles.sub}>
+            {totalItems} item{totalItems === 1 ? '' : 's'} · ₹{subtotal.toFixed(0)}
+          </Text>
+        </View>
+        <View style={styles.ctaRow}>
+          <Text style={styles.cta}>VIEW CART</Text>
+          <ChevronRight color="#FFFFFF" size={18} strokeWidth={2.6} />
+        </View>
       </Pressable>
     </View>
   );
@@ -63,46 +65,55 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: authTheme.brand,
-    borderRadius: 16,
-    paddingHorizontal: 14,
+    backgroundColor: ui.green,
+    borderRadius: 12,
+    paddingHorizontal: 12,
     paddingVertical: 12,
-    gap: 12,
-  },
-  left: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  badge: {
+  countPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.18)',
     paddingHorizontal: 8,
     paddingVertical: 6,
-    borderRadius: 10,
+    borderRadius: 8,
   },
-  badgeCount: {
+  countText: {
     color: '#FFFFFF',
     fontWeight: '900',
     fontSize: 13,
+  },
+  mid: {
+    flex: 1,
+    minWidth: 0,
   },
   title: {
     color: '#FFFFFF',
     fontWeight: '800',
-    fontSize: 14,
+    fontSize: 13,
   },
-  subtitle: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 12,
+  sub: {
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 11,
     marginTop: 1,
+    fontWeight: '600',
+  },
+  ctaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
   cta: {
     color: '#FFFFFF',
     fontWeight: '900',
-    fontSize: 13,
+    fontSize: 12,
+    letterSpacing: 0.4,
   },
 });

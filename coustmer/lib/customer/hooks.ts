@@ -88,7 +88,11 @@ export function useAddFavorite() {
   return useMutation({
     mutationFn: (restaurantId: string) => customerApi.addFavorite(restaurantId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.favorites() });
+      // Soft refresh — do not clear optimistic local list if API is empty
+      queryClient.invalidateQueries({
+        queryKey: customerKeys.favorites(),
+        refetchType: 'active',
+      });
       queryClient.invalidateQueries({ queryKey: customerKeys.profile() });
     },
   });

@@ -22,10 +22,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   veg: {
-    borderColor: '#16A34A',
+    borderColor: '#48C479',
   },
   nonVeg: {
-    borderColor: '#DC2626',
+    borderColor: '#E84A4A',
   },
   dot: {
     width: 7,
@@ -33,13 +33,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   vegDot: {
-    backgroundColor: '#16A34A',
+    backgroundColor: '#48C479',
   },
   nonVegDot: {
-    backgroundColor: '#DC2626',
+    backgroundColor: '#E84A4A',
   },
 });
-
 export function PriceTag({ price }: { price: number }) {
   return <Text style={priceStyles.text}>₹{price.toFixed(0)}</Text>;
 }

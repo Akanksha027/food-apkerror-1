@@ -62,7 +62,7 @@ export function SubmitReviewScreen() {
         orderId: id,
       });
       Alert.alert('Thanks!', 'Your review was submitted.', [
-        { text: 'OK', onPress: () => router.back() },
+        { text: 'OK', onPress: () => { if (router.canGoBack()) { if (router.canGoBack()) { router.back(); } else { router.replace('/'); } } else { router.replace('/'); } } },
       ]);
     } catch (e) {
       Alert.alert('Could not submit', getApiErrorMessage(e));
@@ -115,7 +115,7 @@ export function SubmitReviewScreen() {
                 {existing.data.comment ? (
                   <Text style={styles.doneComment}>{existing.data.comment}</Text>
                 ) : null}
-                <Pressable style={styles.secondaryBtn} onPress={() => router.back()}>
+                <Pressable style={styles.secondaryBtn} onPress={() => { if (router.canGoBack()) { if (router.canGoBack()) { router.back(); } else { router.replace('/'); } } else { router.replace('/'); } }}>
                   <Text style={styles.secondaryBtnText}>Back to order</Text>
                 </Pressable>
               </View>

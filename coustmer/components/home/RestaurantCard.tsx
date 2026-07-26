@@ -1,8 +1,9 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Clock, Heart, Star, UtensilsCrossed } from 'lucide-react-native';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Clock, Star, UtensilsCrossed } from 'lucide-react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { FavoriteHeartButton } from '@/components/common/FavoriteHeartButton';
 import { authTheme } from '@/constants/auth-theme';
 import type { RestaurantCard as RestaurantCardType } from '@/lib/customer/types';
 
@@ -23,27 +24,34 @@ export function RestaurantCard({
   fullWidth,
   onPress,
 }: Props) {
-  const id = String(restaurant.id ?? (restaurant as Record<string, unknown>)._id ?? '');
+  const id = String(
+    restaurant.id ?? (restaurant as Record<string, unknown>)._id ?? ''
+  );
   const cuisines = restaurant.cuisines?.slice(0, 3).join(', ');
-  const offer = (restaurant as Record<string, unknown>).offer as string | undefined;
+  const offer = (restaurant as Record<string, unknown>).offer as
+    | string
+    | undefined;
 
   return (
-    <Pressable
-      style={[styles.card, fullWidth && styles.cardFullWidth]}
-      onPress={onPress}
-      disabled={!onPress}
-    >
+    <View style={[styles.card, fullWidth && styles.cardFullWidth]}>
       <View style={styles.imageWrap}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onPress}
+          disabled={!onPress}
+        />
         {restaurant.imageUrl ? (
           <Image
             source={{ uri: restaurant.imageUrl }}
             style={styles.image}
             contentFit="cover"
+            pointerEvents="none"
           />
         ) : (
           <LinearGradient
             colors={['#FEE2D5', '#FED7C3']}
             style={styles.image}
+            pointerEvents="none"
           >
             <View style={styles.placeholderInner}>
               <UtensilsCrossed color="#C4520A" size={30} />
@@ -54,42 +62,43 @@ export function RestaurantCard({
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.55)']}
           style={styles.imageScrim}
+          pointerEvents="none"
         />
 
         {offer ? (
-          <View style={styles.offerRibbon}>
+          <View style={styles.offerRibbon} pointerEvents="none">
             <Text style={styles.offerText}>{offer}</Text>
           </View>
         ) : null}
 
         {onToggleFavorite ? (
-          <Pressable
-            style={styles.favoriteButton}
-            onPress={() => onToggleFavorite(id)}
-            hitSlop={8}
+          <FavoriteHeartButton
+            active={!!isFavorite}
             disabled={favoriteLoading}
-          >
-            {favoriteLoading ? (
-              <ActivityIndicator size="small" color={authTheme.brand} />
-            ) : (
-              <Heart
-                color={isFavorite ? authTheme.brand : authTheme.textMuted}
-                fill={isFavorite ? authTheme.brand : 'transparent'}
-                size={18}
-              />
-            )}
-          </Pressable>
+            onPress={() => onToggleFavorite(id)}
+            size={18}
+            color={authTheme.textMuted}
+            activeColor={authTheme.brand}
+            withBackdrop
+            style={styles.favoriteButton}
+          />
         ) : null}
 
         {typeof restaurant.rating === 'number' ? (
-          <View style={styles.ratingBadge}>
+          <View style={styles.ratingBadge} pointerEvents="none">
             <Star color="#FFFFFF" fill="#FFFFFF" size={11} />
-            <Text style={styles.ratingText}>{restaurant.rating.toFixed(1)}</Text>
+            <Text style={styles.ratingText}>
+              {restaurant.rating.toFixed(1)}
+            </Text>
           </View>
         ) : null}
       </View>
 
-      <View style={styles.body}>
+      <Pressable
+        style={styles.body}
+        onPress={onPress}
+        disabled={!onPress}
+      >
         <Text style={styles.name} numberOfLines={1}>
           {restaurant.name || 'Restaurant'}
         </Text>
@@ -109,8 +118,8 @@ export function RestaurantCard({
             <Text style={styles.meta}>₹{restaurant.priceForTwo} for two</Text>
           ) : null}
         </View>
-      </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 }
 
@@ -171,17 +180,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
   },
   ratingBadge: {
     position: 'absolute',

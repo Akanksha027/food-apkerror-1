@@ -1,5 +1,5 @@
-import { ForgotPasswordScreen } from '@/components/auth/ForgotPasswordScreen';
+import { Redirect } from 'expo-router';
 
 export default function ForgotPasswordPage() {
-  return <ForgotPasswordScreen />;
+  return <Redirect href="/?auth=forgot-password" />;
 }

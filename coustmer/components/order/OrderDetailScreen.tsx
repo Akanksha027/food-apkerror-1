@@ -32,6 +32,7 @@ import {
   LoadingView,
 } from '@/components/common/StateViews';
 import { authTheme } from '@/constants/auth-theme';
+import { swiggyOrderUi as ui } from '@/constants/swiggy-order-ui';
 import {
   useCancelOrder,
   useCancelScheduledOrder,
@@ -505,7 +506,7 @@ function ActionButton({
 }) {
   const colors =
     tone === 'danger'
-      ? (['#DC2626', '#B91C1C'] as const)
+      ? (['#DC2626', '#E8482F'] as const)
       : tone === 'secondary'
         ? ([authTheme.brandLight, authTheme.brand] as const)
         : ([authTheme.brand, authTheme.brandDark] as const);
@@ -525,58 +526,83 @@ function ActionButton({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: authTheme.bg },
-  pad: { paddingHorizontal: 20, paddingTop: 8 },
-  scroll: { paddingHorizontal: 20, paddingBottom: 40, gap: 10 },
+  safe: { flex: 1, backgroundColor: ui.pageBg },
+  pad: {
+    paddingHorizontal: ui.hPad,
+    paddingTop: 8,
+    paddingBottom: 8,
+    backgroundColor: ui.card,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: ui.border,
+  },
+  scroll: {
+    paddingHorizontal: ui.hPad,
+    paddingTop: 12,
+    paddingBottom: 40,
+    gap: ui.sectionGap,
+  },
   banner: {
-    backgroundColor: authTheme.brandSoft,
-    color: authTheme.brand,
+    backgroundColor: ui.greenSoft,
+    color: ui.green,
     fontWeight: '700',
-    padding: 10,
-    borderRadius: 10,
+    padding: 12,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   statusCard: {
-    backgroundColor: authTheme.surface,
-    borderRadius: 16,
+    backgroundColor: ui.card,
+    borderRadius: ui.radius,
     padding: 16,
     gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  statusLabel: { color: authTheme.textMuted, fontSize: 12, fontWeight: '600' },
+  statusLabel: { color: ui.textMuted, fontSize: 12, fontWeight: '600' },
   statusValue: {
-    color: authTheme.text,
+    color: ui.text,
     fontSize: 22,
     fontWeight: '900',
   },
   scheduled: { color: '#7C3AED', fontWeight: '700', marginTop: 4 },
   section: {
-    marginTop: 8,
-    color: authTheme.text,
+    color: ui.text,
     fontWeight: '900',
-    fontSize: 15,
+    fontSize: 14,
+    marginBottom: 2,
   },
   itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
-  },
-  itemName: { flex: 1, color: authTheme.text, fontWeight: '600' },
-  itemPrice: { color: authTheme.text, fontWeight: '800' },
-  totals: {
-    backgroundColor: authTheme.surface,
-    borderRadius: 14,
+    backgroundColor: ui.card,
+    borderRadius: 12,
     padding: 12,
-    gap: 6,
+  },
+  itemName: { flex: 1, color: ui.text, fontWeight: '600' },
+  itemPrice: { color: ui.text, fontWeight: '800' },
+  totals: {
+    backgroundColor: ui.card,
+    borderRadius: ui.radius,
+    padding: 14,
+    gap: 8,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  muted: { color: authTheme.textMuted, fontSize: 13, lineHeight: 18 },
-  bold: { color: authTheme.text, fontWeight: '900', fontSize: 15 },
-  block: { gap: 4 },
+  muted: { color: ui.textSecondary, fontSize: 13, lineHeight: 18 },
+  bold: { color: ui.text, fontWeight: '900', fontSize: 15 },
+  block: {
+    gap: 6,
+    backgroundColor: ui.card,
+    borderRadius: ui.radius,
+    padding: 14,
+  },
   actions: { gap: 8 },
-  actionBtn: { borderRadius: 14, overflow: 'hidden' },
+  actionBtn: { borderRadius: 12, overflow: 'hidden' },
   actionGradient: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -585,53 +611,57 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   actionText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
-  tipBox: { gap: 8 },
+  tipBox: {
+    gap: 8,
+    backgroundColor: ui.card,
+    borderRadius: ui.radius,
+    padding: 14,
+  },
   tipRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: authTheme.card,
+    backgroundColor: '#FAFAFB',
     borderWidth: 1,
-    borderColor: authTheme.cardBorder,
+    borderColor: ui.border,
     borderRadius: 12,
     paddingHorizontal: 12,
   },
   tipInput: {
     flex: 1,
     paddingVertical: 12,
-    color: authTheme.text,
+    color: ui.text,
     fontWeight: '700',
   },
   tipBtn: {
-    backgroundColor: authTheme.brand,
+    backgroundColor: ui.orange,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
   },
   tipBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12 },
-  hint: { color: authTheme.textDim, fontSize: 11 },
+  hint: { color: ui.textMuted, fontSize: 11 },
   input: {
-    borderWidth: 1.5,
-    borderColor: authTheme.inputBorder,
+    borderWidth: 1,
+    borderColor: ui.border,
     borderRadius: 12,
     padding: 12,
-    color: authTheme.text,
+    color: ui.text,
+    backgroundColor: ui.card,
   },
   issueCard: {
-    backgroundColor: authTheme.card,
+    backgroundColor: ui.card,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: authTheme.cardBorder,
     padding: 12,
     gap: 4,
   },
   issueType: {
-    color: authTheme.brand,
+    color: ui.orange,
     fontWeight: '800',
     textTransform: 'capitalize',
   },
   issueStatus: {
-    color: authTheme.textMuted,
+    color: ui.textMuted,
     fontSize: 11,
     fontWeight: '700',
   },

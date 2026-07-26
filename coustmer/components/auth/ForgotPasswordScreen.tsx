@@ -47,7 +47,7 @@ export function ForgotPasswordScreen() {
 
   return (
     <AuthScreenLayout>
-      <Pressable onPress={() => router.back()}>
+      <Pressable onPress={() => { if (router.canGoBack()) { if (router.canGoBack()) { router.back(); } else { router.replace('/'); } } else { router.replace('/'); } }}>
         <Text style={styles.back}>← Back to login</Text>
       </Pressable>
 
