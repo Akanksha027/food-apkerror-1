@@ -52,6 +52,7 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
+    "postinstall": "node scripts/fix-lightningcss.js",
     "build": "expo export",
     "start": "expo start",
     "start:clear": "adb reverse tcp:8081 tcp:8081 && expo start --clear",
