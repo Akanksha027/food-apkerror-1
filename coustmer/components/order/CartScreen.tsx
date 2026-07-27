@@ -14,7 +14,9 @@ import {
   Pencil,
   Plus,
   Sparkles,
+  ShoppingBag,
   X,
+  FileText,
 } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -189,6 +191,7 @@ export function CartScreen() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [cutleryNeeded, setCutleryNeeded] = useState(false);
   const [oneAdded, setOneAdded] = useState(false);
+  const [isBillExpanded, setIsBillExpanded] = useState(true);
   const [cookingOpen, setCookingOpen] = useState(false);
   const [cookingDraft, setCookingDraft] = useState(specialInstructions);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -515,34 +518,34 @@ export function CartScreen() {
 
   if (!items.length || !restaurant) {
     return (
-      <View style={[styles.root, { paddingTop: insets.top }]}>
+      <View style={[styles.root, { paddingTop: insets.top, backgroundColor: '#FFFFFF' }]}>
         <View style={styles.emptyHeader}>
-          <SmoothPressable onPress={goBack} style={styles.iconBtn} pressScale={0.9}>
-            <ArrowLeft color={TEXT} size={22} strokeWidth={2.2} />
+          <SmoothPressable onPress={goBack} style={styles.emptyHeaderBtn} pressScale={0.9}>
+            <ArrowLeft color="#000000" size={22} strokeWidth={2.2} />
           </SmoothPressable>
-          <Text style={styles.emptyTitle}>Cart</Text>
-          <View style={styles.iconBtn} />
+          <Text style={styles.emptyHeaderTitle}>Shop</Text>
+          <View style={styles.emptyHeaderBtn}>
+            <ShoppingBag color="#000000" size={20} strokeWidth={2.2} />
+          </View>
         </View>
-        {remoteCart.isError ? (
-          <ErrorView
-            message={
-              remoteCart.error instanceof Error
-                ? remoteCart.error.message
-                : 'Could not sync cart'
-            }
-            onRetry={onRefresh}
+
+        <View style={styles.emptyContent}>
+          <Image 
+            source={require('../../assets/images/empty_cart.png')} 
+            style={styles.emptyCartImage} 
+            contentFit="contain" 
           />
-        ) : (
-          <EmptyView
-            title="Your cart is empty"
-            subtitle="Add dishes from a restaurant to get started."
-          />
-        )}
+          <Text style={styles.emptyCartTitle}>Your Cart is Empty</Text>
+          <Text style={styles.emptyCartSubtitle}>
+            Looks like you haven't added{"\n"}anything to your cart yet
+          </Text>
+        </View>
+
         <Pressable
-          style={styles.browseBtn}
+          style={styles.startShoppingBtn}
           onPress={() => router.push('/restaurants')}
         >
-          <Text style={styles.browseText}>Browse restaurants</Text>
+          <Text style={styles.startShoppingText}>Start Shopping</Text>
         </Pressable>
       </View>
     );
@@ -781,38 +784,97 @@ export function CartScreen() {
           setSpecialInstructions={setSpecialInstructions} 
         />
 
-        {/* Compact bill */}
-        <View style={styles.card}>
-          <View style={styles.billRow}>
-            <Text style={styles.billLabel}>Item total</Text>
-            <Text style={styles.billValue}>₹{subtotal.toFixed(0)}</Text>
+        {/* Swiggy Style Bill Details */}
+        <View style={styles.billContainer}>
+          {/* Header */}
+          <Pressable 
+            style={styles.billHeader}
+            onPress={() => setIsBillExpanded(!isBillExpanded)}
+          >
+            <View style={styles.billHeaderLeft}>
+              <View style={styles.receiptIconBox}>
+                <FileText color="#fff" size={14} strokeWidth={2.5} />
+              </View>
+              <View>
+                <Text style={styles.billTitle}>
+                  To Pay {discount > 0 && <Text style={styles.strikeText}>₹{subtotal.toFixed(0)} </Text>}₹{(estimatedTotal + (oneAdded ? 1 : 0)).toFixed(0)}
+                </Text>
+                {discount > 0 && (
+                   <Text style={styles.savedText}>₹{discount.toFixed(0)} saved on the total!</Text>
+                )}
+              </View>
+            </View>
+            {isBillExpanded ? (
+              <ChevronUp size={20} color="#000" />
+            ) : (
+              <ChevronDown size={20} color="#000" />
+            )}
+          </Pressable>
+
+          {/* Solid Divider */}
+          {isBillExpanded && <View style={styles.billDivider} />}
+
+          {/* Body */}
+          {isBillExpanded && (
+            <View style={styles.billBody}>
+            {/* Row 1 */}
+            <View style={styles.billRow}>
+              <Text style={styles.billLabelDark}>Item Total</Text>
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+                 {discount > 0 && <Text style={styles.strikeText}>₹{subtotal.toFixed(0)}</Text>}
+                 <Text style={[styles.billValueDark, discount > 0 && {color: GREEN}]}>₹{(subtotal - discount).toFixed(0)}</Text>
+              </View>
+            </View>
+
+            {/* Dotted Divider */}
+            <View style={styles.dottedDivider} />
+
+            {/* Row 2 */}
+            <View style={styles.billRowGroup}>
+               <View style={styles.billRow}>
+                 <View style={styles.dashedUnderline}>
+                   <Text style={styles.billLabelDark}>Delivery Fee | 10.5 kms</Text>
+                 </View>
+                 <Text style={styles.billValueDark}>₹81</Text>
+               </View>
+               <Text style={styles.billSubText}>Free delivery applicable on orders above ₹99</Text>
+            </View>
+
+            <View style={styles.dottedDivider} />
+
+            {/* Row 3 - Tip */}
+            {tip > 0 && (
+              <>
+                <View style={styles.billRow}>
+                  <Text style={styles.billLabelDark}>Delivery Tip</Text>
+                  <Text style={styles.billValueDark}>₹{tip}</Text>
+                </View>
+              </>
+            )}
+
+            {/* Row 4 - GST */}
+            <View style={styles.billRow}>
+              <View style={styles.dashedUnderline}>
+                <Text style={styles.billLabelDark}>GST & Other Charges</Text>
+              </View>
+              <Text style={styles.billValueDark}>₹43.46</Text>
+            </View>
+            
+            <View style={styles.dottedDivider} />
+
+            <View style={[styles.billRow, { paddingTop: 4 }]}>
+              <Text style={styles.billTotalLabel}>To Pay</Text>
+              <Text style={styles.billTotalValue}>₹{(estimatedTotal + (oneAdded ? 1 : 0)).toFixed(0)}</Text>
+            </View>
+
           </View>
-          {discount > 0 ? (
-            <View style={styles.billRow}>
-              <Text style={[styles.billLabel, { color: GREEN }]}>Discount</Text>
-              <Text style={[styles.billValue, { color: GREEN }]}>
-                -₹{discount.toFixed(0)}
-              </Text>
-            </View>
-          ) : null}
-          {oneAdded ? (
-            <View style={styles.billRow}>
-              <Text style={styles.billLabel}>one membership</Text>
-              <Text style={styles.billValue}>₹1</Text>
-            </View>
-          ) : null}
-          {tip > 0 ? (
-            <View style={styles.billRow}>
-              <Text style={styles.billLabel}>Delivery Tip</Text>
-              <Text style={styles.billValue}>₹{tip}</Text>
-            </View>
-          ) : null}
-          <View style={[styles.billRow, styles.billTotal]}>
-            <Text style={styles.billTotalLabel}>TO PAY</Text>
-            <Text style={styles.billTotalValue}>
-              ₹{(estimatedTotal + (oneAdded ? 1 : 0)).toFixed(0)}
-            </Text>
-          </View>
+          )}
+        </View>
+
+        {/* Cancellation Policy */}
+        <View style={styles.cancellationBox}>
+           <Text style={styles.cancelTitle}>Cancellation policy:</Text>
+           <Text style={styles.cancelText}>Please double-check your order and address details. Orders are non-refundable once placed.</Text>
         </View>
       </ScrollView>
 
@@ -1343,36 +1405,125 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: TEXT,
   },
+  // Swiggy Bill Styles
+  billContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+  },
+  billHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  billHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  receiptIconBox: {
+    width: 24,
+    height: 24,
+    backgroundColor: '#1BA672',
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  billTitle: {
+    fontFamily: fonts.uiMedium,
+    fontSize: 15,
+    color: '#000',
+  },
+  strikeText: {
+    fontFamily: fonts.ui,
+    fontSize: 14,
+    color: '#888',
+    textDecorationLine: 'line-through',
+  },
+  savedText: {
+    fontFamily: fonts.uiMedium,
+    fontSize: 13,
+    color: '#1BA672',
+    marginTop: 2,
+  },
+  billDivider: {
+    height: 1,
+    backgroundColor: '#EAEAEA',
+  },
+  billBody: {
+    padding: 16,
+    paddingTop: 20,
+    gap: 16,
+  },
+  billRowGroup: {
+    gap: 6,
+  },
   billRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    alignItems: 'center',
   },
-  billLabel: {
+  billLabelDark: {
     fontFamily: fonts.ui,
-    fontSize: 13,
-    color: TEXT_SEC,
+    fontSize: 14,
+    color: '#555',
   },
-  billValue: {
+  billSubText: {
+    fontFamily: fonts.ui,
+    fontSize: 12.5,
+    color: '#888',
+  },
+  dashedUnderline: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#CCC',
+    borderStyle: 'dashed',
+    paddingBottom: 2,
+  },
+  billValueDark: {
     fontFamily: fonts.uiMedium,
-    fontSize: 13,
-    color: TEXT,
+    fontSize: 14,
+    color: '#333',
   },
-  billTotal: {
-    marginTop: 8,
-    paddingTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: BORDER,
+  dottedDivider: {
+    height: 1,
+    width: '100%',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+    borderStyle: 'dashed',
   },
   billTotalLabel: {
-    fontFamily: fonts.uiBold,
-    fontSize: 13,
-    color: TEXT,
+    fontFamily: fonts.displayBold,
+    fontSize: 15,
+    color: '#000',
   },
   billTotalValue: {
     fontFamily: fonts.displayBold,
     fontSize: 15,
-    color: TEXT,
+    color: '#000',
+  },
+  cancellationBox: {
+    paddingHorizontal: 6,
+    paddingBottom: 32,
+    gap: 4,
+  },
+  cancelTitle: {
+    fontFamily: fonts.uiBold,
+    fontSize: 13,
+    color: '#888',
+  },
+  cancelText: {
+    fontFamily: fonts.ui,
+    fontSize: 13,
+    color: '#999',
+    lineHeight: 18,
   },
   payBar: {
     position: 'absolute',
@@ -1535,5 +1686,74 @@ const styles = StyleSheet.create({
     fontFamily: fonts.uiMedium,
     fontSize: 14,
     color: TEXT,
+  },
+  emptyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  emptyHeaderBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  emptyHeaderTitle: {
+    fontFamily: fonts.displayBold,
+    fontSize: 18,
+    color: '#000000',
+  },
+  emptyContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    marginTop: -40,
+  },
+  emptyCartImage: {
+    width: 240,
+    height: 240,
+    marginBottom: 32,
+  },
+  emptyCartTitle: {
+    fontFamily: fonts.displayBold,
+    fontSize: 20,
+    color: '#000000',
+    marginBottom: 12,
+  },
+  emptyCartSubtitle: {
+    fontFamily: fonts.uiMedium,
+    fontSize: 14,
+    color: '#888888',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  startShoppingBtn: {
+    marginHorizontal: 24,
+    marginBottom: 40,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  startShoppingText: {
+    fontFamily: fonts.displayBold,
+    fontSize: 15,
+    color: '#F4737E',
   },
 });

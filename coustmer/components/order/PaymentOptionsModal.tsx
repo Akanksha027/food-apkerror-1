@@ -132,7 +132,7 @@ export function PaymentOptionsModal({
               </View>
             </Pressable>
             <View style={styles.divider} />
-            <Pressable style={styles.cardItem} onPress={() => onSelectMethod('upi')}>
+            <Pressable style={styles.cardItem} onPress={() => onSelectMethod('gpay')}>
               <View style={styles.cardRow}>
                 <View style={styles.iconBox}>
                   <Text style={styles.gpayText}>GPay</Text>

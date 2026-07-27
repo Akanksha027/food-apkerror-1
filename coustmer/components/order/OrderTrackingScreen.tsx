@@ -142,6 +142,8 @@ const generateMapHtml = (coords: { latitude: number, longitude: number }[], rest
         updateMapElements();
 
         // Animate scooter along the route
+        // [Disabled for now: keep static at the store]
+        /*
         if (routeCoords.length > 0) {
           let step = 0;
           setInterval(() => {
@@ -151,6 +153,7 @@ const generateMapHtml = (coords: { latitude: number, longitude: number }[], rest
             }
           }, 500);
         }
+        */
 
         // SVG Icons
         const potSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8"/><path d="M4 12V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4"/><path d="M9 4v4"/><path d="M15 4v4"/></svg>';
@@ -400,7 +403,7 @@ export function OrderTrackingScreen() {
             </View>
 
             <View style={styles.divider} />
-            <Pressable 
+            <Pressable
               style={styles.addressBtn}
               onPress={() => router.push(`/orders/${orderId}`)}
             >

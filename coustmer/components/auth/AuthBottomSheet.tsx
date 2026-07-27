@@ -236,8 +236,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(255, 90, 65, 0.42)',
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   topChrome: {
     position: 'absolute',

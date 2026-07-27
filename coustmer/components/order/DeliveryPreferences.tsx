@@ -9,7 +9,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
@@ -17,9 +16,91 @@ const TIP_IMAGE_IDLE = 'https://cdn-icons-png.flaticon.com/512/3063/3063822.png'
 const TIP_IMAGE_HAPPY = 'https://cdn-icons-png.flaticon.com/512/4333/4333609.png';
 const BIKE_IMAGE = 'https://cdn-icons-png.flaticon.com/512/2830/2830305.png';
 
-import ConfettiCannon from 'react-native-confetti-cannon';
-
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const CONFETTI_COLORS = ['#FF5A41', '#00BAF2', '#FFC107', '#1BA672', '#E91E63', '#9C27B0'];
+
+function InstantConfetti({ trigger, bikeAnim }: { trigger: number, bikeAnim: Animated.Value }) {
+  const anims = React.useMemo(() => {
+    if (trigger === 0) return [];
+    return Array.from({ length: 120 }).map(() => {
+      // Spawn particles from completely off-screen left to right side
+      const spawnX = -100 + Math.random() * (SCREEN_WIDTH + 80); 
+      const distX = 50 + Math.random() * 100; // Distance it shoots backwards (left)
+      const endX = spawnX - distX; 
+      const startBottom = 5; // Exactly at the engine
+      const endBottom = startBottom + (Math.random() * 60 - 30); // Cone spread up/down
+      
+      return {
+        spawnX,
+        endX,
+        startBottom,
+        endBottom,
+        size: 3 + Math.random() * 5, 
+        color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+        rotDir: Math.random() > 0.5 ? 1 : -1,
+      };
+    });
+  }, [trigger]);
+
+  if (trigger === 0 || anims.length === 0) return null;
+
+  return (
+    <View style={[StyleSheet.absoluteFill, { zIndex: 100 }]} pointerEvents="none">
+      {anims.map((a, i) => {
+        // Complete all animations within 150 units of bike travel so they vanish perfectly
+        const translateX = bikeAnim.interpolate({
+          inputRange: [-200, a.spawnX, a.spawnX + 150, SCREEN_WIDTH + 500],
+          outputRange: [a.spawnX, a.spawnX, a.endX, a.endX],
+          extrapolate: 'clamp'
+        });
+        const translateY = bikeAnim.interpolate({
+          inputRange: [-200, a.spawnX, a.spawnX + 150, SCREEN_WIDTH + 500],
+          outputRange: [0, 0, -(a.endBottom - a.startBottom), -(a.endBottom - a.startBottom)],
+          extrapolate: 'clamp'
+        });
+        const rotate = bikeAnim.interpolate({
+          inputRange: [-200, a.spawnX, a.spawnX + 150, SCREEN_WIDTH + 500],
+          outputRange: ['0deg', '0deg', `${a.rotDir * 180}deg`, `${a.rotDir * 180}deg`],
+          extrapolate: 'clamp'
+        });
+        const scale = bikeAnim.interpolate({
+          inputRange: [-200, a.spawnX, a.spawnX + 150, SCREEN_WIDTH + 500],
+          outputRange: [0.2, 1, 0, 0], // Shrink down as they fade out
+          extrapolate: 'clamp'
+        });
+        const opacity = bikeAnim.interpolate({
+          inputRange: [-200, a.spawnX - 1, a.spawnX, a.spawnX + 50, a.spawnX + 150, SCREEN_WIDTH + 500],
+          outputRange: [0, 0, 1, 0.8, 0, 0], // Fade to 0 completely before the animation stops
+          extrapolate: 'clamp'
+        });
+
+        return (
+          <Animated.View
+            key={i}
+            style={{
+              position: 'absolute',
+              bottom: a.startBottom, 
+              left: 10, // Back bumper offset
+              width: a.size,
+              height: a.size * 1.2,
+              backgroundColor: a.color,
+              borderRadius: 1,
+              opacity,
+              transform: [
+                { translateX },
+                { translateY },
+                { rotate },
+                { skewX: '20deg' }, // Diamond shape
+                { scale }
+              ]
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
 
 type Tab = 'tip' | 'instructions';
 
@@ -52,7 +133,7 @@ export function DeliveryPreferences({
   
   const [animatingTip, setAnimatingTip] = useState(false);
   const bikeAnim = useRef(new Animated.Value(-SCREEN_WIDTH)).current;
-  const cannonRef = useRef<any>(null);
+  const [confettiKey, setConfettiKey] = useState(0);
 
   const [customTip, setCustomTip] = useState('');
   const [isOtherActive, setIsOtherActive] = useState(false);
@@ -67,17 +148,15 @@ export function DeliveryPreferences({
     
     // Trigger animation
     if (!skipAnimation && amt > 0) {
-      if (cannonRef.current) {
-        cannonRef.current.start();
-      }
+      setConfettiKey(prev => prev + 1);
 
       if (!animatingTip) {
         setAnimatingTip(true);
-        bikeAnim.setValue(-SCREEN_WIDTH); 
+        bikeAnim.setValue(-120); // Start way off-screen to the left
         
         Animated.timing(bikeAnim, {
-          toValue: SCREEN_WIDTH + 150,
-          duration: 2500,
+          toValue: SCREEN_WIDTH + 100,
+          duration: 2500, // Make it run slower
           easing: Easing.linear,
           useNativeDriver: true,
         }).start(() => {
@@ -209,17 +288,7 @@ export function DeliveryPreferences({
               )}
               <Text style={styles.checkboxText}>Add this tip automatically to future orders</Text>
             </Pressable>
-
-            <ConfettiCannon 
-              ref={cannonRef}
-              count={150}
-              origin={{x: SCREEN_WIDTH / 2 - 40, y: -20}}
-              autoStart={false}
-              explosionSpeed={250}
-              fallSpeed={1500}
-              fadeOut={true}
-            />
-
+            <InstantConfetti trigger={confettiKey} bikeAnim={bikeAnim} />
             {animatingTip && (
               <Animated.Image 
                 source={{ uri: BIKE_IMAGE }} 

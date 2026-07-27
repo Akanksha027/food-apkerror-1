@@ -38,14 +38,6 @@ const SIDE_TABS: SideTab[] = [
     filledWhenActive: true,
   },
   {
-    key: 'saved',
-    label: 'Fav',
-    href: '/favorites',
-    match: (p) => p === '/favorites' || p.endsWith('/favorites'),
-    Icon: Heart,
-    filledWhenActive: true,
-  },
-  {
     key: 'profile',
     label: 'Profile',
     href: '/profile',
@@ -87,8 +79,8 @@ export function AppBottomNav() {
   if (!onTabRoot) return null;
 
   const cartActive = isCartPath(path);
-  const leftTabs = SIDE_TABS.slice(0, 2);
-  const rightTabs = SIDE_TABS.slice(2);
+  const leftTabs = SIDE_TABS.slice(0, 1);
+  const rightTabs = SIDE_TABS.slice(1);
 
   const go = (href: Href, alreadyActive: boolean) => {
     if (alreadyActive) return;
@@ -133,7 +125,7 @@ export function AppBottomNav() {
             onPress={() => go('/cart', cartActive)}
             style={[styles.centerBtn, cartActive && styles.centerBtnActive]}
           >
-            <ShoppingBag color="#FFFFFF" size={22} strokeWidth={2.25} />
+            <ShoppingBag color={ICON_ACTIVE} size={22} strokeWidth={2.25} />
             {cartCount > 0 ? (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
@@ -170,15 +162,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   barOuter: {
-    width: '92%',
-    maxWidth: 420,
+    width: 240,
+    maxWidth: '75%',
   },
   bar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    justifyContent: 'space-evenly',
     backgroundColor: '#FFFFFF',
-    borderRadius: 28,
+    borderRadius: 36,
     paddingHorizontal: 10,
     paddingTop: 10,
     paddingBottom: 10,
@@ -191,10 +183,10 @@ const styles = StyleSheet.create({
     elevation: 14,
   },
   sideGroup: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-evenly',
+    justifyContent: 'center',
+    flex: 1,
   },
   sideTab: {
     alignItems: 'center',
@@ -213,7 +205,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   centerSlot: {
-    width: 74,
+    width: 66,
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 4,
@@ -223,19 +215,14 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: authTheme.brand,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
-    shadowColor: authTheme.brandDark,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 12,
+    borderWidth: 1.5,
+    borderColor: authTheme.brand,
   },
   centerBtnActive: {
-    backgroundColor: authTheme.brandDark,
+    backgroundColor: '#F9FAFB',
     transform: [{ scale: 1.03 }],
   },
   badge: {

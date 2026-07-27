@@ -1,14 +1,13 @@
 import { useLocalSearchParams } from 'expo-router';
-import { ChevronDown } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 
 import { AuthBottomSheet } from '@/components/auth/AuthBottomSheet';
-import { WelcomeDecor } from '@/components/welcome/WelcomeDecor';
-import { WelcomeLogoMark } from '@/components/welcome/WelcomeLogoMark';
-import { authTheme } from '@/constants/auth-theme';
 import { useAuthSheetStore, type AuthSheetView } from '@/store/auth-sheet-store';
+import { authTheme } from '@/constants/auth-theme';
 
 type Props = {
   openAuthOnMount?: AuthSheetView;
@@ -56,14 +55,29 @@ export function WelcomeScreen({ openAuthOnMount }: Props) {
 
   return (
     <View style={styles.root}>
-      <WelcomeDecor />
+      <LinearGradient
+        colors={[authTheme.heroStart, authTheme.heroEnd]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
 
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.content}>
-          <View style={styles.hero}>
-            <WelcomeLogoMark width={236} height={204} />
-            <Text style={styles.brandName}>FOODCORT</Text>
-            <Text style={styles.tagline}>FOOD DELIVER SERVICE</Text>
+          <View style={styles.header}>
+            <Text style={styles.titleLine1}>Delicious</Text>
+            <Text style={styles.titleLine1}>Food</Text>
+            <Text style={styles.titleLine2}>Menu</Text>
+          </View>
+
+          <View style={styles.imageSection}>
+            <View style={styles.imageContainer}>
+              <Image
+                source={require('../../public/bg.png')}
+                style={styles.foodImage}
+                contentFit="contain"
+              />
+            </View>
           </View>
 
           <View style={styles.footer}>
@@ -71,10 +85,14 @@ export function WelcomeScreen({ openAuthOnMount }: Props) {
               onPress={handleGetStarted}
               style={styles.startButton}
               activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Get Started"
             >
-              <ChevronDown color={authTheme.brand} size={28} strokeWidth={2.6} />
+              <LinearGradient
+                colors={[authTheme.brand, authTheme.brandDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <Text style={styles.startButtonText}>Get Started</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -94,60 +112,75 @@ export function WelcomeScreen({ openAuthOnMount }: Props) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: authTheme.brand,
   },
   safe: {
     flex: 1,
   },
   content: {
     flex: 1,
-    justifyContent: 'space-between',
     paddingHorizontal: 24,
+    justifyContent: 'space-between',
   },
-  hero: {
+  header: {
+    paddingTop: 32,
+  },
+  titleLine1: {
+    fontSize: 76,
+    fontWeight: '900',
+    color: authTheme.text,
+    lineHeight: 82,
+    letterSpacing: -2,
+  },
+  titleLine2: {
+    fontSize: 76,
+    fontWeight: '900',
+    color: authTheme.brand,
+    lineHeight: 82,
+    letterSpacing: -2,
+  },
+  imageSection: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 28,
   },
-  brandName: {
-    marginTop: 28,
-    color: '#FFFFFF',
-    fontSize: 36,
-    fontWeight: '800',
-    letterSpacing: 3,
-    textAlign: 'center',
+  imageContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '140%',
+    height: 480,
   },
-  tagline: {
-    marginTop: 12,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 12,
-    fontWeight: '500',
-    letterSpacing: 4.8,
-    textAlign: 'center',
+  foodImage: {
+    width: '100%',
+    height: '100%',
   },
   footer: {
-    position: 'absolute',
-    bottom: 40,
-    left: 0,
-    right: 0,
+    paddingBottom: 24,
     alignItems: 'center',
   },
   startButton: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: '#FFFFFF',
+    width: '100%',
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    elevation: 10,
+    overflow: 'hidden',
   },
-  startButtonPressed: {
-    opacity: 0.92,
-    transform: [{ scale: 0.96 }],
+  startButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  footerSubtext: {
+    marginTop: 18,
+    fontSize: 14,
+    color: authTheme.textMuted,
+    fontWeight: '600',
   },
 });

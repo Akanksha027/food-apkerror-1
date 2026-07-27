@@ -82,13 +82,28 @@ export function OrderPlacementModal({ phase, addressLabel, addressText, savings 
           {phase === 'placing' ? (
             <View style={styles.mapCircleWrapper}>
               <View style={styles.mapCircleInner}>
+                {/* Fake map lines to resemble texture */}
+                <View style={styles.mapLine1} />
+                <View style={styles.mapLine2} />
+                <View style={styles.mapLine3} />
+                <View style={styles.mapLine4} />
+                <View style={styles.mapLine5} />
+                
+                {/* Red glow under the pin */}
+                <View style={styles.glowEffect} />
+                
+                {/* Teardrop Pin */}
                 <View style={styles.iconPin}>
-                  {addressLabel.toLowerCase() === 'home' || addressLabel.toLowerCase() === 'house' ? (
-                    <Home color="#FFFFFF" size={32} />
-                  ) : (
-                    <MapPin color="#FFFFFF" size={32} />
-                  )}
+                  <View style={styles.iconPinInner}>
+                    {addressLabel.toLowerCase() === 'home' || addressLabel.toLowerCase() === 'house' ? (
+                      <Home color="#FFFFFF" size={24} fill="#FFFFFF" />
+                    ) : (
+                      <MapPin color="#FFFFFF" size={24} fill="#FFFFFF" />
+                    )}
+                  </View>
                 </View>
+                {/* Dot under the pin */}
+                <View style={styles.pinDot} />
               </View>
               <Animated.View style={[styles.spinnerBorder, animatedSpin]} />
             </View>
@@ -148,50 +163,121 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // offset for visual center
   },
   mapCircleWrapper: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: '#F2F2F2',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 40,
     position: 'relative',
   },
   mapCircleInner: {
-    width: 152,
-    height: 152,
-    borderRadius: 76,
-    backgroundColor: '#E8E9EB', // Imagine map texture here
+    width: 196,
+    height: 196,
+    borderRadius: 98,
+    backgroundColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    position: 'relative',
   },
-  spinnerBorder: {
+  mapLine1: {
     position: 'absolute',
-    top: -2,
-    left: -2,
-    right: -2,
-    bottom: -2,
-    borderRadius: 82,
-    borderWidth: 4,
-    borderColor: '#FF5A41',
+    width: 4,
+    height: 200,
+    backgroundColor: '#F3F4F6',
+    left: 40,
+    transform: [{ rotate: '15deg' }],
   },
-  iconPin: {
-    backgroundColor: '#2C3035',
+  mapLine2: {
+    position: 'absolute',
+    width: 4,
+    height: 200,
+    backgroundColor: '#F3F4F6',
+    right: 60,
+    transform: [{ rotate: '-10deg' }],
+  },
+  mapLine3: {
+    position: 'absolute',
+    width: 200,
+    height: 4,
+    backgroundColor: '#F3F4F6',
+    top: 60,
+    transform: [{ rotate: '-15deg' }],
+  },
+  mapLine4: {
+    position: 'absolute',
+    width: 200,
+    height: 6,
+    backgroundColor: '#F3F4F6',
+    bottom: 50,
+  },
+  mapLine5: {
+    position: 'absolute',
+    width: 6,
+    height: 100,
+    backgroundColor: '#F3F4F6',
+    bottom: -10,
+    right: 80,
+  },
+  glowEffect: {
+    position: 'absolute',
     width: 60,
     height: 60,
     borderRadius: 30,
+    backgroundColor: 'rgba(234, 88, 12, 0.4)',
+    top: 90,
+  },
+  spinnerBorder: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    borderRadius: 104,
+    borderWidth: 6,
+    borderColor: '#EA580C',
+    borderLeftColor: 'transparent',
+    borderBottomColor: 'transparent',
+  },
+  iconPin: {
+    backgroundColor: '#374151',
+    width: 52,
+    height: 52,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 4,
+    transform: [{ rotate: '45deg' }, { translateY: -12 }, { translateX: -12 }],
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF5A41',
-    shadowOffset: { width: 0, height: 10 },
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 15,
+    shadowRadius: 6,
+    elevation: 8,
+    position: 'absolute',
+    zIndex: 2,
+  },
+  iconPinInner: {
+    transform: [{ rotate: '-45deg' }],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#111827',
+    position: 'absolute',
+    top: 106,
+    zIndex: 1,
   },
   successCircle: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
     backgroundColor: '#1BA672',
     alignItems: 'center',
     justifyContent: 'center',
@@ -199,21 +285,22 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 18,
-    color: '#1C1C1C',
+    color: '#111827',
     fontWeight: '500',
-    marginBottom: 10,
+    marginBottom: 16,
   },
   addressLabel: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '900',
-    color: '#1C1C1C',
-    marginBottom: 8,
+    color: '#111827',
+    marginBottom: 12,
   },
   addressDesc: {
-    fontSize: 14,
-    color: '#666666',
+    fontSize: 15,
+    color: '#4B5563',
     textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 20,
+    lineHeight: 22,
+    paddingHorizontal: 10,
+    fontWeight: '500',
   },
 });
