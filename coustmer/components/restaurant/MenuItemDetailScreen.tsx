@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   heroImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   heroActions: {
     position: 'absolute',

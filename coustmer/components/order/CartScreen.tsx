@@ -1040,13 +1040,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: PAGE_BG,
   },
-  emptyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingBottom: 8,
-  },
   emptyTitle: {
     fontFamily: fonts.displayBold,
     fontSize: 18,

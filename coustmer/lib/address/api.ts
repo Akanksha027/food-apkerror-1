@@ -306,7 +306,7 @@ export const addressApi = {
       return {
         ok: res.success !== false,
         service:
-          res.service ||
+          (res.data as { service?: string } | undefined)?.service ||
           (asRecord(res.data).service as string | undefined),
       };
     } catch {

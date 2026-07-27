@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     }),
   },
   image: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   scrim: {
     position: 'absolute',

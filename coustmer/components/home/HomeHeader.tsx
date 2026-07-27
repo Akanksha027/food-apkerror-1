@@ -118,12 +118,12 @@ export function HomeHeader({
       <View style={styles.heroBleed}>
         <Image
           source={{ uri: HERO_FOOD }}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           contentFit="cover"
         />
         <LinearGradient
           colors={['rgba(12,8,10,0.72)', 'rgba(18,10,14,0.86)', 'rgba(14,6,10,0.94)']}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
       </View>
 
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#12100F',
   },
   heroBleed: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderBottomLeftRadius: 36,
     borderBottomRightRadius: 36,
     overflow: 'hidden',

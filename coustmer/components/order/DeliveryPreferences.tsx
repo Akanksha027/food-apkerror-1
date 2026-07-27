@@ -296,7 +296,7 @@ export function DeliveryPreferences({
                   styles.bikeAnimation, 
                   { transform: [{ translateX: bikeAnim }, { scaleX: -1 }] }
                 ]}
-                contentFit="contain"
+                resizeMode="contain"
               />
             )}
           </View>

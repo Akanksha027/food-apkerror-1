@@ -6,6 +6,10 @@ const { withNativeWind } = require('nativewind/metro');
 
 const config = getDefaultConfig(__dirname);
 
+config.resolver.nodeModulesPaths = [
+  path.resolve(__dirname, 'node_modules'),
+];
+
 // Prevent Metro watcher crashes on transient expo-router maven folders (Windows).
 config.resolver.blockList = [
   ...(Array.isArray(config.resolver.blockList)

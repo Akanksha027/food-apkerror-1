@@ -126,7 +126,7 @@ export function OrderCard({ order }: Props) {
           <Text style={[styles.statusText, isDelivered && { color: ui.green }]}>
             {isDelivered ? 'Delivered' : ORDER_STATUS_LABELS[order.status] ?? order.status}
           </Text>
-          {isDelivered && <CheckCircle2 color={ui.green} fill={ui.green} size={16} strokeWidth={1} secondaryFill="#FFFFFF" />}
+          {isDelivered && <CheckCircle2 color={ui.green} fill={ui.green} size={16} strokeWidth={1} />}
         </View>
       </View>
 

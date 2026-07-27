@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#FFF' },
   pad: { padding: 20 },
   successOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#FFFFFF',
     zIndex: 999,
     alignItems: 'center',
@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   map: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'transparent',
   },
   markerWrapper: {

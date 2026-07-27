@@ -326,7 +326,7 @@ export function DeliveryLocationPicker({
 }: DeliveryLocationPickerProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const webRef = useRef<WebView>(null);
+  const webRef = useRef<InstanceType<typeof WebView>>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reverseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const confirmPending = useRef(false);

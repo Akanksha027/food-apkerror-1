@@ -1,0 +1,164 @@
+﻿node.exe : 
+(node:9388)
+ Warning: 
+Setting 
+the NODE_TL
+S_REJECT_UN
+AUTHORIZED 
+environment
+ variable 
+to '0' 
+makes TLS c
+onnections 
+and HTTPS 
+requests 
+insecure 
+by 
+disabling c
+ertificate 
+verificatio
+n.
+At line:1 
+char:1
++ & "C:\Pro
+gram Files\
+nodejs/node
+.exe" "C:\P
+rogram File
+s\nodejs/no
+de_mo ...
++ ~~~~~~~~~
+~~~~~~~~~~~
+~~~~~~~~~~~
+~~~~~~~~~~~
+~~~~~~~~~~~
+~~~~~~~~~~~
+~~~~~
+    + Cate 
+   goryIn  
+  fo       
+           
+: NotS    
+pecifi    
+ed: ((    
+node:9    
+388) W    
+ar...e     
+verif    
+icatio    
+n.:Str    
+ing) [    
+], Rem    
+oteExc    
+eption
+    + Full 
+   yQuali  
+  fiedEr   
+ rorId     
+: Nati    
+veComm    
+andErr    
+or
+ 
+(Use `node 
+--trace-war
+nings ...` 
+to show 
+where the 
+warning 
+was 
+created)
+(node:26256
+) Warning: 
+Setting 
+the NODE_TL
+S_REJECT_UN
+AUTHORIZED 
+environment
+ variable 
+to '0' 
+makes TLS c
+onnections 
+and HTTPS 
+requests 
+insecure 
+by 
+disabling c
+ertificate 
+verificatio
+n.
+(Use `node 
+--trace-war
+nings ...` 
+to show 
+where the 
+warning 
+was 
+created)
+- Fetching 
+the 
+buildΓÇª\ 
+Fetching 
+the 
+buildΓÇª| 
+Fetching 
+the 
+buildΓÇª/ 
+Fetching 
+the buildΓÇ
+ªΓêÜ Found 
+a matching 
+build for 
+the 
+project @ak
+anksha_sing
+h/Food-Deli
+very-App
+{
+  "id": "4daf0951-ee5f-4502-aa75-afb51afd7230",
+  "status": "ERRORED",
+  "platform": "ANDROID",
+  "error": {
+    "errorCode": "UNKNOWN_ERROR",
+    "message": "Unknown error. See logs of the Install dependencies build phase for more information."
+  },
+  "artifacts": {},
+  "fingerprint": {
+    "id": "019fa19d-f215-7591-9ed8-e0a677841ac8",
+    "hash": "4a5230846fc44a7e497191bcfdadcb9f608f3a05"
+  },
+  "initiatingActor": {
+    "id": "b446c7b4-9325-4944-be43-2ae60e1cb25b",
+    "displayName": "akanksha_singh"
+  },
+  "logFiles": [
+    "https://storage.googleapis.com/eas-workflows-production/logs/f038ad07-bccd-415e-9f7a-2869c43d2964/4daf0951-ee5f-4502-aa75-afb51afd7230/2026-07-27T03%3A28%3A34Z-d5bda102-d3ab-4432-a4d8-0797781a239f.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260727%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260727T033217Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=017c802500e8659198b7e0707128f08e2e4b7dfcc6ade16d3831db0212fc64599e296532ec2fe129183dd40cd55be986174ffc658716608ff5ecf3612c53f4057a3650cc0e274727667d6087d160cdd555f68e38f60fcafb6f652ce99c7ac149b199f241b0ca70686f5716691d42702c3074ed5b29349d50607adde22d08083110005a38ca5e407275b6b66e61221cb242fd619ffe4129ca496808542600c2bfffde8c33f8ce80be4f6c5df2b385bbc92eed631c77459fd68129d2c47477e984fdac00fb0dbdb61ba3042cc1954c3be527c90c1a5d3a92c846f48a05eb31e70345049a4de80f80f05e359bdf56b1d1e537e9710b0c60b3fd040570c75f8e4b5d"
+  ],
+  "project": {
+    "id": "f038ad07-bccd-415e-9f7a-2869c43d2964",
+    "name": "Food-Delivery-App",
+    "slug": "Food-Delivery-App",
+    "ownerAccount": {
+      "id": "790bf1db-6932-455d-9422-22744e599122",
+      "name": "akanksha_singh"
+    }
+  },
+  "distribution": "STORE",
+  "buildProfile": "preview",
+  "sdkVersion": "56.0.0",
+  "appVersion": "1.0.0",
+  "appBuildVersion": "1",
+  "gitCommitHash": "0e41d8c39dc0084d67e2f533cf341d8156e35ae4",
+  "gitCommitMessage": "Update UI: Welcome screen, bottom nav, cart empty state",
+  "priority": "NORMAL",
+  "createdAt": "2026-07-27T03:28:30.708Z",
+  "updatedAt": "2026-07-27T03:28:48.182Z",
+  "completedAt": "2026-07-27T03:28:48.028Z",
+  "expirationDate": "2026-08-26T03:28:30.736Z",
+  "isForIosSimulator": false,
+  "metrics": {
+    "buildWaitTime": 3366,
+    "buildQueueTime": 5216,
+    "buildDuration": 8738
+  }
+}

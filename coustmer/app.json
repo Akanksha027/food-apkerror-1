@@ -1,13 +1,13 @@
 {
   "expo": {
     "name": "TOKAJO FOODS",
-    "slug": "TOKAJO FOODS",
+    "slug": "Food-Delivery-App",
     "version": "1.0.0",
     "scheme": "fooddeliveryapp",
     "orientation": "portrait",
-    "icon": "./public/logo.jpeg",
+    "icon": "./public/logo.png",
     "splash": {
-      "image": "./public/logo.jpeg",
+      "image": "./public/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
@@ -19,14 +19,6 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Allow Food Delivery to access your location to set your delivery address and find restaurants near you."
-        }
-      ],
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "usesCleartextTraffic": true
-          }
         }
       ]
     ],
@@ -40,7 +32,7 @@
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
-        "foregroundImage": "./public/logo.jpeg"
+        "foregroundImage": "./public/logo.png"
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [

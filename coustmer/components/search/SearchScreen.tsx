@@ -845,7 +845,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.65)',
   },
   safe: {
@@ -959,7 +959,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     ...(Platform.OS === 'android'
       ? { includeFontPadding: false, textAlignVertical: 'center' as const }
-      : { outlineStyle: 'none' as const }),
+      : { outlineStyle: 'none' as unknown as 'solid' }),
   },
 
   clearBtn: {
@@ -1089,7 +1089,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8E8E8',
   },
   featuredImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   featuredOfferBadge: {
     position: 'absolute',
