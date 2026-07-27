@@ -9,11 +9,10 @@
       "distribution": "internal"
     },
     "preview": {
+      "image": "latest",
       "android": {
-        "buildType": "apk"
-      },
-      "env": {
-        "BUILD_TRIGGER": "fix-deps-v3"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
       }
     },
     "production": {}
