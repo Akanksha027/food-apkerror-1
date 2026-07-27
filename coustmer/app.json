@@ -20,6 +20,16 @@
         {
           "locationWhenInUsePermission": "Allow Food Delivery to access your location to set your delivery address and find restaurants near you."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0"
+          }
+        }
       ]
     ],
     "ios": {
