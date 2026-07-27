@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const componentsDir = 'c:\\Users\\Akanksha Singh\\Downloads\\Food-Delivery-App\\coustmer\\components';
+const componentsDir = 'c:\\Users\\Akanksha Singh\\Downloads\\TOKAJO FOODS\\coustmer\\components';
 
 function walk(dir) {
     let results = [];
@@ -27,7 +27,7 @@ files.forEach(file => {
     if (content.includes('router.back()')) {
         let newContent = content.replace(/\(\) => router\.back\(\)/g, "() => { if (router.canGoBack()) { router.back(); } else { router.replace('/'); } }");
         newContent = newContent.replace(/(?<!=> )router\.back\(\);/g, "if (router.canGoBack()) { router.back(); } else { router.replace('/'); }");
-        
+
         if (newContent !== content) {
             fs.writeFileSync(file, newContent, 'utf-8');
             console.log('Updated ' + file);

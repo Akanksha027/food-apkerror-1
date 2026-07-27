@@ -20,6 +20,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Modal,
   Pressable,
   RefreshControl,
@@ -28,6 +29,8 @@ import {
   Text,
   TextInput,
   View,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -46,14 +49,19 @@ import {
   useValidateCart,
 } from '@/lib/cart/hooks';
 import { addMenuItemToCart } from '@/lib/order/add-to-cart';
+import { useCreateOrder } from '@/lib/order/hooks';
 import { parseDeliveryAddress } from '@/lib/order/parse-address';
-import { usePaymentMethods } from '@/lib/payment/hooks';
+import { useInitiatePayment, usePaymentMethods, useVerifyPayment } from '@/lib/payment/hooks';
+import { isPaymentSuccess, needsOnlinePayment } from '@/lib/payment/types';
 import { useUserProfile } from '@/lib/profile/hooks';
 import { useFullMenu } from '@/lib/restaurant/hooks';
 import type { MenuItem } from '@/lib/restaurant/types';
 import { useAuthStore } from '@/store/auth-store';
 import { useCartStore } from '@/store/cart-store';
 import { useDeliveryLocationStore } from '@/store/delivery-location-store';
+import { PaymentOptionsModal } from './PaymentOptionsModal';
+import { OrderPlacementModal, PlacementPhase } from '@/components/order/OrderPlacementModal';
+import { DeliveryPreferences } from '@/components/order/DeliveryPreferences';
 
 const PAGE_BG = '#F0F0F5';
 const TEXT = '#02060C';
@@ -148,12 +156,16 @@ export function CartScreen() {
   const clearLocal = useCartStore((s) => s.clearCart);
   const removeLocal = useCartStore((s) => s.removeItem);
   const setSpecialInstructions = useCartStore((s) => s.setSpecialInstructions);
+  const tip = useCartStore((s) => s.tip);
+  const setTip = useCartStore((s) => s.setTip);
   const subtotal = useCartStore((s) => s.subtotal());
   const estimatedTotal = useCartStore((s) => s.estimatedTotal());
 
   const location = useDeliveryLocationStore((s) => s.location);
   const profile = useUserProfile();
   const paymentMethods = usePaymentMethods();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [orderPlacementPhase, setOrderPlacementPhase] = useState<PlacementPhase>('none');
   const menu = useFullMenu(restaurant?.id ?? '', {
     name: restaurant?.name,
   });
@@ -165,6 +177,14 @@ export function CartScreen() {
   const updateAddress = useUpdateCartDeliveryAddress();
   const validateCart = useValidateCart();
   const saveCart = useSaveCart();
+
+  const createOrder = useCreateOrder();
+  const initiatePayment = useInitiatePayment();
+  const verifyPayment = useVerifyPayment();
+
+  const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [paying, setPaying] = useState(false);
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [cutleryNeeded, setCutleryNeeded] = useState(false);
@@ -206,18 +226,19 @@ export function CartScreen() {
     return mrp;
   }, [discount, items]);
 
-  const defaultMethod = useMemo(() => {
-    const all = paymentMethods.data ?? [];
-    return all.find((m) => m.isDefault) || all[0] || null;
-  }, [paymentMethods.data]);
+  const payLabel = 
+    paymentMethod === 'upi' ? 'Paytm UPI' :
+    paymentMethod === 'gpay' ? 'Google Pay' :
+    paymentMethod === 'card' ? 'Credit/Debit Card' :
+    paymentMethod === 'wallet' ? 'Wallet' :
+    paymentMethod === 'cod' ? 'Pay on Delivery' : 'Paytm UPI';
 
-  const payLabel = defaultMethod
-    ? defaultMethod.type === 'upi'
-      ? defaultMethod.label?.includes('Paytm')
-        ? 'Paytm UPI'
-        : defaultMethod.label || 'UPI'
-      : defaultMethod.label || defaultMethod.type.toUpperCase()
-    : 'Paytm UPI';
+  const payIcon = 
+    paymentMethod === 'upi' ? PAYTM_ICON :
+    paymentMethod === 'gpay' ? 'https://img.icons8.com/color/96/google-pay-india.png' :
+    paymentMethod === 'card' ? 'https://img.icons8.com/color/96/bank-cards.png' :
+    paymentMethod === 'wallet' ? 'https://img.icons8.com/color/96/wallet.png' :
+    paymentMethod === 'cod' ? 'https://img.icons8.com/color/96/cash-in-hand.png' : PAYTM_ICON;
 
   const mealSuggestions = useMemo(() => {
     const inCart = new Set(
@@ -318,14 +339,105 @@ export function CartScreen() {
         useCartStore.getState().setQuantity(itemId, quantity);
         await updateItem.mutateAsync({ itemId, payload: { quantity } });
       }
-    } catch (e) {
-      Alert.alert(
-        'Update failed',
-        e instanceof Error ? e.message : 'Could not update item'
-      );
-      remoteCart.refetch();
+    } catch (e: any) {
+      console.log('Update quantity error:', e);
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const placeOrder = async () => {
+    if (!location) {
+      Alert.alert('Address Missing', 'Please select a delivery address');
+      return;
+    }
+    
+    setPaying(true);
+    setOrderPlacementPhase('placing');
+    try {
+      const parsedAddress = parseDeliveryAddress({
+        formattedAddress: location.formattedAddress,
+        label: location.label,
+        city: location.city,
+        lat: location.lat,
+        lng: location.lng,
+      });
+
+      const payload = {
+        restaurantId: restaurant!.id,
+        restaurantName: restaurant!.name,
+        items: items.map((item) => ({
+          menuItemId: item.menuItemId || item.id,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          specialInstructions: item.specialInstructions,
+        })),
+        deliveryAddress: {
+          label: parsedAddress.label,
+          formattedAddress: parsedAddress.formattedAddress,
+          street: parsedAddress.street,
+          area: parsedAddress.area,
+          city: parsedAddress.city,
+          state: parsedAddress.state,
+          pincode: parsedAddress.pincode,
+          contactName: displayName,
+          contactPhone: phone.replace(/\D/g, ''),
+          lat: parsedAddress.lat,
+          lng: parsedAddress.lng,
+        },
+        addressId: location.savedAddressId,
+        paymentMethod,
+        specialInstructions: specialInstructions || undefined,
+        tip: tip > 0 ? tip : undefined,
+      };
+
+      const order = await createOrder.mutateAsync(payload);
+      const amount = order.total ?? estimatedTotal;
+
+      if (!needsOnlinePayment(paymentMethod)) {
+        setOrderPlacementPhase('placed');
+        await new Promise(r => setTimeout(r, 1500));
+        router.replace({ pathname: '/orders/[orderId]/tracking', params: { orderId: order.id, newOrder: 'true' } });
+        setOrderPlacementPhase('none');
+        return;
+      }
+
+      const payment = await initiatePayment.mutateAsync({
+        orderId: order.id,
+        amount,
+        currency: 'INR',
+        method: paymentMethod,
+        description: `Order ${order.orderNumber || order.id}`,
+      });
+
+      if (payment.paymentUrl) {
+        await Linking.openURL(payment.paymentUrl);
+      }
+
+      let verified = payment;
+      try {
+        if (!isPaymentSuccess(payment.status)) {
+          verified = await verifyPayment.mutateAsync({
+            paymentId: payment.id,
+            orderId: order.id,
+            gatewayPaymentId: payment.gatewayPaymentId,
+            gatewayOrderId: payment.gatewayOrderId ?? payment.razorpayOrderId,
+          });
+        }
+      } catch (err) {
+        console.warn('Payment verification failed:', err);
+      }
+
+      setOrderPlacementPhase('placed');
+      await new Promise(r => setTimeout(r, 1500));
+      router.replace({ pathname: '/orders/[orderId]/tracking', params: { orderId: order.id, newOrder: 'true' } });
+      setOrderPlacementPhase('none');
+    } catch (err: any) {
+      Alert.alert('Checkout Failed', err.message || 'Could not place order');
+      setOrderPlacementPhase('none');
+    } finally {
+      setPaying(false);
     }
   };
 
@@ -383,7 +495,7 @@ export function CartScreen() {
     } catch {
       // allow local checkout
     }
-    router.push('/checkout');
+    placeOrder();
   };
 
   const addSuggestion = (item: MenuItem) => {
@@ -439,8 +551,9 @@ export function CartScreen() {
   const footerPad = 12 + Math.max(insets.bottom, 10);
 
   return (
-    <View style={styles.root}>
-      <View style={[styles.topBar, { paddingTop: insets.top + 4 }]}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
+      <View style={styles.root}>
+        <View style={[styles.topBar, { paddingTop: insets.top + 4 }]}>
         <SmoothPressable onPress={goBack} style={styles.iconBtn} pressScale={0.9}>
           <ArrowLeft color={TEXT} size={22} strokeWidth={2.2} />
         </SmoothPressable>
@@ -487,6 +600,7 @@ export function CartScreen() {
       ) : null}
 
       <ScrollView
+        ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.scroll,
@@ -615,45 +729,9 @@ export function CartScreen() {
             >
               <Text style={styles.actionChipText}>+ Add Items</Text>
             </Pressable>
-
-            <Pressable
-              style={styles.actionChip}
-              onPress={() => {
-                setCookingDraft(specialInstructions);
-                setCookingOpen(true);
-              }}
-            >
-              <Pencil color={TEXT_SEC} size={12} strokeWidth={2.2} />
-              <Text style={styles.actionChipText} numberOfLines={1}>
-                Cooking requests
-              </Text>
-            </Pressable>
-
-            <View ref={cutleryRef} collapsable={false} style={{ flex: 1 }}>
-              <Pressable
-                style={[styles.actionChip, { width: '100%' }]}
-                onPress={() => {
-                  setCutleryNeeded((v) => !v);
-                  if (activeTip === 'cutlery') dismissTip();
-                }}
-              >
-                <View
-                  style={[
-                    styles.cutleryBox,
-                    cutleryNeeded && styles.cutleryBoxOn,
-                  ]}
-                >
-                  {cutleryNeeded ? (
-                    <Check color="#FFFFFF" size={10} strokeWidth={3} />
-                  ) : null}
-                </View>
-                <Text style={styles.actionChipText} numberOfLines={1}>
-                  Cutlery Needed
-                </Text>
-              </Pressable>
-            </View>
           </View>
         </View>
+
 
         {/* Complete your meal */}
         {mealSuggestions.length > 0 ? (
@@ -696,6 +774,13 @@ export function CartScreen() {
           </View>
         ) : null}
 
+        <DeliveryPreferences 
+          tip={tip} 
+          setTip={setTip} 
+          specialInstructions={specialInstructions} 
+          setSpecialInstructions={setSpecialInstructions} 
+        />
+
         {/* Compact bill */}
         <View style={styles.card}>
           <View style={styles.billRow}>
@@ -716,6 +801,12 @@ export function CartScreen() {
               <Text style={styles.billValue}>₹1</Text>
             </View>
           ) : null}
+          {tip > 0 ? (
+            <View style={styles.billRow}>
+              <Text style={styles.billLabel}>Delivery Tip</Text>
+              <Text style={styles.billValue}>₹{tip}</Text>
+            </View>
+          ) : null}
           <View style={[styles.billRow, styles.billTotal]}>
             <Text style={styles.billTotalLabel}>TO PAY</Text>
             <Text style={styles.billTotalValue}>
@@ -731,7 +822,7 @@ export function CartScreen() {
           <Pressable
             onPress={() => {
               if (activeTip === 'payment') dismissTip();
-              router.push('/checkout');
+              setPaymentModalOpen(true);
             }}
           >
             <View style={styles.payUsingTop}>
@@ -740,7 +831,7 @@ export function CartScreen() {
             </View>
             <View style={styles.payMethodRow}>
               <Image
-                source={{ uri: PAYTM_ICON }}
+                source={{ uri: payIcon }}
                 style={styles.paytmIcon}
                 contentFit="contain"
               />
@@ -820,6 +911,31 @@ export function CartScreen() {
         </Pressable>
       </Modal>
 
+      <PaymentOptionsModal
+        visible={isPaymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        selectedMethod={paymentMethod}
+        onSelectMethod={(m) => {
+          setPaymentMethod(m);
+          setPaymentModalOpen(false); // Close immediately when a method is selected
+        }}
+        onPay={() => {}} // not used anymore
+        itemCount={items.length}
+        total={estimatedTotal + (oneAdded ? 1 : 0)}
+        savings={savedAmount}
+        restaurantName={restaurant?.name || ''}
+        deliveryTime="35-45 mins"
+        addressLabel={addressLabel}
+        addressText={addressLine}
+      />
+
+      <OrderPlacementModal 
+        phase={orderPlacementPhase}
+        addressLabel={addressLabel}
+        addressText={addressLine}
+        savings={savedAmount}
+      />
+
       {/* Overflow menu */}
       <Modal
         visible={menuOpen}
@@ -853,6 +969,7 @@ export function CartScreen() {
         </Pressable>
       </Modal>
     </View>
+    </KeyboardAvoidingView>
   );
 }
 

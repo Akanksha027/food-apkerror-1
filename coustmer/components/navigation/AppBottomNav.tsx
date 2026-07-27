@@ -46,13 +46,6 @@ const SIDE_TABS: SideTab[] = [
     filledWhenActive: true,
   },
   {
-    key: 'orders',
-    label: 'Orders',
-    href: '/orders',
-    match: (p) => p === '/orders' || p.endsWith('/orders'),
-    Icon: ClipboardList,
-  },
-  {
     key: 'profile',
     label: 'Profile',
     href: '/profile',

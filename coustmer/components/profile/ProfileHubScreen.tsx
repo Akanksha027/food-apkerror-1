@@ -43,6 +43,8 @@ import { fonts } from '@/constants/typography';
 import { usePaymentWallet } from '@/lib/payment/hooks';
 import { useUserProfile } from '@/lib/profile/hooks';
 import { useAuthStore } from '@/store/auth-store';
+import { useOrders } from '@/lib/order/hooks';
+import { OrderCard } from '@/components/order/OrderCard';
 
 type Banner = { message: string; type: 'error' | 'success' } | null;
 
@@ -143,6 +145,8 @@ export function ProfileHubScreen() {
 
   const profile = useUserProfile();
   const wallet = usePaymentWallet();
+  const allOrdersQuery = useOrders({ limit: 5 });
+  const pastOrders = allOrdersQuery.data?.orders ?? [];
 
   const [banner, setBanner] = useState<Banner>(null);
   const [action, setAction] = useState<'logout' | 'logoutAll' | null>(null);
@@ -491,21 +495,36 @@ export function ProfileHubScreen() {
               );
             })}
           </View>
+          <View style={styles.pastOrderSection}>
+            <Text style={styles.pastOrderTitle}>PAST ORDER</Text>
+            
+            {allOrdersQuery.isLoading ? (
+              <ActivityIndicator color={authTheme.brand} style={{ marginVertical: 20 }} />
+            ) : pastOrders.length === 0 ? (
+              <View style={styles.emptyOrders}>
+                <Text style={styles.emptyOrdersText}>No past orders yet.</Text>
+              </View>
+            ) : (
+              <View style={styles.ordersList}>
+                {pastOrders.map((order) => (
+                  <OrderCard key={order.id} order={order} />
+                ))}
+              </View>
+            )}
+
+            {pastOrders.length > 0 && (
+              <Pressable style={styles.viewMoreBtn}>
+                <Text style={styles.viewMoreText}>VIEW MORE ORDERS</Text>
+                <ChevronDown color="#F15700" size={16} strokeWidth={2.5} />
+              </Pressable>
+            )}
+
+            <View style={styles.appVersionBlock}>
+              <Text style={styles.appVersionText}>App version 4.113.1 (1796)</Text>
+            </View>
+          </View>
         </View>
       </ScrollView>
-
-      <View
-        style={[styles.fabWrap, { bottom: 18 + APP_BOTTOM_NAV_INSET }]}
-        pointerEvents="box-none"
-      >
-        <SmoothPressable
-          style={styles.fab}
-          onPress={() => router.push('/orders' as import('expo-router').Href)}
-          pressScale={0.97}
-        >
-          <Text style={styles.fabText}>BROWSE PAST ORDERS</Text>
-        </SmoothPressable>
-      </View>
     </View>
   );
 }
@@ -597,6 +616,60 @@ const styles = StyleSheet.create({
   oneLogoMask: {
     height: 28,
     width: 52,
+  },
+  pastOrderSection: {
+    marginTop: 24,
+    marginBottom: 40 + APP_BOTTOM_NAV_INSET,
+  },
+  pastOrderTitle: {
+    fontFamily: fonts.displayBold,
+    color: TEXT,
+    fontSize: 14,
+    letterSpacing: 0.5,
+    marginBottom: 16,
+  },
+  emptyOrders: {
+    padding: 20,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  emptyOrdersText: {
+    fontFamily: fonts.ui,
+    color: TEXT_MUTED,
+    fontSize: 14,
+  },
+  ordersList: {
+    gap: 16,
+  },
+  viewMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: BORDER,
+    marginTop: 8,
+  },
+  viewMoreText: {
+    fontFamily: fonts.uiBold,
+    color: '#F15700',
+    fontSize: 13,
+  },
+  appVersionBlock: {
+    alignItems: 'center',
+    marginTop: 24,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: BORDER,
+  },
+  appVersionText: {
+    fontFamily: fonts.ui,
+    color: '#9CA3AF',
+    fontSize: 12,
   },
   oneLogoText: {
     fontFamily: fonts.script,

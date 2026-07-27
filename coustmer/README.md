@@ -52,7 +52,7 @@ A cross-platform mobile application for discovering restaurants, browsing menus,
 ## Project Structure
 
 ```
-Food-Delivery-App/
+TOKAJO FOODS/
 ├── app/                    # Expo Router — file-based routes
 │   ├── _layout.tsx         # Root layout (providers, stack navigator)
 │   └── index.tsx           # Home screen
@@ -95,7 +95,7 @@ Path aliases are configured via `@/*` in `tsconfig.json`.
 
 ```bash
 git clone <repository-url>
-cd Food-Delivery-App
+cd TOKAJO FOODS
 npm install
 ```
 

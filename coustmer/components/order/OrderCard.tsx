@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { ChevronDown, ChevronUp, RotateCcw } from 'lucide-react-native';
+import { CheckCircle2, ChevronRight, Star } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -11,7 +11,6 @@ import {
   View,
 } from 'react-native';
 
-import { VegBadge } from '@/components/restaurant/MenuBadges';
 import { authTheme } from '@/constants/auth-theme';
 import { fonts } from '@/constants/typography';
 import { swiggyOrderUi as ui } from '@/constants/swiggy-order-ui';
@@ -21,24 +20,6 @@ import {
   ORDER_STATUS_LABELS,
   type Order,
 } from '@/lib/order/types';
-
-function statusLabel(status: string) {
-  return ORDER_STATUS_LABELS[status] ?? status.replace(/_/g, ' ');
-}
-
-function statusTone(status: string): { bg: string; text: string } {
-  const s = status.toLowerCase();
-  if (s === 'delivered') {
-    return { bg: ui.greenSoft, text: ui.green };
-  }
-  if (s === 'cancelled') {
-    return { bg: 'rgba(239,68,68,0.1)', text: authTheme.error };
-  }
-  if (isActiveOrderStatus(s) || s === 'scheduled') {
-    return { bg: authTheme.brandSoft, text: authTheme.brand };
-  }
-  return { bg: '#F3F4F6', text: ui.textSecondary };
-}
 
 function formatOrderWhen(iso?: string) {
   if (!iso) return '';
@@ -53,15 +34,7 @@ function formatOrderWhen(iso?: string) {
     minute: '2-digit',
     hour12: true,
   });
-  return `${date} · ${time}`;
-}
-
-function lineTotal(price: number, qty: number) {
-  return price * qty;
-}
-
-function wasPrice(price: number) {
-  return Math.round(price * 1.35);
+  return `${date}, ${time}`;
 }
 
 type Props = {
@@ -70,16 +43,12 @@ type Props = {
 
 export function OrderCard({ order }: Props) {
   const router = useRouter();
-  const [expanded, setExpanded] = useState(false);
   const reorder = useReorder(order.id);
 
-  const itemCount = order.items.reduce((n, i) => n + i.quantity, 0);
   const headline =
     order.restaurantName ||
     order.items[0]?.name ||
     (order.orderNumber ? `Order #${order.orderNumber}` : 'Your order');
-  const orderIdLabel =
-    order.orderNumber || order.id.slice(-8).toUpperCase();
   const cover =
     order.items[0]?.imageUrl ||
     (typeof order.restaurantImageUrl === 'string'
@@ -90,7 +59,8 @@ export function OrderCard({ order }: Props) {
     typeof order.total === 'number'
       ? order.total
       : order.items.reduce((s, i) => s + i.price * i.quantity, 0);
-  const tone = statusTone(order.status);
+
+  const isDelivered = order.status.toLowerCase() === 'delivered';
 
   const openDetail = () => {
     router.push({
@@ -100,6 +70,7 @@ export function OrderCard({ order }: Props) {
   };
 
   const handleReorder = () => {
+    // Reorder logic here (same as before)
     Alert.alert('Order again?', 'Place a new order with the same items.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -129,18 +100,9 @@ export function OrderCard({ order }: Props) {
   };
 
   return (
-    <View style={styles.card}>
-      <Pressable onPress={openDetail}>
-        <View style={styles.topRow}>
-          <Text style={styles.when}>{when || 'Recent order'}</Text>
-          <View style={[styles.statusPill, { backgroundColor: tone.bg }]}>
-            <Text style={[styles.statusText, { color: tone.text }]}>
-              {statusLabel(order.status)}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.summaryRow}>
+    <Pressable style={styles.card} onPress={openDetail}>
+      <View style={styles.topRow}>
+        <View style={styles.headerLeft}>
           {cover ? (
             <Image
               source={{ uri: cover }}
@@ -150,295 +112,245 @@ export function OrderCard({ order }: Props) {
           ) : (
             <View style={[styles.heroThumb, styles.thumbEmpty]} />
           )}
-          <View style={styles.summaryCopy}>
+          <View style={styles.headerInfo}>
             <Text style={styles.headline} numberOfLines={1}>
               {headline}
             </Text>
-            <Text style={styles.orderId}>Order ID · {orderIdLabel}</Text>
-            {order.restaurantName && order.items[0]?.name ? (
-              <Text style={styles.itemPreview} numberOfLines={1}>
-                {order.items
-                  .slice(0, 2)
-                  .map((i) => i.name)
-                  .join(', ')}
-                {order.items.length > 2 ? '…' : ''}
-              </Text>
-            ) : null}
-          </View>
-          <Pressable
-            style={styles.expandBtn}
-            onPress={(e) => {
-              e.stopPropagation?.();
-              setExpanded((v) => !v);
-            }}
-            hitSlop={8}
-          >
-            <Text style={styles.expandLabel}>
-              {itemCount} item{itemCount === 1 ? '' : 's'}
+            <Text style={styles.locationText} numberOfLines={1}>
+              {order.restaurantName ? 'Raj Nagar' : 'Location'}
             </Text>
-            {expanded ? (
-              <ChevronUp color={ui.textSecondary} size={16} />
-            ) : (
-              <ChevronDown color={ui.textSecondary} size={16} />
-            )}
-          </Pressable>
+          </View>
         </View>
-      </Pressable>
 
-      {expanded ? (
-        <View style={styles.itemsBlock}>
-          {order.items.map((item, index) => (
-            <View
-              key={`${item.menuItemId || item.name}-${index}`}
-              style={styles.itemRow}
-            >
-              {item.imageUrl ? (
-                <Image
-                  source={{ uri: item.imageUrl }}
-                  style={styles.itemThumb}
-                  contentFit="cover"
-                />
-              ) : (
-                <View style={[styles.itemThumb, styles.thumbEmpty]} />
-              )}
-              <View style={styles.itemMid}>
-                <View style={styles.itemNameRow}>
-                  {item.isVeg !== undefined ? (
-                    <VegBadge isVeg={item.isVeg} />
-                  ) : null}
-                  <Text style={styles.itemName} numberOfLines={2}>
-                    {item.quantity > 1 ? `${item.quantity}× ` : ''}
-                    {item.name}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.priceCol}>
-                <Text style={styles.priceNow}>
-                  ₹{lineTotal(item.price, item.quantity).toFixed(0)}
-                </Text>
-                <Text style={styles.priceWas}>
-                  ₹{wasPrice(lineTotal(item.price, item.quantity)).toFixed(0)}
-                </Text>
-              </View>
-            </View>
-          ))}
+        <View style={styles.statusBox}>
+          <Text style={[styles.statusText, isDelivered && { color: ui.green }]}>
+            {isDelivered ? 'Delivered' : ORDER_STATUS_LABELS[order.status] ?? order.status}
+          </Text>
+          {isDelivered && <CheckCircle2 color={ui.green} fill={ui.green} size={16} strokeWidth={1} secondaryFill="#FFFFFF" />}
         </View>
-      ) : null}
+      </View>
+
+      <View style={styles.itemsBlock}>
+        {order.items.slice(0, 2).map((item, index) => (
+          <View key={index} style={styles.itemRow}>
+            <View style={styles.qtyBox}>
+              <Text style={styles.qtyText}>{item.quantity}X</Text>
+            </View>
+            <Text style={styles.itemName} numberOfLines={1}>
+              {item.name}
+            </Text>
+          </View>
+        ))}
+        {order.items.length > 2 && (
+          <Text style={styles.moreItemsText}>+ {order.items.length - 2} more items</Text>
+        )}
+      </View>
 
       <View style={styles.divider} />
 
-      <View style={styles.totalRow}>
-        <View>
-          <Text style={styles.grandLabel}>Bill total</Text>
-          <Text style={styles.vatLabel}>Taxes included</Text>
+      <View style={styles.ratingRow}>
+        <View style={styles.ratingCol}>
+          <Text style={styles.ratingLabel}>Your Food Rating</Text>
+          <View style={styles.starsRow}>
+            {[1, 2, 3, 4, 5].map((s) => (
+              <Star key={s} color="#D1D5DB" size={18} strokeWidth={1.5} />
+            ))}
+          </View>
         </View>
-        <Text style={styles.totalValue}>₹{total.toFixed(0)}</Text>
+        <View style={styles.ratingDivider} />
+        <View style={styles.ratingCol}>
+          <Text style={styles.ratingLabel}>Delivery Rating</Text>
+          <View style={styles.starsRow}>
+            {[1, 2, 3, 4, 5].map((s) => (
+              <Star key={s} color="#D1D5DB" size={18} strokeWidth={1.5} />
+            ))}
+          </View>
+        </View>
       </View>
 
-      <View style={styles.actions}>
-        <Pressable
-          style={styles.orderAgain}
-          onPress={handleReorder}
-          disabled={reorder.isPending}
-        >
-          {reorder.isPending ? (
-            <ActivityIndicator color={authTheme.brand} />
-          ) : (
-            <>
-              <RotateCcw color={authTheme.brand} size={16} strokeWidth={2.4} />
-              <Text style={styles.orderAgainText}>Reorder</Text>
-            </>
-          )}
-        </Pressable>
-        <Pressable style={styles.detailsBtn} onPress={openDetail}>
-          <Text style={styles.detailsBtnText}>Details</Text>
-        </Pressable>
+      <Pressable
+        style={styles.reorderBtn}
+        onPress={(e) => {
+          e.stopPropagation();
+          handleReorder();
+        }}
+        disabled={reorder.isPending}
+      >
+        {reorder.isPending ? (
+          <ActivityIndicator color="#F15700" size="small" />
+        ) : (
+          <View style={styles.reorderContent}>
+            <Text style={styles.reorderText}>REORDER</Text>
+            <ChevronRight color="#F15700" size={16} strokeWidth={2.5} />
+          </View>
+        )}
+      </Pressable>
+
+      <View style={styles.footerRow}>
+        <Text style={styles.footerText}>Ordered: {when}</Text>
+        <Text style={styles.footerDot}>•</Text>
+        <Text style={styles.footerText}>Bill Total: ₹{total.toFixed(0)}</Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: ui.card,
-    borderRadius: ui.radius,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: ui.border,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
   },
   topRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 16,
   },
-  when: {
-    fontFamily: fonts.ui,
-    color: ui.textMuted,
-    fontSize: 12,
-  },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  statusText: {
-    fontFamily: fonts.uiBold,
-    fontSize: 11,
-    textTransform: 'capitalize',
-  },
-  summaryRow: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    flex: 1,
   },
   heroThumb: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
+    width: 48,
+    height: 48,
+    borderRadius: 8,
     backgroundColor: '#F3F4F6',
+    marginRight: 12,
   },
   thumbEmpty: {
     backgroundColor: authTheme.brandSoft,
   },
-  summaryCopy: {
+  headerInfo: {
     flex: 1,
-    minWidth: 0,
   },
   headline: {
     fontFamily: fonts.displayBold,
-    color: ui.text,
-    fontSize: 15,
-    letterSpacing: -0.2,
+    color: '#1F2937',
+    fontSize: 16,
+    letterSpacing: -0.3,
   },
-  orderId: {
-    marginTop: 3,
+  locationText: {
     fontFamily: fonts.ui,
-    color: ui.textMuted,
-    fontSize: 12,
+    color: '#6B7280',
+    fontSize: 13,
+    marginTop: 2,
   },
-  itemPreview: {
-    marginTop: 3,
-    fontFamily: fonts.ui,
-    color: ui.textSecondary,
-    fontSize: 12,
-  },
-  expandBtn: {
+  statusBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 4,
   },
-  expandLabel: {
-    fontFamily: fonts.uiSemi,
-    color: ui.textSecondary,
-    fontSize: 12,
+  statusText: {
+    fontFamily: fonts.uiBold,
+    fontSize: 13,
+    color: '#4B5563',
   },
   itemsBlock: {
-    marginTop: 14,
-    gap: 12,
-    paddingTop: 4,
+    marginBottom: 16,
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    marginBottom: 8,
   },
-  itemThumb: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+  qtyBox: {
     backgroundColor: '#F3F4F6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginRight: 10,
   },
-  itemMid: {
-    flex: 1,
-    minWidth: 0,
-  },
-  itemNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  qtyText: {
+    fontFamily: fonts.uiBold,
+    color: '#6B7280',
+    fontSize: 11,
   },
   itemName: {
-    flex: 1,
-    fontFamily: fonts.uiMedium,
-    color: ui.text,
-    fontSize: 13,
-  },
-  priceCol: {
-    alignItems: 'flex-end',
-    gap: 2,
-  },
-  priceNow: {
-    fontFamily: fonts.uiBold,
-    color: authTheme.brand,
-    fontSize: 13,
-  },
-  priceWas: {
     fontFamily: fonts.ui,
-    color: ui.textMuted,
-    fontSize: 11,
-    textDecorationLine: 'line-through',
+    color: '#4B5563',
+    fontSize: 14,
+    flex: 1,
+  },
+  moreItemsText: {
+    fontFamily: fonts.ui,
+    color: '#9CA3AF',
+    fontSize: 13,
+    marginLeft: 32,
   },
   divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: ui.border,
-    marginVertical: 14,
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginBottom: 16,
   },
-  totalRow: {
+  ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 16,
   },
-  grandLabel: {
-    fontFamily: fonts.displayBold,
-    color: ui.text,
-    fontSize: 14,
-  },
-  vatLabel: {
-    fontFamily: fonts.ui,
-    color: ui.textMuted,
-    fontSize: 11,
-    marginTop: 2,
-  },
-  totalValue: {
-    fontFamily: fonts.displayBold,
-    color: ui.text,
-    fontSize: 16,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  orderAgain: {
+  ratingCol: {
     flex: 1,
+  },
+  ratingLabel: {
+    fontFamily: fonts.uiMedium,
+    color: '#6B7280',
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  ratingDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: '#F3F4F6',
+    marginHorizontal: 16,
+  },
+  reorderBtn: {
+    backgroundColor: '#FFF0E8', // Light orange tint
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  reorderContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 1.5,
-    borderColor: authTheme.brand,
-    borderRadius: 12,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    gap: 4,
   },
-  orderAgainText: {
+  reorderText: {
     fontFamily: fonts.uiBold,
-    color: authTheme.brand,
-    fontSize: 14,
+    color: '#F15700',
+    fontSize: 13,
+    letterSpacing: 0.5,
   },
-  detailsBtn: {
-    paddingHorizontal: 18,
+  footerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    backgroundColor: authTheme.brand,
-    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    paddingTop: 12,
   },
-  detailsBtnText: {
-    fontFamily: fonts.uiBold,
-    color: '#FFFFFF',
-    fontSize: 14,
+  footerText: {
+    fontFamily: fonts.ui,
+    color: '#9CA3AF',
+    fontSize: 12,
+  },
+  footerDot: {
+    fontFamily: fonts.ui,
+    color: '#D1D5DB',
+    fontSize: 12,
+    marginHorizontal: 8,
   },
 });
