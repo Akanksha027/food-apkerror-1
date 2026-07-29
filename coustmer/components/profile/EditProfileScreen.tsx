@@ -1,8 +1,9 @@
+import { Pressable } from '@/components/common/Pressable';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { Camera, Trash2, User } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator,  StyleSheet, Text, View } from 'react-native';
 
 import { AuthInput } from '@/components/auth/AuthInput';
 import { ProfileFormLayout } from '@/components/profile/ProfileFormLayout';

@@ -17,11 +17,12 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { ErrorView, LoadingView } from '@/components/common/StateViews';
 import { SaveAddressLabelModal } from '@/components/address/SaveAddressLabelModal';
 import { PopularRestaurantsSection } from '@/components/home/PopularRestaurantsSection';
+import { TopRatedNearYou } from '@/components/home/TopRatedNearYou';
 import { HomeFilterChips } from '@/components/home/HomeFilterChips';
+import { AutoScrollingDeals } from '@/components/home/AutoScrollingDeals';
 import { SwiggyHomeChrome } from '@/components/home/SwiggyHomeChrome';
 import { VegModeModal } from '@/components/home/VegModeModal';
 import {
@@ -29,7 +30,11 @@ import {
   WhatsOnYourMind,
 } from '@/components/home/WhatsOnYourMind';
 import { DeliveryLocationPicker } from '@/components/location/DeliveryLocationPicker';
+import { InitialLocationSheet } from '@/components/location/InitialLocationSheet';
+import { OnboardingPrompt } from '@/components/customer/OnboardingPrompt';
+import { CustomerRecommendations } from '@/components/customer/CustomerRecommendations';
 import { APP_BOTTOM_NAV_INSET } from '@/components/navigation/AppBottomNav';
+import { CartFloatingBar } from '@/components/order/CartFloatingBar';
 import { authTheme } from '@/constants/auth-theme';
 import { fonts } from '@/constants/typography';
 import { addressApi } from '@/lib/address/api';
@@ -39,6 +44,7 @@ import {
   useDeals,
   useHomeFeed,
   useOffersFeed,
+  useOnboardingStatus,
 } from '@/lib/customer/hooks';
 import { useFavoriteToggle } from '@/lib/customer/useFavoriteToggle';
 import { useHomeDiscovery } from '@/lib/home/hooks';
@@ -73,6 +79,7 @@ export default function HomeScreen() {
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [vegModalOpen, setVegModalOpen] = useState(false);
+  const [hasPromptedLocation, setHasPromptedLocation] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [mindPinned, setMindPinned] = useState(false);
   const [savePrompt, setSavePrompt] = useState<{
@@ -141,6 +148,7 @@ export default function HomeScreen() {
   const deals = useDeals();
   const offers = useOffersFeed();
   const profile = useCustomerProfile();
+  const onboarding = useOnboardingStatus();
   const discovery = useHomeDiscovery(city);
   const { favoriteIds, toggleFavorite } = useFavoriteToggle();
 
@@ -217,6 +225,7 @@ export default function HomeScreen() {
     deals.refetch();
     offers.refetch();
     profile.refetch();
+    onboarding.refetch();
     discovery.refetch();
   };
 
@@ -267,6 +276,7 @@ export default function HomeScreen() {
     savedAddressId?: string;
   }) => {
     setPickerOpen(false);
+    setHasPromptedLocation(true);
 
     if (result.source === 'saved') {
       setDeliveryLocation({
@@ -434,6 +444,16 @@ export default function HomeScreen() {
     />
   );
 
+  const showInitialSheet = !hasPromptedLocation && !isDetectingLocation && !pickerOpen;
+
+  const initialSheet = (
+    <InitialLocationSheet
+      visible={showInitialSheet}
+      onManual={() => setPickerOpen(true)}
+      onClose={() => setHasPromptedLocation(true)}
+    />
+  );
+
   const saveLabelModal = (
     <SaveAddressLabelModal
       visible={Boolean(savePrompt)}
@@ -474,6 +494,14 @@ export default function HomeScreen() {
       >
         {chrome}
 
+        {restaurants.length > 0 ? (
+          <TopRatedNearYou 
+            restaurants={restaurants.slice(0, 10)} 
+            favoriteIds={favoriteIds}
+            onToggleFavorite={toggleFavorite}
+          />
+        ) : null}
+
         <Text style={styles.mindTitle}>What&apos;s on your mind?</Text>
 
         {!city && !isDetectingLocation ? (
@@ -505,10 +533,14 @@ export default function HomeScreen() {
         <WhatsOnYourMind categories={mindCategories} hideTitle />
       </Animated.View>
 
+      <AutoScrollingDeals deals={deals.data || []} />
+
       <HomeFilterChips
         activeFilter={activeFilter}
         onFilterPress={onFilterPress}
       />
+
+      <CustomerRecommendations />
 
       {restaurants.length > 0 || (feed.isLoading && !!city) ? (
         <PopularRestaurantsSection
@@ -536,6 +568,7 @@ export default function HomeScreen() {
         {chrome}
         <LoadingView label="Finding restaurants near you…" />
         {locationPicker}
+        {initialSheet}
         {saveLabelModal}
         <VegModeModal
           visible={vegModalOpen}
@@ -608,12 +641,19 @@ export default function HomeScreen() {
       </Animated.View>
 
       {locationPicker}
+      {initialSheet}
       {saveLabelModal}
       <VegModeModal
         visible={vegModalOpen}
         onClose={() => setVegModalOpen(false)}
         onApply={onVegApply}
       />
+
+      <View style={{ position: 'absolute', bottom: Math.max(insets.bottom, 16), left: 0, right: 0, zIndex: 1000 }}>
+        <OnboardingPrompt />
+      </View>
+
+      <CartFloatingBar />
     </View>
   );
 }

@@ -31,11 +31,14 @@
             "compileSdkVersion": 36,
             "targetSdkVersion": 36,
             "minSdkVersion": 24,
-            "buildToolsVersion": "36.0.0",
-            "usesCleartextTraffic": true
+            "buildToolsVersion": "35.0.1",
+            "ndkVersion": "27.1.12297006",
+            "usesCleartextTraffic": true,
+            "extraMavenRepos": []
           }
         }
-      ]
+      ],
+      "./withMinSdkVersion.js"
     ],
     "ios": {
       "supportsTablet": true,

@@ -1,16 +1,15 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { BellOff, DoorOpen, MapPin, PhoneOff, X, CheckSquare, Square } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  Animated,
+import { Animated,
   Dimensions,
   Easing,
-  Pressable,
+  
   ScrollView,
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 
 const TIP_IMAGE_IDLE = 'https://cdn-icons-png.flaticon.com/512/3063/3063822.png';
 const TIP_IMAGE_HAPPY = 'https://cdn-icons-png.flaticon.com/512/4333/4333609.png';
@@ -18,7 +17,7 @@ const BIKE_IMAGE = 'https://cdn-icons-png.flaticon.com/512/2830/2830305.png';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const CONFETTI_COLORS = ['#FF5A41', '#00BAF2', '#FFC107', '#1BA672', '#E91E63', '#9C27B0'];
+const CONFETTI_COLORS = ['#AC0F45', '#00BAF2', '#FFC107', '#1BA672', '#E91E63', '#9C27B0'];
 
 function InstantConfetti({ trigger, bikeAnim }: { trigger: number, bikeAnim: Animated.Value }) {
   const anims = React.useMemo(() => {
@@ -261,7 +260,7 @@ export function DeliveryPreferences({
                         ₹{amt}
                       </Text>
                       {isSelected && (
-                        <X size={12} color="#FF5A41" style={{ marginLeft: 4 }} strokeWidth={3} />
+                        <X size={12} color="#AC0F45" style={{ marginLeft: 4 }} strokeWidth={3} />
                       )}
                     </View>
                     {isMostTipped && !isSelected && (
@@ -282,7 +281,7 @@ export function DeliveryPreferences({
               disabled={tip === 0}
             >
               {autoTip ? (
-                <CheckSquare size={18} color="#FF5A41" />
+                <CheckSquare size={18} color="#AC0F45" />
               ) : (
                 <Square size={18} color="#9CA3AF" />
               )}
@@ -315,7 +314,7 @@ export function DeliveryPreferences({
                   onPress={() => toggleInstruction(opt.label)}
                 >
                   <Icon
-                    color={selected ? '#FF5A41' : '#4b5563'}
+                    color={selected ? '#AC0F45' : '#4b5563'}
                     size={24}
                     strokeWidth={selected ? 2.5 : 2}
                     style={{ marginBottom: 12 }}
@@ -417,7 +416,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   tipOptionSelected: {
-    borderColor: '#FF5A41',
+    borderColor: '#AC0F45',
     backgroundColor: '#FFF0ED',
   },
   tipAmtText: {
@@ -426,14 +425,14 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   tipAmtTextSelected: {
-    color: '#FF5A41',
+    color: '#AC0F45',
   },
   mostTippedBadge: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FF5A41',
+    backgroundColor: '#AC0F45',
     paddingVertical: 2,
     alignItems: 'center',
   },
@@ -478,7 +477,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   instCardSelected: {
-    borderColor: '#FF5A41',
+    borderColor: '#AC0F45',
     backgroundColor: '#FFF0ED',
   },
   instLabel: {
@@ -488,6 +487,6 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   instLabelSelected: {
-    color: '#FF5A41',
+    color: '#AC0F45',
   },
 });

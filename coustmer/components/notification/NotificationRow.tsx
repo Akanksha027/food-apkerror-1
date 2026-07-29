@@ -1,3 +1,4 @@
+import { Pressable } from '@/components/common/Pressable';
 import {
   Bell,
   Bike,
@@ -6,7 +7,7 @@ import {
   Shield,
   Wallet,
 } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { authTheme } from '@/constants/auth-theme';
 import type { AppNotification } from '@/lib/notification/types';

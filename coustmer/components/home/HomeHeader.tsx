@@ -1,3 +1,4 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type Href, useRouter } from 'expo-router';
@@ -11,7 +12,7 @@ import {
   Search,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { authTheme } from '@/constants/auth-theme';
 import { useUnreadNotificationCount } from '@/lib/notification/hooks';
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   promoAccent: {
-    color: '#FF5A41',
+    color: '#AC0F45',
   },
   promoSub: {
     marginTop: 8,

@@ -1,3 +1,4 @@
+import { Pressable } from '@/components/common/Pressable';
 import * as Location from 'expo-location';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
@@ -15,21 +16,19 @@ import {
   X,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   Alert,
   Keyboard,
   Linking,
   Modal,
   Platform,
-  Pressable,
+  
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
@@ -185,7 +184,7 @@ function buildGoogleMapHtml(lat: number, lng: number, apiKey: string): string {
 <body>
 <div id="map"></div>
 <div class="center-pin">
-  <svg width="44" height="44" viewBox="0 0 24 24" fill="#FF5A41" stroke="#FF5A41" stroke-width="1.5">
+  <svg width="44" height="44" viewBox="0 0 24 24" fill="#AC0F45" stroke="#AC0F45" stroke-width="1.5">
     <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
     <circle cx="12" cy="10" r="3" fill="#fff" stroke="#fff"></circle>
   </svg>
@@ -1295,7 +1294,7 @@ export function DeliveryLocationPicker({
           >
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
             <View style={styles.detectedRow}>
-              <MapPin color="#FF5A41" size={18} />
+              <MapPin color="#AC0F45" size={18} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.detectedLabel}>DELIVERY LOCATION</Text>
                 <Text style={styles.detectedValue} numberOfLines={2}>
@@ -1318,7 +1317,7 @@ export function DeliveryLocationPicker({
                 marginTop: 14,
                 height: 54,
                 borderRadius: 14,
-                backgroundColor: '#FF5A41',
+                backgroundColor: '#AC0F45',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexDirection: 'row',

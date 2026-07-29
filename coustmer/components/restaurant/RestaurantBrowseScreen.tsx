@@ -1,19 +1,18 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Search, UtensilsCrossed, X } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   FlatList,
-  Pressable,
+  
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/common/ScreenHeader';
@@ -483,7 +482,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 16,
     marginBottom: 12,
-    shadowColor: '#FF5A41',
+    shadowColor: '#AC0F45',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,

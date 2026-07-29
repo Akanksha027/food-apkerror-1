@@ -13,6 +13,7 @@ import type {
 
 export const customerKeys = {
   all: ['customer'] as const,
+  health: () => [...customerKeys.all, 'health'] as const,
   home: () => [...customerKeys.all, 'home'] as const,
   deals: () => [...customerKeys.all, 'deals'] as const,
   offers: () => [...customerKeys.all, 'offers'] as const,
@@ -24,6 +25,16 @@ export const customerKeys = {
   tickets: () => [...customerKeys.all, 'tickets'] as const,
   ticket: (id: string) => [...customerKeys.all, 'ticket', id] as const,
 };
+
+export function useCustomerServiceHealth() {
+  return useQuery({
+    queryKey: customerKeys.health(),
+    queryFn: customerApi.health,
+    refetchInterval: 30000, // Check every 30 seconds
+    retry: 3,
+    retryDelay: 5000,
+  });
+}
 
 export function useHomeFeed() {
   return useQuery({

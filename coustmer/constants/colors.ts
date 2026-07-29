@@ -1,8 +1,8 @@
 export const colors = {
   brand: {
-    primary: '#FF5A41',
-    dark: '#E8482F',
-    accent: '#FF8A75',
+    primary: '#AC0F45',
+    dark: '#AC0F45',
+    accent: '#AC0F45',
   },
   facebook: '#1877F2',
   background: '#FAFAFA',

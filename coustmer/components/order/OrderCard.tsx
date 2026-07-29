@@ -1,15 +1,14 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { CheckCircle2, ChevronRight, Star } from 'lucide-react-native';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   Alert,
-  Pressable,
+  
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 
 import { authTheme } from '@/constants/auth-theme';
 import { fonts } from '@/constants/typography';

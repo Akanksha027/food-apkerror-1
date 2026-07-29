@@ -1,3 +1,4 @@
+import { Pressable } from '@/components/common/Pressable';
 import { useRouter } from 'expo-router';
 import {
   ChevronRight,
@@ -8,14 +9,12 @@ import {
   User,
 } from 'lucide-react-native';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
+import { ActivityIndicator,
+  
   ScrollView,
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthMessageBanner } from '@/components/auth/AuthMessageBanner';

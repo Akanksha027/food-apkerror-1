@@ -8,7 +8,7 @@ export const swiggyOrderUi = {
   border: '#E2E2E7',
   green: '#48C479',
   greenSoft: 'rgba(72, 196, 121, 0.12)',
-  orange: '#FF5A41',
+  orange: '#AC0F45',
   orangeSoft: 'rgba(255, 90, 65, 0.1)',
   radius: 16,
   sectionGap: 12,

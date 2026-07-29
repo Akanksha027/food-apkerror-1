@@ -1,4 +1,4 @@
-import { WalletScreen } from '@/components/profile/WalletScreen';
+import { WalletScreen } from '@/components/payment/WalletScreen';
 
 export default function WalletPage() {
   return <WalletScreen />;

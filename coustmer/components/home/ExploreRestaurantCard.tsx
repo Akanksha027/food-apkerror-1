@@ -1,9 +1,11 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MoreVertical, Star } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MoreVertical, Star, Zap, Percent } from 'lucide-react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { FavoriteHeartButton } from '@/components/common/FavoriteHeartButton';
+import { VegMarkIcon } from '@/components/home/VegMarkIcon';
 import { fonts } from '@/constants/typography';
 import type { Restaurant } from '@/lib/restaurant/types';
 
@@ -17,10 +19,10 @@ type Props = {
 
 function offerOverlay(restaurant: Restaurant) {
   const raw = restaurant.offer?.trim();
-  if (raw) return raw.toUpperCase();
+  if (raw) return raw; // Return raw case
   const offers = [
-    '70% OFF UPTO ₹130',
-    'ITEMS AT ₹49',
+    '51% off',
+    'Items at ₹59',
     'FLAT ₹125 OFF',
     '50% OFF UPTO ₹100',
   ];
@@ -48,7 +50,6 @@ function areaLabel(restaurant: Restaurant) {
   return restaurant.city?.trim() || null;
 }
 
-/** Swiggy-style row card: tall image left, details right. */
 export function ExploreRestaurantCard({
   restaurant,
   isFavorite,
@@ -64,110 +65,129 @@ export function ExploreRestaurantCard({
   const reviews = formatReviews(restaurant.reviewCount);
   const cuisines =
     (restaurant.cuisines ?? []).slice(0, 3).join(', ') || 'Restaurant';
-  const time = restaurant.deliveryTime || '30-35 mins';
+  const time = restaurant.deliveryTime || '20-25 MINS';
   const offer = offerOverlay(restaurant);
   const area = areaLabel(restaurant);
   const distance =
     typeof restaurant.distance === 'number' && restaurant.distance > 0
       ? `${restaurant.distance.toFixed(1)} km`
       : null;
-  const badge =
-    typeof restaurant.badge === 'string' ? restaurant.badge : undefined;
+      
+  const costText = restaurant.costForTwo 
+    ? `₹${restaurant.costForTwo} for two` 
+    : restaurant.priceForTwo 
+      ? `₹${restaurant.priceForTwo} for two` 
+      : '₹200 for two';
 
   return (
     <View style={styles.card}>
-      <View style={styles.imageWrap}>
+      <View style={styles.shadowContainer}>
         <Pressable
-          style={StyleSheet.absoluteFill}
+          style={({ pressed }) => [styles.clipContainer, pressed && styles.pressed]}
           onPress={onPress}
           disabled={!onPress}
-        />
-        {cover ? (
-          <Image
-            source={{ uri: cover }}
-            style={styles.image}
-            contentFit="cover"
-            transition={200}
-            pointerEvents="none"
-          />
-        ) : (
-          <View
-            style={[styles.image, styles.imageFallback]}
-            pointerEvents="none"
-          />
-        )}
-
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.82)']}
-          style={styles.offerGrad}
-          pointerEvents="none"
         >
-          <Text style={styles.offerText} numberOfLines={2}>
-            {offer}
-          </Text>
-        </LinearGradient>
+          <View style={styles.imageWrap}>
+            {cover ? (
+              <Image
+                source={{ uri: cover }}
+                style={styles.image}
+                contentFit="cover"
+                transition={200}
+              />
+            ) : (
+              <View style={[styles.image, styles.imageFallback]} />
+            )}
 
-        {onToggleFavorite ? (
-          <FavoriteHeartButton
-            active={!!isFavorite}
-            disabled={favoriteLoading}
-            onPress={() => onToggleFavorite(restaurant.id)}
-            size={18}
-            color="#686B78"
-            activeColor="#E23744"
-            withBackdrop
-            style={styles.heartBtn}
-          />
-        ) : null}
-      </View>
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.8)']}
+              style={styles.offerGrad}
+              pointerEvents="none"
+            >
+              <View style={styles.offerBadge}>
+                <View style={styles.offerIconWrap}>
+                  <Percent color="#FFFFFF" size={10} strokeWidth={4} />
+                </View>
+                <Text style={styles.offerText} numberOfLines={1}>
+                  {offer}
+                </Text>
+              </View>
+            </LinearGradient>
 
-      <Pressable
-        style={({ pressed }) => [styles.details, pressed && styles.pressed]}
-        onPress={onPress}
-        disabled={!onPress}
-      >
-        {badge ? (
-          <Text style={styles.badge} numberOfLines={1}>
-            {badge}
-          </Text>
-        ) : null}
+            {/* Time Badge Overlapping the image border */}
+            <View style={styles.timeBadge}>
+              <Text style={styles.timeBadgeText}>{time.toUpperCase()}</Text>
+            </View>
 
-        <View style={{ width: '85%' }}>
-          <View style={styles.titleRow}>
-            <Text style={styles.name} numberOfLines={2}>
-              {restaurant.name}
-            </Text>
+            {/* Icons top right */}
+            <View style={styles.topRightIcons}>
+              {onToggleFavorite ? (
+                <FavoriteHeartButton
+                  active={!!isFavorite}
+                  disabled={favoriteLoading}
+                  onPress={() => onToggleFavorite(restaurant.id)}
+                  size={22}
+                  color="#FFFFFF"
+                  activeColor="#E23744"
+                  withBackdrop={false}
+                />
+              ) : null}
+              <MoreVertical color="#FFFFFF" size={22} strokeWidth={2.5} style={{ marginLeft: 8 }} />
+            </View>
           </View>
 
-        <View style={styles.ratingRow}>
-          {rating ? (
-            <>
-              <View style={styles.ratingCircle}>
-                <Star color="#FFFFFF" fill="#FFFFFF" size={9} />
+          <View style={styles.details}>
+            <View style={styles.tagsRow}>
+              <View style={styles.tagItem}>
+                <Text style={styles.boltTextBold}>Bolt</Text>
+                <Zap color="#E16120" size={12} fill="#E16120" />
+                <Text style={styles.boltTextLight}> Food in 10-15 min</Text>
               </View>
-              <Text style={styles.ratingNum}>
-                {rating.toFixed(1)}
-                {reviews ? ` (${reviews})` : ''}
-              </Text>
-              <Text style={styles.dot}>·</Text>
-            </>
-          ) : null}
-          <Text style={styles.time}>{time}</Text>
-        </View>
+              
+              {restaurant.isPureVeg && (
+                <View style={styles.tagItem}>
+                  <VegMarkIcon size={12} />
+                  <Text style={styles.vegText}> Pure Veg</Text>
+                </View>
+              )}
+              
+              {/* Optional badge placeholder */}
+              {typeof restaurant.badge === 'string' && (
+                <View style={styles.tagItem}>
+                  <Text style={styles.badgeText}>⭐ {restaurant.badge as string}</Text>
+                </View>
+              )}
+            </View>
 
-        <Text style={styles.cuisine} numberOfLines={3}>
-          {cuisines}
-        </Text>
+            <Text style={styles.name} numberOfLines={1}>
+              {restaurant.name}
+            </Text>
 
-        {area || distance ? (
-          <Text style={styles.location} numberOfLines={1}>
-            {[area, distance].filter(Boolean).join(' · ')}
-          </Text>
-        ) : null}
-        </View>
-      </Pressable>
-      <View style={styles.moreWrapOuter}>
-        <MoreVertical color="#9CA3AF" size={18} strokeWidth={2.2} />
+            <View style={styles.ratingRow}>
+              {rating ? (
+                <>
+                  <View style={styles.ratingCircle}>
+                    <Star color="#FFFFFF" fill="#FFFFFF" size={10} />
+                  </View>
+                  <Text style={styles.ratingNum}>
+                    {rating.toFixed(1)}
+                    {reviews ? ` (${reviews})` : ''}
+                  </Text>
+                  <Text style={styles.dot}>•</Text>
+                </>
+              ) : null}
+              {area || distance ? (
+                <Text style={styles.locationInfo} numberOfLines={1}>
+                  {[area, distance].filter(Boolean).join(', ')}
+                </Text>
+              ) : null}
+            </View>
+
+            <Text style={styles.cuisine} numberOfLines={1}>
+              {cuisines} • {costText}
+            </Text>
+          </View>
+        </Pressable>
       </View>
     </View>
   );
@@ -176,11 +196,16 @@ export function ExploreRestaurantCard({
 export function ExploreRestaurantSkeleton() {
   return (
     <View style={styles.card}>
-      <View style={[styles.imageWrap, styles.skelBlock]} />
-      <View style={styles.details}>
-        <View style={[styles.skelLine, { width: '70%' }]} />
-        <View style={[styles.skelLine, { width: '55%', marginTop: 10 }]} />
-        <View style={[styles.skelLine, { width: '80%', marginTop: 8 }]} />
+      <View style={styles.shadowContainer}>
+        <View style={styles.clipContainer}>
+          <View style={[styles.imageWrap, styles.skelBlock]} />
+          <View style={styles.details}>
+            <View style={[styles.skelLine, { width: '40%', height: 12, marginBottom: 8 }]} />
+            <View style={[styles.skelLine, { width: '80%', height: 20, marginBottom: 8 }]} />
+            <View style={[styles.skelLine, { width: '60%', height: 14, marginBottom: 4 }]} />
+            <View style={[styles.skelLine, { width: '50%', height: 14 }]} />
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -188,131 +213,192 @@ export function ExploreRestaurantSkeleton() {
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
-    marginBottom: 22,
-    gap: 14,
-    position: 'relative',
+    marginBottom: 24,
+  },
+  shadowContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    // iOS Shadow
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4, 
+    shadowRadius: 14, 
+    // Android Shadow
+    elevation: 14,
+  },
+  clipContainer: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   pressed: {
-    opacity: 0.92,
+    opacity: 0.95,
+    transform: [{ scale: 0.98 }],
   },
   imageWrap: {
-    width: 118,
-    height: 148,
-    borderRadius: 16,
+    width: '100%',
+    height: 160,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     overflow: 'hidden',
-    backgroundColor: '#E8E8E8',
+    position: 'relative',
+    backgroundColor: '#F3F4F6',
   },
   image: {
-    ...StyleSheet.absoluteFill,
+    width: '100%',
+    height: '100%',
   },
   imageFallback: {
-    backgroundColor: '#D1D5DB',
+    backgroundColor: '#E5E7EB',
   },
   offerGrad: {
     position: 'absolute',
+    bottom: 0,
     left: 0,
     right: 0,
-    bottom: 0,
-    paddingHorizontal: 8,
-    paddingTop: 28,
-    paddingBottom: 8,
+    height: 80,
+    justifyContent: 'flex-end',
+    padding: 12,
+  },
+  offerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  offerIconWrap: {
+    backgroundColor: '#F04F23', // Orange circle
+    borderRadius: 12,
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   offerText: {
-    fontFamily: fonts.displayBold,
-    fontSize: 12,
     color: '#FFFFFF',
-    lineHeight: 15,
-    letterSpacing: 0.1,
+    fontSize: 18,
+    fontWeight: '900',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
-  heartBtn: {
+  topRightIcons: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timeBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    zIndex: 10,
+    transform: [{ translateY: 1 }], // Slight overlap hack
+  },
+  timeBadgeText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1F2937',
+    letterSpacing: -0.2,
   },
   details: {
-    flex: 1,
-    minWidth: 0,
-    justifyContent: 'center',
-    paddingRight: 48,
+    padding: 12,
+    paddingTop: 8,
+    paddingBottom: 10,
   },
-  badge: {
-    fontFamily: fonts.uiSemi,
-    fontSize: 12,
-    color: '#B8860B',
-    marginBottom: 2,
-  },
-  titleRow: {
+  tagsRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 4,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 4,
+  },
+  tagItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  boltTextBold: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1F2937',
+  },
+  boltTextLight: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  vegText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F8A45',
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#D97706', // Yellowish
   },
   name: {
-    flex: 1,
-    fontFamily: fonts.displayBold,
-    fontSize: 16,
-    color: '#02060C',
-    letterSpacing: -0.3,
-    lineHeight: 21,
-  },
-  moreWrapOuter: {
-    position: 'absolute',
-    top: 10,
-    right: 16,
-    padding: 4,
+    fontFamily: fonts.display,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: -0.5,
+    marginBottom: 4,
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
-    flexWrap: 'wrap',
+    marginBottom: 2,
   },
   ratingCircle: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: '#1BA672',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 5,
+    marginRight: 6,
   },
   ratingNum: {
-    fontFamily: fonts.uiSemi,
-    fontSize: 13,
-    color: '#02060C',
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#4B5563',
   },
   dot: {
-    marginHorizontal: 5,
-    fontFamily: fonts.ui,
-    fontSize: 13,
-    color: '#686B78',
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#9CA3AF',
+    marginHorizontal: 6,
   },
-  time: {
-    fontFamily: fonts.uiSemi,
-    fontSize: 13,
-    color: '#02060C',
+  locationInfo: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+    flex: 1,
   },
   cuisine: {
-    marginTop: 4,
-    fontFamily: fonts.ui,
-    fontSize: 13,
-    color: '#686B78',
-  },
-  location: {
-    marginTop: 2,
-    fontFamily: fonts.ui,
-    fontSize: 13,
-    color: '#686B78',
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   skelBlock: {
-    backgroundColor: '#ECECEC',
+    backgroundColor: '#E5E7EB',
   },
   skelLine: {
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#E8E8E8',
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
   },
 });

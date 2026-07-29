@@ -1,7 +1,8 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Clock, Star, UtensilsCrossed } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { FavoriteHeartButton } from '@/components/common/FavoriteHeartButton';
 import { authTheme } from '@/constants/auth-theme';

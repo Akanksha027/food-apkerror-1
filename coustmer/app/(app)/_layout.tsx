@@ -38,7 +38,6 @@ export default function AppLayout() {
           }}
         />
       </Stack>
-      <AppBottomNav />
       <ReplaceCartModal />
     </View>
   );

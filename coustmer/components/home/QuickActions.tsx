@@ -1,6 +1,7 @@
+import { Pressable } from '@/components/common/Pressable';
 import { useRouter } from 'expo-router';
 import { Clock, Heart, LifeBuoy, Tag } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { authTheme } from '@/constants/auth-theme';
 

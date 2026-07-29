@@ -1,17 +1,16 @@
+import { Pressable } from '@/components/common/Pressable';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MapPin } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
+  
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DeliveryLocationPicker } from '@/components/location/DeliveryLocationPicker';

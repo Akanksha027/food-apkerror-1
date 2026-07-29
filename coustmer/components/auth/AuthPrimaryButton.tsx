@@ -1,7 +1,8 @@
+import { Pressable } from '@/components/common/Pressable';
 import { ArrowRight } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-const BUTTON_RED = '#FF5A41';
+const BUTTON_RED = '#AC0F45';
 
 type AuthPrimaryButtonProps = {
   label: string;

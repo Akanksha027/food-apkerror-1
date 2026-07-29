@@ -1,6 +1,7 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Copy, Gift } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Share, StyleSheet, Text, View } from 'react-native';
 
 import { AuthInput } from '@/components/auth/AuthInput';
 import { ErrorView, LoadingView } from '@/components/common/StateViews';

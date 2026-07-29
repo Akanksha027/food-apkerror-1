@@ -1,3 +1,4 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -8,15 +9,13 @@ import {
   SlidersHorizontal,
 } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import {
-  Dimensions,
+import { Dimensions,
   FlatList,
-  Pressable,
+  
   ScrollView,
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -28,6 +27,7 @@ import { SmoothPressable } from '@/components/common/SmoothPressable';
 import {
   ExploreRestaurantCard,
 } from '@/components/home/ExploreRestaurantCard';
+import { CustomerServiceStatus } from '@/components/customer/CustomerServiceStatus';
 import { fonts } from '@/constants/typography';
 import type { RestaurantCard } from '@/lib/customer/types';
 import { useFavorites } from '@/lib/customer/hooks';
@@ -251,6 +251,8 @@ export function FavouritesScreen() {
           );
         })}
       </ScrollView>
+
+      <CustomerServiceStatus />
     </View>
   );
 
@@ -416,7 +418,7 @@ const styles = StyleSheet.create({
     borderColor: '#E2E2E7',
   },
   chipOn: {
-    borderColor: '#FF5A41',
+    borderColor: '#AC0F45',
     backgroundColor: 'rgba(255, 90, 65, 0.08)',
   },
   chipText: {
@@ -425,7 +427,7 @@ const styles = StyleSheet.create({
     color: '#3E4152',
   },
   chipTextOn: {
-    color: '#FF5A41',
+    color: '#AC0F45',
   },
   liveWrap: {
     paddingTop: 28,

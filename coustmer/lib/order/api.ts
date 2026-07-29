@@ -231,6 +231,7 @@ export function mapOrder(data: Record<string, unknown>): Order {
     cancelledAt: (data.cancelledAt as string) || undefined,
     cancelReason:
       (data.cancelReason as string) || (data.cancellationReason as string) || undefined,
+    raw: data,
   };
 }
 

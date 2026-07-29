@@ -1,11 +1,10 @@
+import { Pressable } from '@/components/common/Pressable';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
+import { ActivityIndicator,
+  
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 
 import { AuthInput } from '@/components/auth/AuthInput';
 import { ProfileFormLayout } from '@/components/profile/ProfileFormLayout';

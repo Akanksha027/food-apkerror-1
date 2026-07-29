@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 import { api } from '@/lib/api';
+import { handleCustomerServiceError } from '@/lib/customer/error-handler';
 import type {
   AddTicketMessagePayload,
   CreateTicketPayload,
@@ -44,29 +45,8 @@ async function request<T>(
     });
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (!error.response) {
-        throw new Error(
-          'Network request failed. Check your internet connection and try again.'
-        );
-      }
-
-      const data = error.response.data as
-        | { message?: string; error?: string }
-        | undefined;
-      const message =
-        data?.message || data?.error || `Request failed (${error.response.status})`;
-
-      if (message.toLowerCase().includes('csrf')) {
-        throw new Error(
-          'Security token expired. Close and reopen the app, then try again.'
-        );
-      }
-
-      throw new Error(message);
-    }
-
-    throw error;
+    const customerError = handleCustomerServiceError(error);
+    throw new Error(customerError.userMessage);
   }
 }
 
@@ -178,6 +158,16 @@ function mapRestaurantCard(raw: Record<string, unknown>): RestaurantCard {
 }
 
 export const customerApi = {
+  /** GET /health */
+  health: async (): Promise<boolean> => {
+    try {
+      const res = await request<unknown>('/api/v1/customer-service/health');
+      return res.success !== false;
+    } catch {
+      return false;
+    }
+  },
+
   /** GET /customers/home */
   getHome: async (): Promise<HomeFeed> => {
     const res = await request<HomeFeed & Record<string, unknown>>(
@@ -205,10 +195,43 @@ export const customerApi = {
 
     try {
       const res = await request<unknown>('/api/v1/customer-service/deals');
-      return unwrapList(res.data ?? res).map(mapDeal);
+      const list = unwrapList(res.data ?? res);
+      if (list.length) return list.map(mapDeal);
     } catch {
-      return [];
+      // fall through
     }
+
+    // Fallback: Fetch aggregate offers from all restaurants directly since the customer deals endpoint might throw 401
+    try {
+      const { restaurantApi } = await import('@/lib/restaurant/api');
+      const { restaurantOffersApi } = await import('@/lib/restaurant/offers-api');
+      
+      const { restaurants } = await restaurantApi.getAllRestaurants({ limit: 100 });
+console.log("Fetched " + restaurants.length + " restaurants for deals fallback");
+      const offersPromises = restaurants.map(r => restaurantOffersApi.getOffers(r.id).catch(() => ({ offers: [] })));
+      const results = await Promise.all(offersPromises);
+      
+      const allDeals = results.flatMap((res, i) => {
+        return res.offers.map(offer => {
+          return {
+            id: offer.id,
+            title: offer.title,
+            description: offer.description,
+            code: offer.code,
+            imageUrl: offer.imageUrl,
+            type: offer.type,
+            value: offer.value,
+            restaurantId: offer.restaurantId || restaurants[i].id
+          } as Deal;
+        });
+      });
+      
+      if (allDeals.length > 0) return allDeals;
+    } catch (e) {
+      console.warn("Failed to fetch aggregate deals from restaurants:", e);
+    }
+
+    return [];
   },
 
   /** GET /customer-service/banners (optional dedicated banners route) */

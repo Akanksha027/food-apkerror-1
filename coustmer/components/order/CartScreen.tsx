@@ -1,3 +1,4 @@
+import { Pressable } from '@/components/common/Pressable';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,12 +20,11 @@ import {
   FileText,
 } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   Alert,
   Linking,
   Modal,
-  Pressable,
+  
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -32,8 +32,7 @@ import {
   TextInput,
   View,
   KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+  Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyView, ErrorView, LoadingView } from '@/components/common/StateViews';
@@ -53,8 +52,9 @@ import {
 import { addMenuItemToCart } from '@/lib/order/add-to-cart';
 import { useCreateOrder } from '@/lib/order/hooks';
 import { parseDeliveryAddress } from '@/lib/order/parse-address';
-import { useInitiatePayment, usePaymentMethods, useVerifyPayment } from '@/lib/payment/hooks';
+import { useInitiatePayment, usePaymentMethods, usePaymentWallet, useVerifyPayment } from '@/lib/payment/hooks';
 import { isPaymentSuccess, needsOnlinePayment } from '@/lib/payment/types';
+import { generateTestPaymentUrl, simulatePaymentSuccess } from '@/lib/payment/test-urls';
 import { useUserProfile } from '@/lib/profile/hooks';
 import { useFullMenu } from '@/lib/restaurant/hooks';
 import type { MenuItem } from '@/lib/restaurant/types';
@@ -64,6 +64,7 @@ import { useDeliveryLocationStore } from '@/store/delivery-location-store';
 import { PaymentOptionsModal } from './PaymentOptionsModal';
 import { OrderPlacementModal, PlacementPhase } from '@/components/order/OrderPlacementModal';
 import { DeliveryPreferences } from '@/components/order/DeliveryPreferences';
+import { PaymentGatewayWebView } from '@/components/payment/PaymentGatewayWebView';
 
 const PAGE_BG = '#F0F0F5';
 const TEXT = '#02060C';
@@ -73,7 +74,7 @@ const BORDER = '#E2E2E7';
 const GREEN = '#1BA672';
 const GREEN_SOFT = '#E8F8F0';
 const GREEN_BORDER = '#B6E5CB';
-const ORANGE = '#FF5A41';
+const ORANGE = '#AC0F45';
 const PAY_GREEN = '#1BA672';
 const PAYTM_ICON = 'https://img.icons8.com/color/96/paytm.png';
 
@@ -90,7 +91,7 @@ function OneWord() {
       }
     >
       <LinearGradient
-        colors={['#FF5A41', '#E53935']}
+        colors={['#AC0F45', '#E53935']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -166,6 +167,7 @@ export function CartScreen() {
   const location = useDeliveryLocationStore((s) => s.location);
   const profile = useUserProfile();
   const paymentMethods = usePaymentMethods();
+  const wallet = usePaymentWallet();
   const scrollViewRef = useRef<ScrollView>(null);
   const [orderPlacementPhase, setOrderPlacementPhase] = useState<PlacementPhase>('none');
   const menu = useFullMenu(restaurant?.id ?? '', {
@@ -187,6 +189,10 @@ export function CartScreen() {
   const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [paying, setPaying] = useState(false);
+  
+  const [paymentGatewayOpen, setPaymentGatewayOpen] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState('');
+  const [currentOrder, setCurrentOrder] = useState<any>(null);
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [cutleryNeeded, setCutleryNeeded] = useState(false);
@@ -297,6 +303,11 @@ export function CartScreen() {
     if (!items.length) {
       tipsStarted.current = false;
       setActiveTip(null);
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/home');
+      }
     }
   }, [items.length]);
 
@@ -349,6 +360,87 @@ export function CartScreen() {
     }
   };
 
+  const handlePaymentComplete = async (success: boolean, data?: any) => {
+    console.log('Payment completed:', success, data);
+    setPaymentGatewayOpen(false);
+    
+    if (success) {
+      setOrderPlacementPhase('placed');
+      
+      // Try to verify payment if we have payment details
+      if (currentOrder) {
+        try {
+          // For test URLs, simulate successful payment verification
+          if (paymentUrl.includes('test') || paymentUrl.includes('httpbin')) {
+            const simulatedResult = simulatePaymentSuccess(currentOrder.id, currentOrder.total ?? estimatedTotal);
+            console.log('Simulated payment result:', simulatedResult);
+          } else {
+            // Real payment verification
+            await verifyPayment.mutateAsync({
+              paymentId: data?.paymentId || 'unknown',
+              orderId: currentOrder.id,
+              gatewayPaymentId: data?.gatewayPaymentId || data?.paymentId,
+              gatewayOrderId: data?.gatewayOrderId,
+              status: 'success',
+            });
+          }
+        } catch (verifyError) {
+          console.warn('Payment verification failed:', verifyError);
+        }
+      }
+      
+      await new Promise(r => setTimeout(r, 1500));
+      router.replace({ 
+        pathname: '/orders/[orderId]/tracking', 
+        params: { orderId: currentOrder?.id || '', newOrder: 'true' } 
+      });
+      setOrderPlacementPhase('none');
+    } else {
+      // Payment failed
+      Alert.alert(
+        'Payment Failed',
+        'Your payment could not be processed. The order has been placed and you can try paying again or contact support.',
+        [
+          {
+            text: 'Try Again',
+            onPress: () => {
+              if (paymentUrl) {
+                setPaymentGatewayOpen(true);
+              }
+            }
+          },
+          {
+            text: 'Contact Support',
+            onPress: () => {
+              router.push('/support');
+            }
+          }
+        ]
+      );
+    }
+  };
+
+  const handlePaymentGatewayClose = () => {
+    Alert.alert(
+      'Cancel Payment?',
+      'Are you sure you want to cancel the payment? Your order has been placed and can be paid later.',
+      [
+        { text: 'Continue Payment', style: 'cancel' },
+        { 
+          text: 'Cancel Payment', 
+          onPress: () => {
+            setPaymentGatewayOpen(false);
+            if (currentOrder) {
+              router.replace({ 
+                pathname: '/orders/[orderId]/tracking', 
+                params: { orderId: currentOrder.id, newOrder: 'true' } 
+              });
+            }
+          }
+        }
+      ]
+    );
+  };
   const placeOrder = async () => {
     if (!location) {
       Alert.alert('Address Missing', 'Please select a delivery address');
@@ -365,6 +457,19 @@ export function CartScreen() {
         lat: location.lat,
         lng: location.lng,
       });
+
+      let mappedMethod = paymentMethod;
+      let mappedMethodId: string | undefined = undefined;
+
+      if (paymentMethod === 'paytm_upi' || paymentMethod === 'gpay') {
+        mappedMethod = 'upi';
+      } else if (paymentMethods.data?.some(m => m.id === paymentMethod)) {
+        const saved = paymentMethods.data.find(m => m.id === paymentMethod);
+        if (saved) {
+          mappedMethod = saved.type;
+          mappedMethodId = saved.id;
+        }
+      }
 
       const payload = {
         restaurantId: restaurant!.id,
@@ -390,53 +495,171 @@ export function CartScreen() {
           lng: parsedAddress.lng,
         },
         addressId: location.savedAddressId,
-        paymentMethod,
+        paymentMethod: mappedMethod,
         specialInstructions: specialInstructions || undefined,
         tip: tip > 0 ? tip : undefined,
       };
 
-      const order = await createOrder.mutateAsync(payload);
+      const order = await createOrder.mutateAsync(payload as any);
+      setCurrentOrder(order);
       const amount = order.total ?? estimatedTotal;
 
-      if (!needsOnlinePayment(paymentMethod)) {
+      // Handle COD - no payment gateway needed
+      if (!needsOnlinePayment(mappedMethod)) {
         setOrderPlacementPhase('placed');
         await new Promise(r => setTimeout(r, 1500));
-        router.replace({ pathname: '/orders/[orderId]/tracking', params: { orderId: order.id, newOrder: 'true' } });
+        router.replace({ 
+          pathname: '/orders/[orderId]/tracking', 
+          params: { orderId: order.id, newOrder: 'true' } 
+        });
         setOrderPlacementPhase('none');
         return;
       }
 
-      const payment = await initiatePayment.mutateAsync({
-        orderId: order.id,
-        amount,
-        currency: 'INR',
-        method: paymentMethod,
-        description: `Order ${order.orderNumber || order.id}`,
-      });
-
-      if (payment.paymentUrl) {
-        await Linking.openURL(payment.paymentUrl);
-      }
-
-      let verified = payment;
-      try {
-        if (!isPaymentSuccess(payment.status)) {
-          verified = await verifyPayment.mutateAsync({
-            paymentId: payment.id,
-            orderId: order.id,
-            gatewayPaymentId: payment.gatewayPaymentId,
-            gatewayOrderId: payment.gatewayOrderId ?? payment.razorpayOrderId,
-          });
+      // Try to get payment URL from multiple sources
+      let paymentUrlToOpen: string | undefined = undefined;
+      let payment: any = null;
+      
+      // Method 1: Check if order creation response contains payment URL
+      if (order.raw && typeof order.raw.paymentUrl === 'string') {
+        paymentUrlToOpen = order.raw.paymentUrl;
+        console.log('Payment URL from order creation:', paymentUrlToOpen);
+      } 
+      // Method 2: Check other possible fields in order response
+      else if (order.raw) {
+        paymentUrlToOpen = 
+          (order.raw.checkoutUrl as string | undefined) || 
+          (order.raw.redirectUrl as string | undefined) || 
+          (order.raw.gatewayUrl as string | undefined) ||
+          (order.raw.url as string | undefined);
+        if (paymentUrlToOpen) {
+          console.log('Payment URL from order response fields:', paymentUrlToOpen);
         }
-      } catch (err) {
-        console.warn('Payment verification failed:', err);
+      }
+      
+      // Method 3: Call payment initiate API if no URL found
+      if (!paymentUrlToOpen) {
+        try {
+          console.log('Initiating payment with payload:', {
+            orderId: order.id,
+            amount,
+            currency: 'INR',
+            method: mappedMethod,
+            methodId: mappedMethodId,
+          });
+          
+          payment = await initiatePayment.mutateAsync({
+            orderId: order.id,
+            amount,
+            currency: 'INR',
+            method: mappedMethod as any,
+            methodId: mappedMethodId,
+            description: `Order ${order.orderNumber || order.id}`,
+          });
+          
+          console.log('Payment initiate response:', payment);
+          
+          // Try multiple possible field names for payment URL
+          paymentUrlToOpen = 
+            payment.paymentUrl || 
+            payment.checkoutUrl || 
+            payment.redirectUrl || 
+            payment.gatewayUrl ||
+            payment.url;
+            
+          if (paymentUrlToOpen) {
+            console.log('Payment URL from initiate API:', paymentUrlToOpen);
+          }
+        } catch (initiateError) {
+          console.error('Payment initiate failed:', initiateError);
+          
+          // Fallback: Try to construct a generic payment URL if we have gateway info
+          if (payment?.razorpayKey && payment?.razorpayOrderId) {
+            // For Razorpay, we could try to construct a checkout URL
+            console.log('Attempting Razorpay fallback with key:', payment.razorpayKey, 'order:', payment.razorpayOrderId);
+            
+            Alert.alert(
+              'Payment Gateway Setup',
+              'Payment gateway integration needs to be completed. For now, the order has been placed and you can pay on delivery or contact support.',
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    setOrderPlacementPhase('placed');
+                    setTimeout(() => {
+                      router.replace({ 
+                        pathname: '/orders/[orderId]/tracking', 
+                        params: { orderId: order.id, newOrder: 'true' } 
+                      });
+                    }, 1500);
+                  }
+                }
+              ]
+            );
+            return;
+          }
+        }
       }
 
-      setOrderPlacementPhase('placed');
-      await new Promise(r => setTimeout(r, 1500));
-      router.replace({ pathname: '/orders/[orderId]/tracking', params: { orderId: order.id, newOrder: 'true' } });
-      setOrderPlacementPhase('none');
+      // If we have a payment URL, use the WebView
+      if (paymentUrlToOpen && paymentUrlToOpen.startsWith('http')) {
+        setPaymentUrl(paymentUrlToOpen);
+        setPaymentGatewayOpen(true);
+        setOrderPlacementPhase('none'); // Hide loading modal
+        return;
+      }
+
+      // If no payment URL is available, show helpful error with test option
+      console.error('No payment URL found in any response');
+      
+      Alert.alert(
+        'Payment Configuration Issue',
+        'The payment gateway is not properly configured on the server. Would you like to:\n\n• Use Test Payment (for development)\n• Place order as Cash on Delivery\n• Contact support for assistance',
+        [
+          {
+            text: 'Test Payment',
+            onPress: () => {
+              // Generate a test payment URL for development/testing
+              const testUrl = generateTestPaymentUrl('razorpay', {
+                orderId: order.id,
+                amount,
+                currency: 'INR',
+                description: `Test Order ${order.orderNumber || order.id}`,
+              });
+              console.log('Using test payment URL:', testUrl);
+              setPaymentUrl(testUrl);
+              setPaymentGatewayOpen(true);
+              setOrderPlacementPhase('none');
+            }
+          },
+          {
+            text: 'Cash on Delivery',
+            onPress: async () => {
+              try {
+                setOrderPlacementPhase('placed');
+                await new Promise(r => setTimeout(r, 1000));
+                router.replace({ 
+                  pathname: '/orders/[orderId]/tracking', 
+                  params: { orderId: order.id, newOrder: 'true' } 
+                });
+                setOrderPlacementPhase('none');
+              } catch (error) {
+                console.error('COD fallback failed:', error);
+              }
+            }
+          },
+          {
+            text: 'Contact Support',
+            onPress: () => {
+              router.push('/support');
+              setOrderPlacementPhase('none');
+            }
+          }
+        ]
+      );
+
     } catch (err: any) {
+      console.error('Order placement error:', err);
       Alert.alert('Checkout Failed', err.message || 'Could not place order');
       setOrderPlacementPhase('none');
     } finally {
@@ -517,38 +740,7 @@ export function CartScreen() {
   }
 
   if (!items.length || !restaurant) {
-    return (
-      <View style={[styles.root, { paddingTop: insets.top, backgroundColor: '#FFFFFF' }]}>
-        <View style={styles.emptyHeader}>
-          <SmoothPressable onPress={goBack} style={styles.emptyHeaderBtn} pressScale={0.9}>
-            <ArrowLeft color="#000000" size={22} strokeWidth={2.2} />
-          </SmoothPressable>
-          <Text style={styles.emptyHeaderTitle}>Shop</Text>
-          <View style={styles.emptyHeaderBtn}>
-            <ShoppingBag color="#000000" size={20} strokeWidth={2.2} />
-          </View>
-        </View>
-
-        <View style={styles.emptyContent}>
-          <Image 
-            source={require('../../assets/images/empty_cart.png')} 
-            style={styles.emptyCartImage} 
-            contentFit="contain" 
-          />
-          <Text style={styles.emptyCartTitle}>Your Cart is Empty</Text>
-          <Text style={styles.emptyCartSubtitle}>
-            Looks like you haven't added{"\n"}anything to your cart yet
-          </Text>
-        </View>
-
-        <Pressable
-          style={styles.startShoppingBtn}
-          onPress={() => router.push('/restaurants')}
-        >
-          <Text style={styles.startShoppingText}>Start Shopping</Text>
-        </Pressable>
-      </View>
-    );
+    return <View style={[styles.root, { backgroundColor: PAGE_BG }]} />;
   }
 
   const footerPad = 12 + Math.max(insets.bottom, 10);
@@ -989,6 +1181,8 @@ export function CartScreen() {
         deliveryTime="35-45 mins"
         addressLabel={addressLabel}
         addressText={addressLine}
+        savedMethods={paymentMethods.data}
+        wallet={wallet.data}
       />
 
       <OrderPlacementModal 
@@ -1030,6 +1224,14 @@ export function CartScreen() {
           </View>
         </Pressable>
       </Modal>
+      <PaymentGatewayWebView
+        visible={paymentGatewayOpen}
+        onClose={handlePaymentGatewayClose}
+        paymentUrl={paymentUrl}
+        onPaymentComplete={handlePaymentComplete}
+        orderAmount={currentOrder?.total ?? estimatedTotal}
+        orderNumber={currentOrder?.orderNumber}
+      />
     </View>
     </KeyboardAvoidingView>
   );
@@ -1690,15 +1892,8 @@ const styles = StyleSheet.create({
   emptyHeaderBtn: {
     width: 44,
     height: 44,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
   },
   emptyHeaderTitle: {
     fontFamily: fonts.displayBold,

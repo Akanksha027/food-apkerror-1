@@ -1,18 +1,17 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { ArrowRight, Gift, Percent } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Dimensions,
+import { Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Pressable,
+  
   ScrollView,
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 
 import { authTheme } from '@/constants/auth-theme';
 import type { Deal, HomeBanner } from '@/lib/customer/types';
@@ -25,10 +24,10 @@ const SNAP = CARD_W + GAP;
 
 /** Brand-only gradients — orange theme on every card */
 const BRAND_ACCENTS: [string, string, string][] = [
-  ['#FF5A41', '#FF7A66', '#FF5A41'],
-  ['#E8482F', '#FF5A41', '#FF6B52'],
-  ['#FF5A41', '#FF6B52', '#FF7A66'],
-  ['#E8482F', '#FF5A41', '#FF7A66'],
+  ['#AC0F45', '#AC0F45', '#AC0F45'],
+  ['#AC0F45', '#AC0F45', '#AC0F45'],
+  ['#AC0F45', '#AC0F45', '#AC0F45'],
+  ['#AC0F45', '#AC0F45', '#AC0F45'],
 ];
 
 type Slide = {
@@ -218,7 +217,7 @@ export function OfferBannerTicker({ banners = [], deals = [] }: Props) {
               <View style={styles.content}>
                 <View style={styles.topRow}>
                   <View style={styles.eyebrow}>
-                    <Icon color="#FF5A41" size={12} strokeWidth={2.5} />
+                    <Icon color="#AC0F45" size={12} strokeWidth={2.5} />
                     <Text style={styles.eyebrowText} numberOfLines={1}>
                       {slide.eyebrow}
                     </Text>
@@ -244,7 +243,7 @@ export function OfferBannerTicker({ banners = [], deals = [] }: Props) {
 
                 <View style={styles.ctaChip}>
                   <Text style={styles.ctaText}>{slide.cta}</Text>
-                  <ArrowRight color="#FF5A41" size={14} strokeWidth={2.5} />
+                  <ArrowRight color="#AC0F45" size={14} strokeWidth={2.5} />
                 </View>
               </View>
             </Pressable>
@@ -352,7 +351,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 0.5,
-    color: '#FF5A41',
+    color: '#AC0F45',
     flexShrink: 1,
   },
   percentBadge: {
@@ -402,7 +401,7 @@ const styles = StyleSheet.create({
     borderRadius: 11,
   },
   ctaText: {
-    color: '#FF5A41',
+    color: '#AC0F45',
     fontSize: 12,
     fontWeight: '800',
   },

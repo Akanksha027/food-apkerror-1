@@ -1,5 +1,6 @@
+import { Pressable } from '@/components/common/Pressable';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import { colors } from '@/constants/colors';
 

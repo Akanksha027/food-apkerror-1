@@ -1,18 +1,17 @@
+import { Pressable } from '@/components/common/Pressable';
 import { useRouter } from 'expo-router';
 import { Eye, EyeOff, Lock, User, Phone } from 'lucide-react-native';
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
+import { KeyboardAvoidingView,
   Platform,
-  Pressable,
+  
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { FontAwesome, AntDesign } from '@expo/vector-icons';
 

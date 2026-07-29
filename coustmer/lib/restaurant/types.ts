@@ -28,6 +28,9 @@ export type Restaurant = {
   isPureVeg?: boolean;
   lat?: number;
   lng?: number;
+  images?: string[];
+  timings?: Record<string, unknown>;
+  settings?: Record<string, unknown>;
   [key: string]: unknown;
 };
 

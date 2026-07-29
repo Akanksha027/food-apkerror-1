@@ -1,14 +1,13 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Flame, Star } from 'lucide-react-native';
-import {
-  FlatList,
+import { FlatList,
   Platform,
-  Pressable,
+  
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 
 import { authTheme } from '@/constants/auth-theme';
 import type { HomeTrendingDish } from '@/lib/home/types';
@@ -150,7 +149,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#C2410C',
+    backgroundColor: '#AC0F45',
     alignItems: 'center',
     justifyContent: 'center',
   },

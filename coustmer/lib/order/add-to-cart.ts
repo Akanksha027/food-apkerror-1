@@ -9,6 +9,7 @@ import { useCartStore } from '@/store/cart-store';
 type RestaurantRef = {
   id: string;
   name: string;
+  imageUrl?: string;
 };
 
 async function addRemote(

@@ -1,14 +1,13 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles, Star } from 'lucide-react-native';
-import {
-  FlatList,
+import { FlatList,
   Platform,
-  Pressable,
+  
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 
 import { authTheme } from '@/constants/auth-theme';
 import type { HomeRestaurantCard } from '@/lib/home/types';
@@ -90,7 +89,7 @@ export function NewlyAddedRail({
                     />
                   ) : (
                     <LinearGradient
-                      colors={['#C43A28', '#FF5A41']}
+                      colors={['#AC0F45', '#AC0F45']}
                       style={styles.image}
                     />
                   )}

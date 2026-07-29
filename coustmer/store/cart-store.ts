@@ -16,6 +16,7 @@ export type CartItem = {
 type CartRestaurant = {
   id: string;
   name: string;
+  imageUrl?: string;
 };
 
 export type ReplaceCartPromptData = {
@@ -135,7 +136,7 @@ export const useCartStore = create<CartState>()(
       setQuantity: (id, quantity) =>
         set((state) => {
           if (quantity <= 0) {
-            const items = state.items.filter((i) => i.id !== id);
+            const items = state.items.filter((i) => !(i.id === id || i.menuItemId === id));
             return {
               items,
               restaurant: items.length ? state.restaurant : null,
@@ -144,7 +145,7 @@ export const useCartStore = create<CartState>()(
           }
           return {
             items: state.items.map((i) =>
-              i.id === id ? { ...i, quantity } : i
+              (i.id === id || i.menuItemId === id) ? { ...i, quantity } : i
             ),
             serverTotal: null,
           };
@@ -153,7 +154,7 @@ export const useCartStore = create<CartState>()(
       increment: (id) =>
         set((state) => ({
           items: state.items.map((i) =>
-            i.id === id ? { ...i, quantity: i.quantity + 1 } : i
+            (i.id === id || i.menuItemId === id) ? { ...i, quantity: i.quantity + 1 } : i
           ),
           serverTotal: null,
         })),
@@ -162,7 +163,7 @@ export const useCartStore = create<CartState>()(
         set((state) => {
           const items = state.items
             .map((i) =>
-              i.id === id ? { ...i, quantity: i.quantity - 1 } : i
+              (i.id === id || i.menuItemId === id) ? { ...i, quantity: i.quantity - 1 } : i
             )
             .filter((i) => i.quantity > 0);
           return {
@@ -174,7 +175,7 @@ export const useCartStore = create<CartState>()(
 
       removeItem: (id) =>
         set((state) => {
-          const items = state.items.filter((i) => i.id !== id);
+          const items = state.items.filter((i) => !(i.id === id || i.menuItemId === id));
           return {
             items,
             restaurant: items.length ? state.restaurant : null,

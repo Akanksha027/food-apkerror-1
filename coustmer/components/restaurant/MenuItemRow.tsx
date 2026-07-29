@@ -1,8 +1,9 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Plus, Star } from 'lucide-react-native';
+import { Minus, Plus, Star } from 'lucide-react-native';
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   interpolateColor,
@@ -17,6 +18,8 @@ import { PriceTag, VegBadge } from '@/components/restaurant/MenuBadges';
 import { authTheme } from '@/constants/auth-theme';
 import { getMenuItemRating } from '@/lib/restaurant/menu-rating';
 import type { MenuItem } from '@/lib/restaurant/types';
+import { playHapticFeedback } from '@/lib/utils/haptics';
+import { useCartStore } from '@/store/cart-store';
 
 type Props = {
   item: MenuItem;
@@ -29,6 +32,15 @@ type Props = {
 export function MenuItemRow({ item, onPress, onAdd, highlighted }: Props) {
   const rating = getMenuItemRating(item);
   const highlight = useSharedValue(0);
+  
+  const quantity = useCartStore(
+    (s) =>
+      s.items.find(
+        (i) => i.id === item.id || i.menuItemId === item.id
+      )?.quantity || 0
+  );
+  const increment = useCartStore((s) => s.increment);
+  const decrement = useCartStore((s) => s.decrement);
 
   useEffect(() => {
     if (highlighted) {
@@ -121,16 +133,45 @@ export function MenuItemRow({ item, onPress, onAdd, highlighted }: Props) {
             />
           )}
           {item.isAvailable ? (
-            <Pressable
-              style={styles.addButton}
-              onPress={(e) => {
-                e.stopPropagation?.();
-                onAdd?.();
-              }}
-            >
-              <Text style={styles.addLabel}>ADD</Text>
-              <Plus color={authTheme.brand} size={14} />
-            </Pressable>
+            quantity > 0 ? (
+              <View style={styles.stepperWrap}>
+                <Pressable
+                  style={styles.stepperBtn}
+                  hitSlop={8}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    playHapticFeedback();
+                    decrement(item.id);
+                  }}
+                >
+                  <Minus color={authTheme.brand} size={14} strokeWidth={3} />
+                </Pressable>
+                <Text style={styles.stepperValue}>{quantity}</Text>
+                <Pressable
+                  style={styles.stepperBtn}
+                  hitSlop={8}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    playHapticFeedback();
+                    increment(item.id);
+                  }}
+                >
+                  <Plus color={authTheme.brand} size={14} strokeWidth={3} />
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                style={styles.addButton}
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  playHapticFeedback();
+                  onAdd?.();
+                }}
+              >
+                <Text style={styles.addLabel}>ADD</Text>
+                <Plus color={authTheme.brand} size={14} />
+              </Pressable>
+            )
           ) : null}
         </View>
       </Pressable>
@@ -233,5 +274,33 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.3,
+  },
+  stepperWrap: {
+    position: 'absolute',
+    bottom: -10,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: 82,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: authTheme.brand,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  stepperBtn: {
+    padding: 2,
+  },
+  stepperValue: {
+    color: authTheme.brand,
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

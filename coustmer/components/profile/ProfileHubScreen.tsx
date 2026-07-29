@@ -1,3 +1,4 @@
+import { Pressable } from '@/components/common/Pressable';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -19,19 +20,18 @@ import {
   RotateCcw,
   Ticket,
   TrainFront,
+  TrendingUp,
   Wallet,
   Zap,
 } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
+import { ActivityIndicator,
+  
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AuthMessageBanner } from '@/components/auth/AuthMessageBanner';
@@ -45,6 +45,7 @@ import { useUserProfile } from '@/lib/profile/hooks';
 import { useAuthStore } from '@/store/auth-store';
 import { useOrders } from '@/lib/order/hooks';
 import { OrderCard } from '@/components/order/OrderCard';
+import { useCustomerProfile, useTickets } from '@/lib/customer/hooks';
 
 type Banner = { message: string; type: 'error' | 'success' } | null;
 
@@ -90,7 +91,7 @@ function OneLogo() {
       }
     >
       <LinearGradient
-        colors={['#FF5A41', '#E53935', '#C62828']}
+        colors={['#AC0F45', '#E53935', '#C62828']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -144,6 +145,8 @@ export function ProfileHubScreen() {
   const logoutAll = useAuthStore((s) => s.logoutAll);
 
   const profile = useUserProfile();
+  const customerProfile = useCustomerProfile();
+  const tickets = useTickets();
   const wallet = usePaymentWallet();
   const allOrdersQuery = useOrders({ limit: 5 });
   const pastOrders = allOrdersQuery.data?.orders ?? [];
@@ -167,6 +170,8 @@ export function ProfileHubScreen() {
 
   const onRefresh = () => {
     profile.refetch();
+    customerProfile.refetch();
+    tickets.refetch();
     wallet.refetch();
   };
 
@@ -236,6 +241,12 @@ export function ProfileHubScreen() {
   ];
 
   const listRows: ListRow[] = [
+    {
+      id: 'insights',
+      label: 'Customer Insights',
+      icon: TrendingUp,
+      onPress: () => router.push('/customer-insights' as import('expo-router').Href),
+    },
     {
       id: 'credit-card',
       label: 'HDFC Bank Credit Card',
@@ -438,6 +449,57 @@ export function ProfileHubScreen() {
               <ChevronDown color="#B0B0B8" size={20} strokeWidth={2} />
             </View>
           </Pressable>
+
+          {/* Customer Loyalty Stats */}
+          {customerProfile.data && (
+            <View style={styles.loyaltyCard}>
+              <View style={styles.loyaltyHeader}>
+                <Crown color={authTheme.brand} size={20} strokeWidth={1.7} />
+                <Text style={styles.loyaltyTitle}>Customer Stats</Text>
+              </View>
+              <View style={styles.loyaltyStats}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{customerProfile.data.totalOrders}</Text>
+                  <Text style={styles.statLabel}>Orders</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>₹{customerProfile.data.totalSpend}</Text>
+                  <Text style={styles.statLabel}>Total Spend</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{customerProfile.data.loyaltyPoints}</Text>
+                  <Text style={styles.statLabel}>Points</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statValue, styles.tierText]}>{customerProfile.data.tier.toUpperCase()}</Text>
+                  <Text style={styles.statLabel}>Tier</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Support Status */}
+          {tickets.data && tickets.data.tickets.length > 0 && (
+            <Pressable
+              style={styles.supportCard}
+              onPress={() => router.push('/support' as import('expo-router').Href)}
+            >
+              <View style={styles.supportHeader}>
+                <Headset color={authTheme.brand} size={18} strokeWidth={1.7} />
+                <View style={styles.supportInfo}>
+                  <Text style={styles.supportTitle}>
+                    {tickets.data.tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length > 0 
+                      ? 'Active Support Tickets' 
+                      : 'Recent Support History'}
+                  </Text>
+                  <Text style={styles.supportCount}>
+                    {tickets.data.tickets.length} ticket{tickets.data.tickets.length !== 1 ? 's' : ''}
+                  </Text>
+                </View>
+                <ChevronRight color="#C8C8CE" size={16} strokeWidth={2} />
+              </View>
+            </Pressable>
+          )}
 
           <View style={styles.quickRow}>
             {quickActions.map((item) => (
@@ -830,5 +892,73 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#FFFFFF',
     letterSpacing: 0.9,
+  },
+  loyaltyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: BORDER,
+    padding: 16,
+    marginBottom: 12,
+  },
+  loyaltyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  loyaltyTitle: {
+    fontFamily: fonts.displayBold,
+    fontSize: 15,
+    color: TEXT,
+  },
+  loyaltyStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statValue: {
+    fontFamily: fonts.displayBold,
+    fontSize: 16,
+    color: TEXT,
+  },
+  statLabel: {
+    fontFamily: fonts.ui,
+    fontSize: 11,
+    color: TEXT_MUTED,
+    marginTop: 2,
+  },
+  tierText: {
+    color: authTheme.brand,
+  },
+  supportCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: BORDER,
+    padding: 16,
+    marginBottom: 12,
+  },
+  supportHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  supportInfo: {
+    flex: 1,
+  },
+  supportTitle: {
+    fontFamily: fonts.uiMedium,
+    fontSize: 14,
+    color: TEXT,
+  },
+  supportCount: {
+    fontFamily: fonts.ui,
+    fontSize: 12,
+    color: TEXT_MUTED,
+    marginTop: 2,
   },
 });

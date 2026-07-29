@@ -151,6 +151,9 @@ export function mapRestaurant(data: Record<string, unknown>): Restaurant {
     isPureVeg,
     lat: typeof data.lat === 'number' ? data.lat : coords?.[1],
     lng: typeof data.lng === 'number' ? data.lng : coords?.[0],
+    images: Array.isArray(data.images) ? data.images.map(String).filter(Boolean).map(resolveMediaUrl).filter((url): url is string => Boolean(url)) : undefined,
+    timings: data.timings && typeof data.timings === 'object' ? (data.timings as Record<string, unknown>) : undefined,
+    settings: data.settings && typeof data.settings === 'object' ? (data.settings as Record<string, unknown>) : undefined,
   };
 }
 

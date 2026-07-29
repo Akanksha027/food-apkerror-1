@@ -1,5 +1,6 @@
+import { Pressable } from '@/components/common/Pressable';
 import { CheckCircle2, Circle } from 'lucide-react-native';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator,  StyleSheet, Text, View } from 'react-native';
 
 import { authTheme } from '@/constants/auth-theme';
 import {

@@ -1,5 +1,6 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Heart } from 'lucide-react-native';
-import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,

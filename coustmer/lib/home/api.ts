@@ -187,35 +187,26 @@ export async function getHomeDiscovery(city?: string): Promise<HomeDiscovery> {
     try {
       const mapped = await fetchDiscoveryFromPath(path, city);
       if (mapped) {
-        const dummy = getDummyHomeDiscovery();
         return {
-          newlyAdded: mapped.newlyAdded.length
-            ? mapped.newlyAdded
-            : dummy.newlyAdded,
-          trendingDishes: mapped.trendingDishes.length
-            ? mapped.trendingDishes
-            : dummy.trendingDishes,
-          categories: mapped.categories.length
-            ? mapped.categories
-            : dummy.categories,
-          isDummy:
-            !mapped.newlyAdded.length ||
-            !mapped.trendingDishes.length ||
-            !mapped.categories.length,
+          newlyAdded: mapped.newlyAdded,
+          trendingDishes: mapped.trendingDishes,
+          categories: mapped.categories,
+          isDummy: false,
         };
       }
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
-        // 404/501 = endpoint not built yet — keep trying / fall through to dummy
+        // 404/501 = endpoint not built yet — keep trying / fall through
         if (status && status !== 404 && status !== 501 && status !== 405) {
-          // auth or server errors: still show dummy so home stays usable
+          // auth or server errors: still show empty so home stays usable
         }
       }
     }
   }
 
-  return getDummyHomeDiscovery();
+  // Return empty discovery — no dummy/static data
+  return { newlyAdded: [], trendingDishes: [], categories: [], isDummy: false };
 }
 
 export const homeDiscoveryApi = {

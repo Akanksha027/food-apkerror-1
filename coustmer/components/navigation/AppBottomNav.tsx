@@ -1,3 +1,4 @@
+import { Pressable } from '@/components/common/Pressable';
 import type { Href } from 'expo-router';
 import { usePathname, useRouter } from 'expo-router';
 import {
@@ -7,7 +8,7 @@ import {
   ShoppingBag,
   UserRound,
 } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { authTheme } from '@/constants/auth-theme';

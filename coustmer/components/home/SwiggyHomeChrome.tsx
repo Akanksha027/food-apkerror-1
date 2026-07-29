@@ -7,6 +7,7 @@ import {
   Menu,
   Mic,
   Search,
+  User,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
@@ -272,6 +273,15 @@ export function SwiggyHomeChrome({
             ) : null}
           </SmoothPressable>
 
+          <View style={styles.topRight}>
+            <SmoothPressable
+              style={styles.menuBtn}
+              onPress={() => router.push('/profile')}
+              pressScale={0.9}
+            >
+              <User color="#FFFFFF" size={20} strokeWidth={2} />
+            </SmoothPressable>
+          </View>
         </View>
       </View>
 

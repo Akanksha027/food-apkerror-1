@@ -34,7 +34,7 @@ export const FOOD_CATEGORIES: FoodCategory[] = [
     label: 'All',
     slug: 'all',
     icon: UtensilsCrossed,
-    color: '#FF5A41',
+    color: '#AC0F45',
     imageUrl:
       'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300&h=300&fit=crop&q=80',
   },
@@ -106,7 +106,7 @@ export const FOOD_CATEGORIES: FoodCategory[] = [
     label: 'Momos',
     slug: 'momos',
     icon: Cookie,
-    color: '#C2410C',
+    color: '#AC0F45',
     imageUrl:
       'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=300&h=300&fit=crop&q=80',
   },
@@ -146,7 +146,7 @@ export const FOOD_CATEGORIES: FoodCategory[] = [
     label: 'Kebab',
     slug: 'kebab',
     icon: Drumstick,
-    color: '#E8482F',
+    color: '#AC0F45',
     imageUrl:
       'https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=300&h=300&fit=crop&q=80',
   },
@@ -154,7 +154,7 @@ export const FOOD_CATEGORIES: FoodCategory[] = [
     label: 'Chicken',
     slug: 'chicken',
     icon: Drumstick,
-    color: '#C2410C',
+    color: '#AC0F45',
     imageUrl:
       'https://images.unsplash.com/photo-1598103442097-8b74394b95c6?w=300&h=300&fit=crop&q=80',
   },

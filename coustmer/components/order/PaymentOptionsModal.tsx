@@ -1,8 +1,11 @@
+import { Pressable } from '@/components/common/Pressable';
 import { ArrowLeft, CheckCircle2, ChevronRight, Circle, CreditCard, Landmark, Plus, Receipt, Truck, Wallet } from 'lucide-react-native';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal,  ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import type { SavedPaymentMethod, WalletSummary } from '@/lib/payment/types';
 
-type PaymentMethod = 'paytm_upi' | 'gpay' | 'cod' | 'upi' | 'card' | 'wallet';
+type PaymentMethod = string;
 
 type Props = {
   visible: boolean;
@@ -17,6 +20,8 @@ type Props = {
   addressLabel: string;
   addressText: string;
   onPay: (method: string) => void;
+  savedMethods?: SavedPaymentMethod[];
+  wallet?: WalletSummary;
 };
 
 export function PaymentOptionsModal({
@@ -32,7 +37,36 @@ export function PaymentOptionsModal({
   addressLabel,
   addressText,
   onPay,
+  savedMethods,
+  wallet,
 }: Props) {
+  const router = useRouter();
+
+  const savedCards = savedMethods?.filter((m) => m.type === 'card') || [];
+  const savedUpis = savedMethods?.filter((m) => m.type === 'upi') || [];
+
+  const handleWalletSelect = () => {
+    if (wallet && wallet.balance < total) {
+      const diff = total - wallet.balance;
+      Alert.alert(
+        'Insufficient Balance',
+        `You need ₹${diff.toFixed(0)} more in your wallet to pay for this order.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Top Up Now', 
+            onPress: () => {
+              onClose();
+              router.push('/profile/wallet' as import('expo-router').Href);
+            }
+          }
+        ]
+      );
+    } else {
+      onSelectMethod('wallet');
+    }
+  };
+
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -97,14 +131,14 @@ export function PaymentOptionsModal({
           <View style={styles.cardGroup}>
             <Pressable
               style={styles.cardItem}
-              onPress={() => onSelectMethod('upi')}
+              onPress={() => onSelectMethod('paytm_upi')}
             >
               <View style={styles.cardRow}>
                 <View style={styles.iconBox}>
                   <Text style={styles.paytmText}>paytm</Text>
                 </View>
                 <Text style={styles.cardItemText}>Paytm UPI</Text>
-                {selectedMethod === 'upi' ? (
+                {selectedMethod === 'paytm_upi' ? (
                   <CheckCircle2 color="#00A160" fill="#00A160" size={24} />
                 ) : (
                   <Circle color="#D3D3D3" size={24} />
@@ -112,6 +146,35 @@ export function PaymentOptionsModal({
               </View>
             </Pressable>
           </View>
+
+          {savedUpis.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>Saved UPI IDs</Text>
+              <View style={styles.cardGroup}>
+                {savedUpis.map((upi, index) => (
+                  <View key={upi.id}>
+                    <Pressable style={styles.cardItem} onPress={() => onSelectMethod(upi.id)}>
+                      <View style={styles.cardRow}>
+                        <View style={[styles.iconBox, { borderColor: '#E5E5E5', borderWidth: 1 }]}>
+                          <Text style={{ fontSize: 10, fontWeight: 'bold' }}>UPI</Text>
+                        </View>
+                        <View style={styles.cardItemBody}>
+                          <Text style={styles.cardItemText}>{upi.upiId}</Text>
+                          <Text style={styles.cardItemSubtext}>Saved UPI ID</Text>
+                        </View>
+                        {selectedMethod === upi.id ? (
+                          <CheckCircle2 color="#00A160" fill="#00A160" size={24} />
+                        ) : (
+                          <Circle color="#D3D3D3" size={24} />
+                        )}
+                      </View>
+                    </Pressable>
+                    {index < savedUpis.length - 1 && <View style={styles.divider} />}
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
 
           <Text style={styles.sectionTitle}>Pay by any UPI App</Text>
           <View style={styles.cardGroup}>
@@ -149,6 +212,31 @@ export function PaymentOptionsModal({
 
           <Text style={styles.sectionTitle}>Credit & Debit Cards</Text>
           <View style={styles.cardGroup}>
+            {savedCards.map((card) => (
+              <View key={card.id}>
+                <Pressable style={styles.cardItem} onPress={() => onSelectMethod(card.id)}>
+                  <View style={styles.cardRow}>
+                    <View style={[styles.iconBox, { borderColor: '#E5E5E5', borderWidth: 1 }]}>
+                      <CreditCard color="#555" size={20} />
+                    </View>
+                    <View style={styles.cardItemBody}>
+                      <Text style={styles.cardItemText}>
+                        {card.brand ? card.brand.toUpperCase() : 'CARD'} •••• {card.last4}
+                      </Text>
+                      <Text style={styles.cardItemSubtext}>
+                        Expires {card.expiryMonth}/{card.expiryYear}
+                      </Text>
+                    </View>
+                    {selectedMethod === card.id ? (
+                      <CheckCircle2 color="#00A160" fill="#00A160" size={24} />
+                    ) : (
+                      <Circle color="#D3D3D3" size={24} />
+                    )}
+                  </View>
+                </Pressable>
+                <View style={styles.divider} />
+              </View>
+            ))}
             <Pressable style={styles.cardItem} onPress={() => onSelectMethod('card')}>
               <View style={styles.cardRow}>
                 <View style={[styles.iconBox, { borderColor: '#E5E5E5', borderWidth: 1 }]}>
@@ -188,12 +276,14 @@ export function PaymentOptionsModal({
               </View>
             </Pressable>
             <View style={styles.divider} />
-            <Pressable style={styles.cardItem} onPress={() => onSelectMethod('wallet')}>
+            <Pressable style={styles.cardItem} onPress={handleWalletSelect}>
               <View style={styles.cardRow}>
                 <View style={[styles.iconBox, { borderColor: '#E5E5E5', borderWidth: 1 }]}><Wallet color="#555" size={18} /></View>
                 <View style={styles.cardItemBody}>
                   <Text style={styles.cardItemText}>Wallets</Text>
-                  <Text style={styles.cardItemSubtext}>PhonePe, Amazon Pay & more</Text>
+                  <Text style={styles.cardItemSubtext}>
+                    {wallet ? `Balance: ₹${wallet.balance.toFixed(0)}` : 'PhonePe, Amazon Pay & more'}
+                  </Text>
                 </View>
                 {selectedMethod === 'wallet' ? (
                   <CheckCircle2 color="#00A160" fill="#00A160" size={24} />

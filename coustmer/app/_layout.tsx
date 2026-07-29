@@ -2,7 +2,7 @@ import 'react-native-gesture-handler';
 
 import '../global.css';
 
-import { QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -14,7 +14,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { authTheme } from '@/constants/auth-theme';
 import { ScreenTopOffsetProvider } from '@/components/common/ScreenTopOffsetProvider';
 import { useAppFonts } from '@/lib/fonts';
-import { queryClient } from '@/lib/query-client';
+import { queryClient, asyncStoragePersister } from '@/lib/query-client';
 import { useAuthStore } from '@/store/auth-store';
 
 // Keep the native splash visible while we initialise — must be called
@@ -55,8 +55,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView className="flex-1">
       <SafeAreaProvider>
-        <ScreenTopOffsetProvider>
-          <QueryClientProvider client={queryClient}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{ persister: asyncStoragePersister }}
+        >
+          <ScreenTopOffsetProvider>
             <View
               style={{ flex: 1, backgroundColor: authTheme.bg }}
               onLayout={onLayoutRootView}
@@ -70,8 +73,8 @@ export default function RootLayout() {
                 }}
               />
             </View>
-          </QueryClientProvider>
-        </ScreenTopOffsetProvider>
+          </ScreenTopOffsetProvider>
+        </PersistQueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

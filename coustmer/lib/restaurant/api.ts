@@ -31,9 +31,16 @@ type Envelope<T> = {
   meta?: PaginationMeta;
 };
 
-async function request<T>(path: string): Promise<Envelope<T>> {
+import type { AxiosRequestConfig } from 'axios';
+
+async function request<T>(path: string, options?: AxiosRequestConfig): Promise<Envelope<T>> {
   try {
-    const response = await api.get<Envelope<T>>(path, { withCredentials: true });
+    const response = await api<Envelope<T>>({
+      url: path,
+      method: options?.method ?? 'GET',
+      withCredentials: true,
+      ...options,
+    });
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -194,6 +201,108 @@ export const restaurantApi = {
       `${RESTAURANT_BASE}/${restaurantId}/items/${itemId}`
     );
     return mapMenuItem(res.data ?? {});
+  },
+
+  /** POST /restaurants/:restaurantId/categories/:categoryId/items */
+  createItem: async (
+    restaurantId: string,
+    categoryId: string,
+    payload: Record<string, unknown>
+  ): Promise<MenuItem> => {
+    const res = await request<Record<string, unknown>>(
+      `${RESTAURANT_BASE}/${restaurantId}/categories/${categoryId}/items`,
+      {
+        method: 'POST',
+        data: payload,
+      }
+    );
+    return mapMenuItem(res.data ?? {});
+  },
+
+  /** PUT /restaurants/:restaurantId/items/:itemId */
+  updateItem: async (
+    restaurantId: string,
+    itemId: string,
+    payload: Record<string, unknown>
+  ): Promise<MenuItem> => {
+    const res = await request<Record<string, unknown>>(
+      `${RESTAURANT_BASE}/${restaurantId}/items/${itemId}`,
+      {
+        method: 'PUT',
+        data: payload,
+      }
+    );
+    return mapMenuItem(res.data ?? {});
+  },
+
+  /** DELETE /restaurants/:restaurantId/items/:itemId */
+  deleteItem: async (restaurantId: string, itemId: string): Promise<void> => {
+    await request<unknown>(`${RESTAURANT_BASE}/${restaurantId}/items/${itemId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /** PUT /restaurants/:restaurantId/items/:itemId/availability */
+  updateItemAvailability: async (
+    restaurantId: string,
+    itemId: string,
+    isAvailable: boolean
+  ): Promise<MenuItem> => {
+    const res = await request<Record<string, unknown>>(
+      `${RESTAURANT_BASE}/${restaurantId}/items/${itemId}/availability`,
+      {
+        method: 'PUT',
+        data: { isAvailable },
+      }
+    );
+    return mapMenuItem(res.data ?? {});
+  },
+
+  /** POST /restaurants/:restaurantId/items/:itemId/image */
+  uploadItemImage: async (
+    restaurantId: string,
+    itemId: string,
+    formData: FormData
+  ): Promise<MenuItem> => {
+    const res = await request<Record<string, unknown>>(
+      `${RESTAURANT_BASE}/${restaurantId}/items/${itemId}/image`,
+      {
+        method: 'POST',
+        data: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return mapMenuItem(res.data ?? {});
+  },
+
+  /** POST /restaurants/:restaurantId/items/bulk-availability */
+  bulkUpdateAvailability: async (
+    restaurantId: string,
+    payload: { itemIds: string[]; isAvailable: boolean }
+  ): Promise<void> => {
+    await request<unknown>(
+      `${RESTAURANT_BASE}/${restaurantId}/items/bulk-availability`,
+      {
+        method: 'POST',
+        data: payload,
+      }
+    );
+  },
+
+  /** POST /restaurants/:restaurantId/items/bulk-import */
+  bulkImportItems: async (
+    restaurantId: string,
+    payload: unknown
+  ): Promise<void> => {
+    await request<unknown>(
+      `${RESTAURANT_BASE}/${restaurantId}/items/bulk-import`,
+      {
+        method: 'POST',
+        data: payload,
+      }
+    );
   },
 
   /** GET /restaurants/:restaurantId/offers */

@@ -1,15 +1,14 @@
+import { Pressable } from '@/components/common/Pressable';
 import { MapPin, Plus, Star, Trash2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   Alert,
   FlatList,
-  Pressable,
+  
   RefreshControl,
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/common/ScreenHeader';

@@ -1,12 +1,11 @@
+import { Pressable } from '@/components/common/Pressable';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   FlatList,
-  Pressable,
+  
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 
 import { AuthInput } from '@/components/auth/AuthInput';
 import { EmptyView, ErrorView, LoadingView } from '@/components/common/StateViews';
@@ -55,8 +54,11 @@ export function WalletScreen() {
             });
           } else if (data.paymentUrl) {
             setBanner({
-              message: `Top-up initiated. Complete payment (₹${value}) then check balance.`,
+              message: `Opening secure payment gateway...`,
               type: 'success',
+            });
+            import('react-native').then(({ Linking }) => {
+              Linking.openURL(data.paymentUrl as string).catch(err => console.error("Couldn't load page", err));
             });
           } else {
             setBanner({

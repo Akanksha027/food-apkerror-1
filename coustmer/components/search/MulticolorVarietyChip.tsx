@@ -1,5 +1,6 @@
+import { Pressable } from '@/components/common/Pressable';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Svg, {
   Defs,
   LinearGradient as SvgGradient,

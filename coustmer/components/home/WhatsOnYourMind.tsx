@@ -1,6 +1,7 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { fonts } from '@/constants/typography';
 import type { HomeCategory } from '@/lib/home/types';
@@ -20,7 +21,7 @@ export const MIND_CATEGORIES: HomeCategory[] = [
     label: 'Pizzas',
     slug: 'pizza',
     imageUrl:
-      'https://images.unsplash.com/photo-1574071318508-1cdbab80d264?w=280&h=280&fit=crop&q=85',
+      'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=280&h=280&fit=crop&q=85',
     sortOrder: 2,
   },
   {
@@ -36,7 +37,7 @@ export const MIND_CATEGORIES: HomeCategory[] = [
     label: 'Chaap',
     slug: 'chaap',
     imageUrl:
-      'https://images.unsplash.com/photo-1599487488170-d11ec9c172f3?w=280&h=280&fit=crop&q=85',
+      'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=280&h=280&fit=crop&q=85',
     sortOrder: 4,
   },
   {
@@ -149,6 +150,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingTop: 18,
     paddingBottom: 8,
+    borderRadius: 24,
+    marginHorizontal: 16,
+    overflow: 'hidden',
   },
   wrapCompact: {
     paddingTop: 6,
@@ -182,10 +186,12 @@ const styles = StyleSheet.create({
   image: {
     width: 82,
     height: 82,
+    borderRadius: 41,
   },
   imageCompact: {
     width: 52,
     height: 52,
+    borderRadius: 26,
   },
   label: {
     marginTop: 6,

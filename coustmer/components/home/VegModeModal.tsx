@@ -1,13 +1,12 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import {
-  Modal,
-  Pressable,
+import { Modal,
+  
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import Animated, {
   Easing,
   runOnJS,

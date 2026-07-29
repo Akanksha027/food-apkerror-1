@@ -1,5 +1,6 @@
+import { Pressable } from '@/components/common/Pressable';
 import { type ReactNode } from 'react';
-import { Pressable, type StyleProp, type ViewStyle } from 'react-native';
+import { type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,

@@ -1,13 +1,12 @@
-import {
-  ActivityIndicator,
+import { Pressable } from '@/components/common/Pressable';
+import { ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
+  
   ScrollView,
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthMessageBanner } from '@/components/auth/AuthMessageBanner';

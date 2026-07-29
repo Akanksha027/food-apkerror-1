@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { authTheme } from '@/constants/auth-theme';
 import type { Restaurant } from '@/lib/restaurant/types';
+import { prefetchRestaurantMenu } from '@/lib/restaurant/hooks';
 
 type Props = {
   restaurant: Restaurant;
@@ -15,7 +16,12 @@ export function RestaurantListCard({ restaurant, onPress }: Props) {
   const cuisines = restaurant.cuisines?.slice(0, 3).join(' • ');
 
   return (
-    <Pressable style={styles.card} onPress={onPress} disabled={!onPress}>
+    <Pressable 
+      style={styles.card} 
+      onPressIn={() => prefetchRestaurantMenu(restaurant.id)}
+      onPress={onPress} 
+      disabled={!onPress}
+    >
       <View style={styles.imageWrap}>
         {restaurant.imageUrl || restaurant.coverUrl ? (
           <Image

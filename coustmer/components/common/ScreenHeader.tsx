@@ -1,27 +1,31 @@
+import { Pressable } from '@/components/common/Pressable';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { authTheme } from '@/constants/auth-theme';
 
 type ScreenHeaderProps = {
   title: string;
   subtitle?: string;
+  left?: React.ReactNode;
   right?: React.ReactNode;
 };
 
-export function ScreenHeader({ title, subtitle, right }: ScreenHeaderProps) {
+export function ScreenHeader({ title, subtitle, left, right }: ScreenHeaderProps) {
   const router = useRouter();
 
   return (
     <View style={styles.container}>
-      <Pressable
-        onPress={() => { if (router.canGoBack()) { if (router.canGoBack()) { router.back(); } else { router.replace('/'); } } else { router.replace('/'); } }}
-        style={styles.backButton}
-        hitSlop={8}
-      >
-        <ChevronLeft color={authTheme.text} size={22} />
-      </Pressable>
+      {left !== undefined ? left : (
+        <Pressable
+          onPress={() => { if (router.canGoBack()) { if (router.canGoBack()) { router.back(); } else { router.replace('/'); } } else { router.replace('/'); } }}
+          style={styles.backButton}
+          hitSlop={8}
+        >
+          <ChevronLeft color={authTheme.text} size={22} />
+        </Pressable>
+      )}
       <View style={styles.titleWrap}>
         <Text style={styles.title} numberOfLines={1}>
           {title}

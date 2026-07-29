@@ -1,15 +1,14 @@
+import { Pressable } from '@/components/common/Pressable';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
+  
   StyleSheet,
   Text,
   TextInput,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { authTheme } from '@/constants/auth-theme';

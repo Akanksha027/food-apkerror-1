@@ -1,5 +1,6 @@
+import { Pressable } from '@/components/common/Pressable';
 import { ChevronDown, SlidersHorizontal, Zap } from 'lucide-react-native';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 
 import { authTheme } from '@/constants/auth-theme';
 import { fonts } from '@/constants/typography';

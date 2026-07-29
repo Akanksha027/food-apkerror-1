@@ -1,13 +1,12 @@
+import { Pressable } from '@/components/common/Pressable';
 import { MapPin, Plus, Star } from 'lucide-react-native';
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   Modal,
-  Pressable,
+  
   ScrollView,
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { authTheme } from '@/constants/auth-theme';

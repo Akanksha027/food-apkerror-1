@@ -2,6 +2,7 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import { restaurantApi } from '@/lib/restaurant/api';
+import { queryClient } from '@/lib/query-client';
 import {
   menuCategoryMatchesCuisine,
   restaurantMatchesCategory,
@@ -234,6 +235,22 @@ export function useRestaurantItems(restaurantId: string) {
   });
 }
 
+export function prefetchRestaurantMenu(restaurantId: string) {
+  if (!restaurantId) return;
+  queryClient.prefetchQuery({
+    queryKey: restaurantKeys.menu(restaurantId),
+    queryFn: () => restaurantApi.getMenu(restaurantId),
+  });
+  queryClient.prefetchQuery({
+    queryKey: restaurantKeys.categories(restaurantId),
+    queryFn: () => restaurantApi.getCategories(restaurantId),
+  });
+  queryClient.prefetchQuery({
+    queryKey: restaurantKeys.items(restaurantId),
+    queryFn: () => restaurantApi.getItems(restaurantId),
+  });
+}
+
 export function useMenuItem(restaurantId: string, itemId: string) {
   const isSeed = itemId.startsWith('seed-');
   const restaurant = useRestaurant(restaurantId);
@@ -353,23 +370,9 @@ export function useFullMenu(
   const isError = menu.isError && categories.isError && items.isError;
   const apiHasMenu = mergedItems.length > 0;
 
-  const seedMenu = useMemo(() => {
-    if (apiHasMenu || isLoading) return null;
-    return buildSeedMenu(restaurantId, seedOptions);
-  }, [
-    apiHasMenu,
-    isLoading,
-    restaurantId,
-    seedOptions?.name,
-    seedOptions?.cuisines?.join(','),
-  ]);
-
-  const finalCategories = apiHasMenu
-    ? mergedCategories
-    : (seedMenu?.categories ?? mergedCategories);
-
-  const finalItems = apiHasMenu ? mergedItems : (seedMenu?.items ?? mergedItems);
-  const isSeeded = !apiHasMenu && finalItems.length > 0;
+  const finalCategories = mergedCategories;
+  const finalItems = mergedItems;
+  const isSeeded = false;
 
   return {
     categories: finalCategories,
@@ -383,4 +386,95 @@ export function useFullMenu(
       items.refetch();
     },
   };
+}
+
+// ------------------------------------------------------------------
+// Mutations for Menu Items (Owner/Admin)
+// ------------------------------------------------------------------
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+export function useCreateMenuItem(restaurantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { categoryId: string; payload: Record<string, unknown> }) =>
+      restaurantApi.createItem(restaurantId, params.categoryId, params.payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.items(restaurantId) });
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.menu(restaurantId) });
+    },
+  });
+}
+
+export function useUpdateMenuItem(restaurantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { itemId: string; payload: Record<string, unknown> }) =>
+      restaurantApi.updateItem(restaurantId, params.itemId, params.payload),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.items(restaurantId) });
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.menu(restaurantId) });
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.item(restaurantId, variables.itemId) });
+    },
+  });
+}
+
+export function useDeleteMenuItem(restaurantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => restaurantApi.deleteItem(restaurantId, itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.items(restaurantId) });
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.menu(restaurantId) });
+    },
+  });
+}
+
+export function useUpdateMenuItemAvailability(restaurantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { itemId: string; isAvailable: boolean }) =>
+      restaurantApi.updateItemAvailability(restaurantId, params.itemId, params.isAvailable),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.items(restaurantId) });
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.menu(restaurantId) });
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.item(restaurantId, variables.itemId) });
+    },
+  });
+}
+
+export function useUploadMenuItemImage(restaurantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { itemId: string; formData: FormData }) =>
+      restaurantApi.uploadItemImage(restaurantId, params.itemId, params.formData),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.items(restaurantId) });
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.menu(restaurantId) });
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.item(restaurantId, variables.itemId) });
+    },
+  });
+}
+
+export function useBulkUpdateItemAvailability(restaurantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { itemIds: string[]; isAvailable: boolean }) =>
+      restaurantApi.bulkUpdateAvailability(restaurantId, params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.items(restaurantId) });
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.menu(restaurantId) });
+    },
+  });
+}
+
+export function useBulkImportMenuItems(restaurantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: unknown) => restaurantApi.bulkImportItems(restaurantId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.items(restaurantId) });
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.menu(restaurantId) });
+    },
+  });
 }

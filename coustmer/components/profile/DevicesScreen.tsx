@@ -1,14 +1,13 @@
+import { Pressable } from '@/components/common/Pressable';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { Plus, Smartphone, Trash2 } from 'lucide-react-native';
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   FlatList,
-  Pressable,
+  
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 
 import { EmptyView, ErrorView, LoadingView } from '@/components/common/StateViews';
 import { ProfileFormLayout } from '@/components/profile/ProfileFormLayout';

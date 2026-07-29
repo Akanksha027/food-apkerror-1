@@ -1,11 +1,10 @@
+import { Pressable } from '@/components/common/Pressable';
 import { MessageSquareQuote, Star } from 'lucide-react-native';
-import {
-  ActivityIndicator,
-  Pressable,
+import { ActivityIndicator,
+  
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 
 import { StarRatingInput } from '@/components/review/StarRatingInput';
 import { authTheme } from '@/constants/auth-theme';

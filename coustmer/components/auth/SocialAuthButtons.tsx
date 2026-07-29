@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '@/components/common/Pressable';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { FacebookIcon } from '@/components/icons/FacebookIcon';
 import { GoogleIcon } from '@/components/icons/GoogleIcon';

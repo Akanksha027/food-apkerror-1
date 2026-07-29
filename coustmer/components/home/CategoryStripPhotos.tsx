@@ -1,13 +1,11 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
+import { ScrollView,
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 
 import { authTheme } from '@/constants/auth-theme';
 import type { HomeCategory } from '@/lib/home/types';

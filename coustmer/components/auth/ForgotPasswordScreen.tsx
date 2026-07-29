@@ -1,7 +1,8 @@
+import { Pressable } from '@/components/common/Pressable';
 import { useRouter } from 'expo-router';
 import { Mail } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import { AuthInput } from '@/components/auth/AuthInput';
 import { AuthMessageBanner } from '@/components/auth/AuthMessageBanner';

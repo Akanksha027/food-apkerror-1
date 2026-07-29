@@ -35,6 +35,16 @@ export type Deal = {
   description?: string;
   code?: string;
   imageUrl?: string;
+  validFrom?: string;
+  validUntil?: string;
+  expired?: boolean;
+  discount?: {
+    type: 'percentage' | 'fixed';
+    value: number;
+  };
+  minOrderValue?: number;
+  maxDiscount?: number;
+  restaurants?: string[]; // Applicable restaurant IDs
   [key: string]: unknown;
 };
 
@@ -125,6 +135,8 @@ export type CreateTicketPayload = {
   category: SupportCategory;
   subject: string;
   description: string;
+  orderId?: string;
+  attachments?: string[];
 };
 
 export type AddTicketMessagePayload = {

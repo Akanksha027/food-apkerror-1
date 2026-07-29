@@ -1,12 +1,11 @@
+import { Pressable } from '@/components/common/Pressable';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowRight } from 'lucide-react-native';
-import {
-  ActivityIndicator,
-  Pressable,
+import { ActivityIndicator,
+  
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 
 import { authTheme } from '@/constants/auth-theme';
 

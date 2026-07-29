@@ -1,3 +1,4 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -13,12 +14,11 @@ import {
   UtensilsCrossed,
 } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   InteractionManager,
   LayoutAnimation,
   Platform,
-  Pressable,
+  
   ScrollView,
   Share,
   StyleSheet,
@@ -26,9 +26,8 @@ import {
   TextInput,
   UIManager,
   View,
-  type LayoutChangeEvent,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+  type LayoutChangeEvent } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ErrorView, LoadingView } from '@/components/common/StateViews';
 import { FavoriteHeartButton } from '@/components/common/FavoriteHeartButton';
@@ -381,6 +380,7 @@ export function RestaurantDetailScreen() {
   };
 
   const openItem = (item: MenuItem) => {
+    // @ts-ignore
     router.push({
       pathname: '/restaurants/[restaurantId]/items/[itemId]',
       params: { restaurantId: id, itemId: item.id },
@@ -391,6 +391,7 @@ export function RestaurantDetailScreen() {
     addMenuItemToCart(item, {
       id,
       name: restaurant.data?.name || 'Restaurant',
+      imageUrl: restaurant.data?.logoUrl || restaurant.data?.imageUrl,
     });
   };
 
@@ -439,7 +440,7 @@ export function RestaurantDetailScreen() {
   const couponOffers = offers.data?.slice(0, 8) ?? [];
 
   return (
-    <View style={styles.root}>
+    <SafeAreaView style={styles.root} edges={['top']}>
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
@@ -461,7 +462,7 @@ export function RestaurantDetailScreen() {
               style={StyleSheet.absoluteFill}
             />
 
-            <View style={[styles.heroActions, { top: insets.top + 8 }]}>
+            <View style={[styles.heroActions, { top: 12 }]}>
               <Pressable style={styles.iconBtn} onPress={() => { if (router.canGoBack()) { if (router.canGoBack()) { router.back(); } else { router.replace('/'); } } else { router.replace('/'); } }}>
                 <ChevronLeft color="#FFFFFF" size={22} strokeWidth={2.4} />
               </Pressable>
@@ -588,37 +589,60 @@ export function RestaurantDetailScreen() {
             </View>
 
             {/* Coupon rail */}
-            {couponOffers.length > 0 ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.couponRow}
-              >
-                {couponOffers.map((offer, index) => (
-                  <Pressable
-                    key={offer.id}
-                    style={styles.couponCard}
-                    onPress={() => openOffer(offer.id)}
-                  >
-                    <View style={styles.couponIcon}>
-                      {index % 2 === 0 ? (
-                        <Percent color={authTheme.brand} size={16} strokeWidth={2.6} />
-                      ) : (
-                        <Crown color={authTheme.brand} size={16} strokeWidth={2.4} />
-                      )}
-                    </View>
-                    <View style={styles.couponBody}>
-                      <Text style={styles.couponTitle} numberOfLines={1}>
-                        {offerHeadline(offer)}
-                      </Text>
-                      <Text style={styles.couponSub} numberOfLines={2}>
-                        {offerFinePrint(offer)}
-                      </Text>
-                    </View>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            ) : null}
+            {offers.isLoading ? (
+              <View style={[styles.couponRow, { paddingHorizontal: 20 }]}>
+                <Text style={{ color: '#6B7280', fontSize: 13, fontWeight: '500' }}>Loading offers...</Text>
+              </View>
+            ) : offers.isError ? (
+              <View style={[styles.couponRow, { paddingHorizontal: 20 }]}>
+                <Text style={{ color: '#EF4444', fontSize: 13, fontWeight: '500' }}>Error loading offers</Text>
+              </View>
+            ) : couponOffers.length > 0 ? (
+              <>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.couponRow}
+                >
+                  {couponOffers.map((offer, index) => (
+                    <Pressable
+                      key={offer.id}
+                      style={styles.couponCard}
+                      onPress={() => openOffer(offer.id)}
+                    >
+                      <View style={styles.couponIcon}>
+                        {index % 2 === 0 ? (
+                          <Percent color={authTheme.brand} size={16} strokeWidth={2.6} />
+                        ) : (
+                          <Crown color={authTheme.brand} size={16} strokeWidth={2.4} />
+                        )}
+                      </View>
+                      <View style={styles.couponBody}>
+                        <Text style={styles.couponTitle} numberOfLines={1}>
+                          {offerHeadline(offer)}
+                        </Text>
+                        <Text style={styles.couponSub} numberOfLines={2}>
+                          {offerFinePrint(offer)}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+                <Pressable
+                  style={[styles.couponCard, { marginHorizontal: 20, marginTop: 8, width: 'auto', alignItems: 'center', justifyContent: 'center' }]}
+                  onPress={() => router.push({
+                    pathname: '/restaurants/[restaurantId]/offers',
+                    params: { restaurantId: id, restaurantName: r.name }
+                  })}
+                >
+                  <Text style={{ color: authTheme.brand, fontWeight: '700' }}>View All Offers & Deals</Text>
+                </Pressable>
+              </>
+            ) : (
+              <View style={[styles.couponRow, { paddingHorizontal: 20 }]}>
+                <Text style={{ color: '#6B7280', fontSize: 13, fontWeight: '500' }}>No active offers for this restaurant right now.</Text>
+              </View>
+            )}
 
             {searchOpen ? (
               <View style={styles.searchBox}>
@@ -780,7 +804,7 @@ export function RestaurantDetailScreen() {
         <View style={{ height: insets.bottom + 88 }} />
       </ScrollView>
       <CartFloatingBar />
-    </View>
+    </SafeAreaView>
   );
 }
 

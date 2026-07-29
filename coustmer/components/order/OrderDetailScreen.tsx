@@ -1,22 +1,23 @@
+import { Pressable } from '@/components/common/Pressable';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, MapPin, Home, Check } from 'lucide-react-native';
+import { ArrowLeft, MapPin, Home, Check, Star } from 'lucide-react-native';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   Alert,
-  Pressable,
+  
   ScrollView,
   StyleSheet,
   Text,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { VegBadge } from '@/components/restaurant/MenuBadges';
 import { LoadingView } from '@/components/common/StateViews';
+import { OrderStatusTimeline, type OrderStatus } from '@/components/order/OrderStatusTimeline';
 import { authTheme } from '@/constants/auth-theme';
 import { fonts } from '@/constants/typography';
 import { useOrder, useReorder } from '@/lib/order/hooks';
+import { useOrderReview } from '@/lib/review/hooks';
 
 function formatDeliveryTime(iso?: string) {
   if (!iso) return '';
@@ -42,6 +43,7 @@ export function OrderDetailScreen() {
 
   const order = useOrder(id);
   const reorder = useReorder(id);
+  const review = useOrderReview(id, { enabled: order.data?.status === 'delivered' });
 
   const data = order.data;
 
@@ -69,32 +71,56 @@ export function OrderDetailScreen() {
     }
   };
 
-  const isDelivered = data.status.toLowerCase() === 'delivered';
+  const handleRateOrder = () => {
+    router.push({ pathname: '/orders/[orderId]/review', params: { orderId: data.id } });
+  };
+
+  const isDelivered = data.status === 'delivered';
+  const hasReviewed = review.data !== null && review.data !== undefined;
 
   return (
     <View style={styles.container}>
-      <SafeAreaView edges={['top']} style={styles.headerSafe}>
+      <View style={[styles.headerSafe, { paddingTop: insets.top }]}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
             <ArrowLeft color="#1C1C1C" size={24} />
           </Pressable>
           <View style={styles.headerTitles}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              ORDER #{orderIdLabel}
-            </Text>
+            <Text style={styles.headerTitle} numberOfLines={1}>{data.restaurantName}</Text>
             <Text style={styles.headerSubtitle}>
-              {isDelivered ? 'Delivered' : data.status}, {totalItems} Item{totalItems > 1 ? 's' : ''}, ₹{total.toFixed(0)}
+              ORDER #{orderIdLabel} • {formatDeliveryTime(data.createdAt)}
             </Text>
           </View>
-          <Pressable style={styles.helpBtn}>
+          <Pressable 
+            style={styles.helpBtn} 
+            onPress={() => router.push({ pathname: '/support/new', params: { orderId: data.id } })}
+          >
             <Text style={styles.helpBtnText}>HELP</Text>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Timeline Section */}
+        {/* Order Status Timeline */}
+        <View style={styles.timelineSection}>
+          <OrderStatusTimeline 
+            currentStatus={data.status as OrderStatus}
+            timestamps={{
+              pending: data.createdAt,
+              accepted: data.acceptedAt,
+              preparing: data.preparingAt,
+              ready: data.readyAt,
+              'out-for-delivery': data.outForDeliveryAt,
+              delivered: data.deliveredAt,
+              cancelled: data.cancelledAt,
+              rejected: data.rejectedAt,
+            }}
+          />
+        </View>
+
+        {/* Delivery Timeline Block */}
         <View style={styles.timelineCard}>
+          <Text style={styles.sectionTitle}>DELIVERY DETAILS</Text>
           <View style={styles.timelineRow}>
             <View style={styles.timelineIconCol}>
               <MapPin color="#6B7280" size={18} />
@@ -105,13 +131,13 @@ export function OrderDetailScreen() {
               <View style={styles.timelineAddressBlock}>
                 <Text style={styles.restaurantName}>{data.restaurantName || 'Restaurant'}</Text>
                 <Text style={styles.addressDesc} numberOfLines={1}>
-                  Raj Nagar-SHOP NO.1, GROUND FLOOR, PLOT NO.B-34...
+                  Restaurant Location
                 </Text>
               </View>
               <View style={styles.timelineAddressBlockHome}>
-                <Text style={styles.homeLabel}>{data.deliveryAddress?.label || 'House'}</Text>
+                <Text style={styles.homeLabel}>{data.deliveryAddress?.label || 'Delivery Address'}</Text>
                 <Text style={styles.addressDesc} numberOfLines={2}>
-                  {data.deliveryAddress?.formattedAddress || 'Anand Dham Flats Ashok Nagar B Block Market Ghaziabad...'}
+                  {data.deliveryAddress?.formattedAddress || 'Customer Address'}
                 </Text>
               </View>
             </View>
@@ -120,21 +146,29 @@ export function OrderDetailScreen() {
           <View style={styles.timelineDivider} />
 
           <View style={styles.deliveryStatusRow}>
-            <View style={styles.checkCircle}>
-              <Check color="#FFFFFF" size={12} strokeWidth={3} />
-            </View>
-            <Text style={styles.deliveryStatusText}>
-              Order delivered on {formatDeliveryTime(data.createdAt)} by SOMPAL
-            </Text>
-            <View style={styles.onTimeBadge}>
-              <Text style={styles.onTimeText}>ON TIME</Text>
-            </View>
+            {isDelivered ? (
+              <>
+                <View style={styles.checkCircle}>
+                  <Check color="#FFFFFF" size={12} strokeWidth={3} />
+                </View>
+                <Text style={styles.deliveryStatusText}>
+                  Order delivered on {formatDeliveryTime(data.updatedAt || data.createdAt)}
+                </Text>
+                <View style={styles.onTimeBadge}>
+                  <Text style={styles.onTimeText}>DELIVERED</Text>
+                </View>
+              </>
+            ) : (
+              <Text style={styles.deliveryStatusText}>
+                Order status: {data.status.replace('_', ' ').toUpperCase()}
+              </Text>
+            )}
           </View>
         </View>
 
         {/* Bill Details Section */}
         <Text style={styles.sectionTitle}>BILL DETAILS</Text>
-        
+
         <View style={styles.billCard}>
           {data.items.map((item, idx) => (
             <View key={idx} style={styles.billItemRow}>
@@ -143,7 +177,6 @@ export function OrderDetailScreen() {
               </View>
               <View style={styles.billItemContent}>
                 <Text style={styles.billItemName}>{item.name} x {item.quantity}</Text>
-                <Text style={styles.billItemSub}>Without Ice-cream</Text>
               </View>
               <Text style={styles.billItemPrice}>₹{(item.price * item.quantity).toFixed(0)}</Text>
             </View>
@@ -156,57 +189,72 @@ export function OrderDetailScreen() {
             <Text style={styles.receiptValue}>₹{total.toFixed(0)}</Text>
           </View>
           <View style={styles.receiptRow}>
-            <Text style={styles.receiptLabel}>Restaurant Packaging</Text>
-            <Text style={styles.receiptValue}>₹20</Text>
-          </View>
-          <View style={styles.receiptRow}>
-            <Text style={styles.receiptLabel}>Platform fee with GST</Text>
-            <Text style={styles.receiptValue}>₹17.69</Text>
-          </View>
-          <View style={styles.receiptRow}>
-            <Text style={styles.receiptLabel}>Discount Applied (TRYNEW)</Text>
-            <Text style={[styles.receiptValue, { color: '#00A160' }]}>-₹72</Text>
-          </View>
-          <View style={styles.receiptRow}>
-            <Text style={styles.receiptLabel}>Delivery Fee | 2.9 kms</Text>
-            <Text style={styles.receiptValue}>₹37</Text>
-          </View>
-          <View style={styles.receiptRow}>
-            <Text style={styles.receiptLabel}>Expiry Cash Discount</Text>
-            <Text style={[styles.receiptValue, { color: '#00A160' }]}>-₹30</Text>
-          </View>
-          <View style={styles.receiptRow}>
-            <Text style={styles.receiptLabel}>Taxes</Text>
-            <Text style={styles.receiptValue}>₹13.06</Text>
+            <Text style={styles.receiptLabel}>Taxes & Charges</Text>
+            <Text style={styles.receiptValue}>₹{((data.deliveryFee || 0) + (data.tax || 0)).toFixed(0)}</Text>
           </View>
 
           <View style={styles.billDividerDotted} />
 
           <View style={styles.receiptRowFinal}>
-            <Text style={styles.receiptLabelFinal}>Paid Via Bank</Text>
+            <Text style={styles.receiptLabelFinal}>
+              {data.paymentMethod ? `Paid via ${data.paymentMethod.toUpperCase()}` : 'Total'}
+            </Text>
             <View style={styles.receiptRightFinal}>
               <Text style={styles.receiptTotalLabel}>Bill Total</Text>
-              <Text style={styles.receiptTotalValue}>₹{(total + 20 + 17.69 - 72 + 37 - 30 + 13.06).toFixed(0)}</Text>
+              <Text style={styles.receiptTotalValue}>₹{total.toFixed(0)}</Text>
             </View>
           </View>
         </View>
 
-        <View style={{ height: 120 }} />
+        <View style={{ height: 160 }} />
       </ScrollView>
 
-      {/* Sticky Bottom Reorder */}
+      {/* Sticky Bottom Reorder & Rate */}
       <View style={[styles.stickyFooter, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <Pressable 
-          style={styles.reorderBtn} 
-          onPress={handleReorder}
-          disabled={reorder.isPending}
-        >
-          {reorder.isPending ? (
-            <ActivityIndicator color="#F15700" />
-          ) : (
-            <Text style={styles.reorderBtnText}>REORDER</Text>
-          )}
-        </Pressable>
+        {isDelivered && (
+          <View style={styles.actionRow}>
+            {hasReviewed ? (
+              <View style={styles.reviewedBtn}>
+                <Star color="#00A160" size={16} fill="#00A160" />
+                <Text style={styles.reviewedBtnText}>You rated {review.data?.rating} stars</Text>
+              </View>
+            ) : (
+              <Pressable
+                style={styles.rateBtn}
+                onPress={handleRateOrder}
+              >
+                <Star color="#F15700" size={16} />
+                <Text style={styles.rateBtnText}>RATE ORDER</Text>
+              </Pressable>
+            )}
+
+            <Pressable
+              style={[styles.reorderBtn, styles.reorderBtnHalf]}
+              onPress={handleReorder}
+              disabled={reorder.isPending}
+            >
+              {reorder.isPending ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={[styles.reorderBtnText, styles.reorderBtnTextWhite]}>REORDER</Text>
+              )}
+            </Pressable>
+          </View>
+        )}
+
+        {!isDelivered && (
+          <Pressable
+            style={styles.reorderBtn}
+            onPress={handleReorder}
+            disabled={reorder.isPending}
+          >
+            {reorder.isPending ? (
+              <ActivityIndicator color="#F15700" />
+            ) : (
+              <Text style={styles.reorderBtnText}>REORDER</Text>
+            )}
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -256,6 +304,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 40,
+  },
+  timelineSection: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 12,
   },
   timelineCard: {
     backgroundColor: '#FFFFFF',
@@ -448,10 +501,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
   },
   reorderBtnText: {
-    fontFamily: fonts.uiBold,
+    fontFamily: fonts.displayBold,
     color: '#F15700',
     fontSize: 15,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  rateBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#FFF0ED',
+    borderWidth: 1,
+    borderColor: '#FFD4C2',
+  },
+  rateBtnText: {
+    fontFamily: fonts.displayBold,
+    color: '#F15700',
+    fontSize: 15,
+  },
+  reviewedBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#E6F6ED',
+    borderWidth: 1,
+    borderColor: '#AEE4C4',
+  },
+  reviewedBtnText: {
+    fontFamily: fonts.uiBold,
+    color: '#00A160',
+    fontSize: 14,
+  },
+  reorderBtnHalf: {
+    flex: 1,
+    backgroundColor: '#F15700',
+  },
+  reorderBtnTextWhite: {
+    color: '#FFFFFF',
   },
 });

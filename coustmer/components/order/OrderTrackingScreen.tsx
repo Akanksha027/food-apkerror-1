@@ -1,25 +1,24 @@
+import { Pressable } from '@/components/common/Pressable';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, MoreHorizontal, MessageCircle, ChevronRight, X, Gift, Home, Edit2, CheckCircle2 } from 'lucide-react-native';
-import {
-  Pressable,
-  ScrollView,
+import { ScrollView,
   StyleSheet,
   Text,
   View,
   Image,
-  Dimensions,
-} from 'react-native';
+  Dimensions } from 'react-native';
 import Animated, { useSharedValue, withSpring, withDelay, withTiming, useAnimatedStyle } from 'react-native-reanimated';
 import { WebView } from 'react-native-webview';
 import { useRef } from 'react';
 
 import { ErrorView, LoadingView } from '@/components/common/StateViews';
+import { OrderStatusTimeline, type OrderStatus } from '@/components/order/OrderStatusTimeline';
 import { useOrder, useOrderTracking } from '@/lib/order/hooks';
 import { useCartStore } from '@/store/cart-store';
 import { swiggyOrderUi as ui } from '@/constants/swiggy-order-ui';
 
-const generateMapHtml = (coords: { latitude: number, longitude: number }[], restLat: number, restLng: number, custLat: number, custLng: number, restName: string) => {
+const generateMapHtml = (coords: { latitude: number, longitude: number }[], restLat: number, restLng: number, custLat: number, custLng: number, restName: string, apiKey: string) => {
   const routeJson = JSON.stringify(coords.map(c => [c.latitude, c.longitude]));
 
   return `
@@ -27,161 +26,260 @@ const generateMapHtml = (coords: { latitude: number, longitude: number }[], rest
     <html>
     <head>
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
       <style>
         body { padding: 0; margin: 0; background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         html, body, #map { height: 100%; width: 100%; }
-        
-        /* Hide Leaflet watermark */
-        .leaflet-control-attribution { display: none !important; }
-
-        .custom-marker-wrapper {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: flex-start;
-        }
-        
-        .marker-circle {
-          width: 44px !important;
-          height: 44px !important;
-          min-width: 44px !important;
-          min-height: 44px !important;
-          max-width: 44px !important;
-          max-height: 44px !important;
-          background-color: #222222;
-          border-radius: 50% !important;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          position: relative;
-          z-index: 10;
-        }
-
-        .marker-label {
-          background-color: #FFFFFF;
-          color: #1C1C1C;
-          font-size: 14px;
-          font-weight: 700;
-          padding: 6px 14px;
-          border-radius: 12px;
-          margin-top: 8px;
-          white-space: nowrap;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-          border: 1px solid rgba(0, 0, 0, 0.05);
-        }
-
-        .scooter-marker {
-          font-size: 28px;
-          filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.3));
-          transform: rotate(-15deg);
-          transition: transform 0.5s linear;
-        }
       </style>
     </head>
     <body>
       <div id="map"></div>
       <script>
-        const map = L.map('map', {
-          zoomControl: false,
-          attributionControl: false
-        });
-
-        // CartoDB Positron tiles (light and minimal)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-          maxZoom: 19
-        }).addTo(map);
-
+        let map, directionsService, directionsRenderer, scooterMarker;
         const routeCoords = ${routeJson};
         const restLat = ${restLat};
         const restLng = ${restLng};
         const custLat = ${custLat};
         const custLng = ${custLng};
 
-        // Prepare Route and Scooter
-        let polyline, scooterMarker;
+        function initMap() {
+          // Initialize map centered between restaurant and customer
+          const center = {
+            lat: (restLat + custLat) / 2,
+            lng: (restLng + custLng) / 2
+          };
 
-        if (routeCoords.length > 0) {
-          polyline = L.polyline(routeCoords, { color: '#F05A2A', weight: 4 });
-          
-          const scooterIcon = L.divIcon({
-            className: 'scooter-marker',
-            html: '🛵',
-            iconSize: [40, 40],
-            iconAnchor: [20, 20]
+          map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 14,
+            center: center,
+            disableDefaultUI: true,
+            zoomControl: false,
+            mapTypeControl: false,
+            scaleControl: false,
+            streetViewControl: false,
+            rotateControl: false,
+            fullscreenControl: false,
+            styles: [
+              {
+                featureType: "poi",
+                elementType: "labels",
+                stylers: [{ visibility: "off" }]
+              }
+            ]
           });
-          // Place scooter at the store (index 0)
-          scooterMarker = L.marker(routeCoords[0], {icon: scooterIcon});
-        } else {
-          // Fallback dotted line
-          polyline = L.polyline([[restLat, restLng], [custLat, custLng]], { color: '#F05A2A', weight: 4, dashArray: '1, 8', lineCap: 'round' });
-        }
 
-        // Center the map but force a zoomed-out view initially (e.g., zoom level 14)
-        const bounds = L.latLngBounds([[restLat, restLng], [custLat, custLng]]);
-        map.setView(bounds.getCenter(), 14);
-        
-        const initialZoom = 14;
-
-        function updateMapElements() {
-          const zoomedIn = map.getZoom() > initialZoom;
-          if (zoomedIn) {
-             if (polyline && !map.hasLayer(polyline)) map.addLayer(polyline);
-             if (scooterMarker && !map.hasLayer(scooterMarker)) map.addLayer(scooterMarker);
-          } else {
-             if (polyline && map.hasLayer(polyline)) map.removeLayer(polyline);
-             if (scooterMarker && map.hasLayer(scooterMarker)) map.removeLayer(scooterMarker);
-          }
-          if (window.ReactNativeWebView) {
-             window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ZOOM_CHANGED', isZoomed: zoomedIn }));
-          }
-        }
-        
-        map.on('zoomend', updateMapElements);
-        updateMapElements();
-
-        // Animate scooter along the route
-        // [Disabled for now: keep static at the store]
-        /*
-        if (routeCoords.length > 0) {
-          let step = 0;
-          setInterval(() => {
-            if (scooterMarker && map.hasLayer(scooterMarker)) {
-              step = (step + 1) % routeCoords.length;
-              scooterMarker.setLatLng(routeCoords[step]);
+          // Directions service for routing
+          directionsService = new google.maps.DirectionsService();
+          directionsRenderer = new google.maps.DirectionsRenderer({
+            map: map,
+            suppressMarkers: true,
+            polylineOptions: {
+              strokeColor: '#FF6B35',
+              strokeOpacity: 0.9,
+              strokeWeight: 5,
+              geodesic: true
             }
-          }, 500);
+          });
+
+          // Restaurant marker (pot icon)
+          const restaurantMarker = new google.maps.Marker({
+            position: { lat: restLat, lng: restLng },
+            map: map,
+            icon: {
+              path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+              fillColor: '#222222',
+              fillOpacity: 1,
+              strokeColor: '#FFFFFF',
+              strokeWeight: 2,
+              scale: 1.5,
+              anchor: new google.maps.Point(12, 22)
+            },
+            label: {
+              text: '${restName}',
+              color: '#1C1C1C',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              className: 'marker-label'
+            }
+          });
+
+          // Customer marker (house icon)
+          const customerMarker = new google.maps.Marker({
+            position: { lat: custLat, lng: custLng },
+            map: map,
+            icon: {
+              path: 'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z',
+              fillColor: '#222222',
+              fillOpacity: 1,
+              strokeColor: '#FFFFFF',
+              strokeWeight: 2,
+              scale: 1.5,
+              anchor: new google.maps.Point(12, 22)
+            },
+            label: {
+              text: 'House',
+              color: '#1C1C1C',
+              fontSize: '14px',
+              fontWeight: 'bold'
+            }
+          });
+
+          // Scooter marker for delivery partner
+          scooterMarker = new google.maps.Marker({
+            position: { lat: restLat, lng: restLng },
+            map: map,
+            icon: {
+              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><text x="20" y="30" font-size="30" text-anchor="middle">🛵</text></svg>'),
+              scaledSize: new google.maps.Size(40, 40),
+              anchor: new google.maps.Point(20, 20)
+            },
+            zIndex: 1000
+          });
+
+          // Get directions from restaurant to customer
+          const request = {
+            origin: { lat: restLat, lng: restLng },
+            destination: { lat: custLat, lng: custLng },
+            travelMode: google.maps.TravelMode.DRIVING
+          };
+
+          directionsService.route(request, (result, status) => {
+            if (status === google.maps.DirectionsStatus.OK) {
+              directionsRenderer.setDirections(result);
+              
+              // Send distance and duration to React Native
+              const route = result.routes[0].legs[0];
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'ROUTE_INFO',
+                  distance: route.distance.text,
+                  duration: route.duration.text
+                }));
+              }
+
+              // Fit bounds to show entire route with padding
+              const bounds = new google.maps.LatLngBounds();
+              bounds.extend({ lat: restLat, lng: restLng });
+              bounds.extend({ lat: custLat, lng: custLng });
+              map.fitBounds(bounds, {
+                top: 100,
+                bottom: 200,
+                left: 50,
+                right: 50
+              });
+
+              // Add a subtle shadow/outline to the route for better visibility
+              const routePath = result.routes[0].overview_path;
+              new google.maps.Polyline({
+                path: routePath,
+                geodesic: true,
+                strokeColor: '#000000',
+                strokeOpacity: 0.2,
+                strokeWeight: 8,
+                map: map,
+                zIndex: 1
+              });
+
+              // Animate scooter along the route
+              animateScooter(routePath);
+            } else {
+              console.error('Directions request failed:', status);
+              // Fallback: draw a straight line if directions fail
+              const fallbackPath = [
+                { lat: restLat, lng: restLng },
+                { lat: custLat, lng: custLng }
+              ];
+              new google.maps.Polyline({
+                path: fallbackPath,
+                geodesic: true,
+                strokeColor: '#FF6B35',
+                strokeOpacity: 0.7,
+                strokeWeight: 5,
+                map: map,
+                icons: [{
+                  icon: {
+                    path: 'M 0,-1 0,1',
+                    strokeOpacity: 1,
+                    scale: 3
+                  },
+                  offset: '0',
+                  repeat: '20px'
+                }]
+              });
+            }
+          });
+
+          // Listen for zoom changes
+          map.addListener('zoom_changed', () => {
+            const zoomLevel = map.getZoom();
+            if (window.ReactNativeWebView) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'ZOOM_CHANGED',
+                isZoomed: zoomLevel > 14
+              }));
+            }
+          });
         }
-        */
 
-        // SVG Icons
-        const potSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8"/><path d="M4 12V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4"/><path d="M9 4v4"/><path d="M15 4v4"/></svg>';
-        const houseSvg = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
+        // Animate scooter marker along the route
+        function animateScooter(path) {
+          if (!path || path.length === 0) return;
+          
+          let step = 0;
+          const totalSteps = path.length;
+          const stepDuration = 200; // ms between steps (faster movement)
+          let animationFrameId;
 
-        // Custom Icons
-        const restIcon = L.divIcon({
-          className: 'custom-marker-wrapper',
-          html: \`
-            <div class="marker-circle">\${potSvg}</div>
-            <div class="marker-label">\${'${restName}'}</div>
-          \`,
-          iconSize: [100, 60],
-          iconAnchor: [50, 32]
-        });
+          function moveScooter() {
+            if (step < totalSteps) {
+              const position = path[step];
+              
+              // Smooth marker movement
+              scooterMarker.setPosition(position);
+              
+              // Calculate bearing for next step to rotate scooter icon
+              if (step < totalSteps - 1) {
+                const nextPosition = path[step + 1];
+                const bearing = google.maps.geometry.spherical.computeHeading(position, nextPosition);
+                
+                // Update scooter icon with rotation
+                const rotatedIcon = {
+                  url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40" style="transform: rotate(' + bearing + 'deg)"><text x="20" y="30" font-size="30" text-anchor="middle">🛵</text></svg>'
+                  ),
+                  scaledSize: new google.maps.Size(40, 40),
+                  anchor: new google.maps.Point(20, 20)
+                };
+                scooterMarker.setIcon(rotatedIcon);
+              }
+              
+              // Pan map to follow scooter (optional - comment out if you don't want auto-follow)
+              // map.panTo(position);
+              
+              step++;
+              animationFrameId = setTimeout(moveScooter, stepDuration);
+            } else {
+              // Loop back to start after reaching destination
+              step = 0;
+              animationFrameId = setTimeout(() => {
+                // Reset to restaurant position
+                scooterMarker.setPosition({ lat: restLat, lng: restLng });
+                // Wait a bit before starting next loop
+                setTimeout(moveScooter, 3000);
+              }, 2000);
+            }
+          }
 
-        const houseIcon = L.divIcon({
-          className: 'custom-marker-wrapper',
-          html: \`
-            <div class="marker-circle">\${houseSvg}</div>
-            <div class="marker-label">House</div>
-          \`,
-          iconSize: [100, 60],
-          iconAnchor: [50, 32]
-        });
-
-        L.marker([restLat, restLng], {icon: restIcon}).addTo(map);
-        L.marker([custLat, custLng], {icon: houseIcon}).addTo(map);
+          // Start animation after 1 second
+          setTimeout(moveScooter, 1000);
+          
+          // Return cleanup function
+          return () => {
+            if (animationFrameId) clearTimeout(animationFrameId);
+          };
+        }
+      </script>
+      <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry&callback=initMap">
       </script>
     </body>
     </html>
@@ -193,11 +291,14 @@ export function OrderTrackingScreen() {
   const { orderId, newOrder } = useLocalSearchParams<{ orderId: string, newOrder?: string }>();
   const id = String(orderId ?? '');
 
-  const [showSuccessAnim, setShowSuccessAnim] = useState(false); // Disabled as it's now handled by OrderPlacementModal
+  const [showSuccessAnim, setShowSuccessAnim] = useState(false);
   const clearCart = useCartStore((s) => s.clearCart);
 
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
+
+  // Get Google Maps API key from environment
+  const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyDtqlNuzkFM6Ix8GKcQcV06Dz6j1_FVRjo';
 
   useEffect(() => {
     if (newOrder === 'true') {
@@ -235,6 +336,9 @@ export function OrderTrackingScreen() {
   // Scratch card state
   const [showScratchCard, setShowScratchCard] = useState(true);
 
+  // Route info from Google Maps
+  const [distanceInfo, setDistanceInfo] = useState<{ dist: string, time: string } | null>(null);
+
   useEffect(() => {
     mapHeightPercent.value = withTiming(isZoomed ? 100 : 65, { duration: 500 });
   }, [isZoomed]);
@@ -243,48 +347,13 @@ export function OrderTrackingScreen() {
     height: `${mapHeightPercent.value}%` as any,
   }));
 
-  // Map state
-  const [routeCoords, setRouteCoords] = useState<{ latitude: number, longitude: number }[]>([]);
-  const [distanceInfo, setDistanceInfo] = useState<{ dist: string, time: string } | null>(null);
-
   // Fallback coordinates
   const restLat = t?.restaurantLat ?? 28.6219;
   const restLng = t?.restaurantLng ?? 77.3879;
   const custLat = t?.customerLat ?? 28.6189;
   const custLng = t?.customerLng ?? 77.3915;
 
-  useEffect(() => {
-    // Fetch OSRM route
-    const fetchRoute = async () => {
-      try {
-        const url = `http://router.project-osrm.org/route/v1/driving/${restLng},${restLat};${custLng},${custLat}?overview=full&geometries=geojson`;
-        const res = await fetch(url);
-        const json = await res.json();
-
-        if (json.routes && json.routes.length > 0) {
-          const route = json.routes[0];
-          // Extract distance (meters) and duration (seconds)
-          const distKm = (route.distance / 1000).toFixed(1);
-          const timeMin = Math.ceil(route.duration / 60);
-          setDistanceInfo({ dist: `${distKm} km`, time: `${timeMin} mins` });
-
-          // Convert GeoJSON coords [lng, lat] to {latitude, longitude}
-          const coords = route.geometry.coordinates.map((c: number[]) => ({
-            latitude: c[1],
-            longitude: c[0]
-          }));
-
-          setRouteCoords(coords);
-
-          // WebView handles auto-fitting via Leaflet's fitBounds
-        }
-      } catch (e) {
-        console.warn('Failed to fetch route:', e);
-      }
-    };
-
-    fetchRoute();
-  }, [restLat, restLng, custLat, custLng]);
+  const routeCoords: { latitude: number, longitude: number }[] = [];
 
   if (tracking.isLoading && !t) {
     return <LoadingView label="Loading tracking…" />;
@@ -332,20 +401,24 @@ export function OrderTrackingScreen() {
       <Animated.View style={[styles.mapContainer, animatedMapContainerStyle]}>
         <WebView
           style={styles.map}
-          source={{ html: generateMapHtml(routeCoords, restLat, restLng, custLat, custLng, o?.restaurantName || 'Restaurant') }}
+          source={{ html: generateMapHtml(routeCoords, restLat, restLng, custLat, custLng, o?.restaurantName || 'Restaurant', googleMapsApiKey) }}
           originWhitelist={['*']}
           onMessage={(event) => {
             try {
               const data = JSON.parse(event.nativeEvent.data);
               if (data.type === 'ZOOM_CHANGED') {
                 setIsZoomed(data.isZoomed);
+              } else if (data.type === 'ROUTE_INFO') {
+                setDistanceInfo({ dist: data.distance, time: data.duration });
               }
             } catch (e) { }
           }}
-          scrollEnabled={false} // Disable WebView scrolling to avoid interfering with React Native scroll
+          scrollEnabled={false}
           bounces={false}
           showsHorizontalScrollIndicator={false}
           showsVerticalScrollIndicator={false}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
         />
 
         {/* Overlay Header */}
@@ -408,7 +481,7 @@ export function OrderTrackingScreen() {
               onPress={() => router.push(`/orders/${orderId}`)}
             >
               <Text style={styles.addressBtnText}>Address & instructions</Text>
-              <ChevronRight color="#FF5A41" size={16} />
+              <ChevronRight color="#AC0F45" size={16} />
             </Pressable>
           </View>
         </View>

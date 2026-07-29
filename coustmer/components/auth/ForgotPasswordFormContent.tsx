@@ -1,14 +1,13 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Mail } from 'lucide-react-native';
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
+import { KeyboardAvoidingView,
   Platform,
-  Pressable,
+  
   ScrollView,
   Text,
   TextInput,
-  View,
-} from 'react-native';
+  View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import { AuthMessageBanner } from '@/components/auth/AuthMessageBanner';

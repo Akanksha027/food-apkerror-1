@@ -1,5 +1,6 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Star } from 'lucide-react-native';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 type Props = {
   value: number;

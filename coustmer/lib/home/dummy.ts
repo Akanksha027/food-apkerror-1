@@ -16,7 +16,7 @@ export const DUMMY_CATEGORIES: HomeCategory[] = [
     slug: 'all',
     imageUrl:
       'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300&h=300&fit=crop&q=80',
-    color: '#FF5A41',
+    color: '#AC0F45',
     sortOrder: 0,
   },
   {
@@ -97,7 +97,7 @@ export const DUMMY_CATEGORIES: HomeCategory[] = [
     slug: 'momos',
     imageUrl:
       'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=300&h=300&fit=crop&q=80',
-    color: '#C2410C',
+    color: '#AC0F45',
     sortOrder: 9,
   },
   {

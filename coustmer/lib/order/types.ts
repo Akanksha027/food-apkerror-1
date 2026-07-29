@@ -108,8 +108,15 @@ export type Order = {
   estimatedDeliveryAt?: string;
   createdAt?: string;
   updatedAt?: string;
+  acceptedAt?: string;
+  preparingAt?: string;
+  readyAt?: string;
+  outForDeliveryAt?: string;
+  deliveredAt?: string;
+  rejectedAt?: string;
   cancelledAt?: string;
   cancelReason?: string;
+  raw?: Record<string, unknown>;
   [key: string]: unknown;
 };
 

@@ -1,8 +1,9 @@
+import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Plus } from 'lucide-react-native';
+import { Minus, Plus } from 'lucide-react-native';
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   interpolateColor,
@@ -16,6 +17,8 @@ import Animated, {
 import { VegBadge } from '@/components/restaurant/MenuBadges';
 import { authTheme } from '@/constants/auth-theme';
 import type { MenuItem } from '@/lib/restaurant/types';
+import { playHapticFeedback } from '@/lib/utils/haptics';
+import { useCartStore } from '@/store/cart-store';
 
 type Props = {
   item: MenuItem;
@@ -34,6 +37,15 @@ function originalPrice(item: MenuItem): number | null {
 export function MenuItemGridCard({ item, onPress, onAdd, highlighted }: Props) {
   const highlight = useSharedValue(0);
   const was = originalPrice(item);
+  
+  const quantity = useCartStore(
+    (s) =>
+      s.items.find(
+        (i) => i.id === item.id || i.menuItemId === item.id
+      )?.quantity || 0
+  );
+  const increment = useCartStore((s) => s.increment);
+  const decrement = useCartStore((s) => s.decrement);
 
   useEffect(() => {
     if (highlighted) {
@@ -77,17 +89,46 @@ export function MenuItemGridCard({ item, onPress, onAdd, highlighted }: Props) {
           )}
 
           {item.isAvailable !== false ? (
-            <Pressable
-              style={styles.addBtn}
-              hitSlop={6}
-              onPress={(e) => {
-                e.stopPropagation?.();
-                onAdd?.();
-              }}
-              accessibilityLabel={`Add ${item.name}`}
-            >
-              <Plus color="#FFFFFF" size={18} strokeWidth={2.8} />
-            </Pressable>
+            quantity > 0 ? (
+              <View style={styles.gridStepperWrap}>
+                <Pressable
+                  style={styles.gridStepperBtn}
+                  hitSlop={8}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    playHapticFeedback();
+                    decrement(item.id);
+                  }}
+                >
+                  <Minus color="#FFFFFF" size={14} strokeWidth={3} />
+                </Pressable>
+                <Text style={styles.gridStepperValue}>{quantity}</Text>
+                <Pressable
+                  style={styles.gridStepperBtn}
+                  hitSlop={8}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    playHapticFeedback();
+                    increment(item.id);
+                  }}
+                >
+                  <Plus color="#FFFFFF" size={14} strokeWidth={3} />
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                style={styles.addBtn}
+                hitSlop={6}
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  playHapticFeedback();
+                  onAdd?.();
+                }}
+                accessibilityLabel={`Add ${item.name}`}
+              >
+                <Plus color="#FFFFFF" size={18} strokeWidth={2.8} />
+              </Pressable>
+            )
           ) : (
             <View style={styles.unavailablePill}>
               <Text style={styles.unavailableText}>Sold out</Text>
@@ -191,5 +232,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#9CA3AF',
     textDecorationLine: 'line-through',
+  },
+  gridStepperWrap: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    height: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: authTheme.brand,
+    borderRadius: 18,
+    paddingHorizontal: 8,
+    gap: 8,
+    shadowColor: authTheme.brandDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  gridStepperBtn: {
+    padding: 2,
+  },
+  gridStepperValue: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });
