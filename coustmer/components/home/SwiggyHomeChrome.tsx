@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   locationLabel: {
     color: '#9CA3AF',
     fontSize: 12,
-    fontFamily: fonts.medium,
+    fontFamily: fonts.uiMedium,
     marginBottom: 4,
   },
   locationTitleRow: {
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   locationTitle: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontFamily: fonts.bold,
+    fontFamily: fonts.displayBold,
   },
   promoWrap: {
     alignItems: 'center',
@@ -159,19 +159,19 @@ const styles = StyleSheet.create({
   promoExtra: {
     color: '#FFFFFF',
     fontSize: 20,
-    fontFamily: fonts.bold,
+    fontFamily: fonts.displayBold,
     letterSpacing: 1,
   },
   promoDiscount: {
     color: '#FFFFFF',
     fontSize: 20,
-    fontFamily: fonts.bold,
+    fontFamily: fonts.displayBold,
     letterSpacing: 1,
   },
   promoSubtitle: {
     color: '#F3F4F6',
     fontSize: 18,
-    fontFamily: fonts.medium,
+    fontFamily: fonts.uiMedium,
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 26,
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   searchPlaceholder: {
     color: '#9CA3AF',
     fontSize: 15,
-    fontFamily: fonts.medium,
+    fontFamily: fonts.uiMedium,
     flex: 1,
   },
   mapButton: {
