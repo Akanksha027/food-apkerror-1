@@ -19,21 +19,9 @@ import { VegBadge } from '@/components/restaurant/MenuBadges';
 import { authTheme } from '@/constants/auth-theme';
 import { addMenuItemToCart } from '@/lib/order/add-to-cart';
 import { getMenuItemRating } from '@/lib/restaurant/menu-rating';
-import type { MenuItem } from '@/lib/restaurant/types';
+import { MenuItem } from '@/lib/restaurant/types';
 import { playHapticFeedback } from '@/lib/utils/haptics';
 import { useCartStore } from '@/store/cart-store';
-
-type Addon = { id: string; name: string; price: number };
-
-const DEFAULT_ADDONS: Addon[] = [
-  { id: 'mushroom', name: 'Mushroom', price: 30 },
-  { id: 'chicken-patty', name: 'Chicken Patty', price: 80 },
-  { id: 'poached-egg', name: 'Poached egg', price: 40 },
-  { id: 'extra-cheese', name: 'Extra cheese', price: 35 },
-  { id: 'caramelized-onion', name: 'Caramelized onion', price: 25 },
-];
-
-const MAX_ADDONS = 2;
 
 function caloriesFor(item: MenuItem): string | null {
   const raw = item.calories ?? item.calorie ?? item.cal;
@@ -90,56 +78,11 @@ export function MenuItemDetailSheet({
   const increment = useCartStore((s) => s.increment);
   const decrement = useCartStore((s) => s.decrement);
 
-  const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
-
-  // Reset state when sheet opens with new item
-  useMemo(() => {
-    if (visible) {
-      setSelectedAddons([]);
-    }
-  }, [visible, item?.id]);
-
   const rating = item ? getMenuItemRating(item) : null;
   const badge = item ? likedBadge(item, rating) : null;
   const cal = item ? caloriesFor(item) : null;
 
-  const addons = useMemo(() => {
-    if (!item) return DEFAULT_ADDONS;
-    const fromApi = (item.addons ?? item.customizations) as
-      | Addon[]
-      | undefined;
-    if (Array.isArray(fromApi) && fromApi.length > 0) {
-      return fromApi.map((a, i) => ({
-        id: String(a.id ?? `addon-${i}`),
-        name: String(a.name ?? 'Add-on'),
-        price: Number(a.price) || 0,
-      }));
-    }
-    return DEFAULT_ADDONS;
-  }, [item]);
-
-  const addonExtra = useMemo(() => {
-    return addons
-      .filter((a) => selectedAddons.includes(a.id))
-      .reduce((s, a) => s + a.price, 0);
-  }, [addons, selectedAddons]);
-
-  const unitPrice = (item?.price ?? 0) + addonExtra;
-
-  const toggleAddon = (id: string) => {
-    setSelectedAddons((prev) => {
-      if (prev.includes(id)) {
-        playHapticFeedback();
-        return prev.filter((x) => x !== id);
-      }
-      if (prev.length >= MAX_ADDONS) {
-        Alert.alert('Limit reached', `You can select up to ${MAX_ADDONS} add-ons.`);
-        return prev;
-      }
-      playHapticFeedback();
-      return [...prev, id];
-    });
-  };
+  const unitPrice = item?.price ?? 0;
 
   const handleShare = async () => {
     if (!item) return;
@@ -156,16 +99,10 @@ export function MenuItemDetailSheet({
     if (!item || item.isAvailable === false) return;
     playHapticFeedback();
 
-    const addonNames = addons
-      .filter((a) => selectedAddons.includes(a.id))
-      .map((a) => a.name);
-    const note =
-      addonNames.length > 0 ? `Add-ons: ${addonNames.join(', ')}` : undefined;
-
     const cartItem: MenuItem = {
       ...item,
       price: unitPrice,
-      specialInstructions: note || item.specialInstructions,
+      specialInstructions: item.specialInstructions,
     };
 
     addMenuItemToCart(cartItem, {
@@ -243,40 +180,6 @@ export function MenuItemDetailSheet({
                   <Text style={styles.unavailableHint}>This item is temporarily out of stock and cannot be ordered right now.</Text>
                 </View>
               ) : null}
-
-              {/* Addons Section */}
-              <View style={styles.addonsHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.addonsTitle}>
-                    Add ons for {item.name.split(' ')[0] || 'item'}
-                  </Text>
-                  <Text style={styles.addonsHint}>Select up to 0{MAX_ADDONS}</Text>
-                </View>
-                <View style={styles.optionalPill}>
-                  <Text style={styles.optionalText}>Optional</Text>
-                </View>
-              </View>
-
-              <View style={styles.addonList}>
-                {addons.map((addon) => {
-                  const on = selectedAddons.includes(addon.id);
-                  return (
-                    <Pressable
-                      key={addon.id}
-                      style={styles.addonRow}
-                      onPress={() => toggleAddon(addon.id)}
-                    >
-                      <View style={[styles.checkbox, on && styles.checkboxOn]}>
-                        {on ? <Check color="#FFFFFF" size={12} strokeWidth={3} /> : null}
-                      </View>
-                      <Text style={styles.addonName}>{addon.name}</Text>
-                      <Text style={styles.addonPrice}>
-                        + ₹{addon.price.toFixed(0)}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
             </View>
           </ScrollView>
 

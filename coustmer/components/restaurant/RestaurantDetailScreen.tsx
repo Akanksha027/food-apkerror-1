@@ -32,6 +32,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ErrorView, LoadingView } from '@/components/common/StateViews';
 import { FavoriteHeartButton } from '@/components/common/FavoriteHeartButton';
 import { CartFloatingBar } from '@/components/order/CartFloatingBar';
+import { MenuItemDetailSheet } from '@/components/restaurant/MenuItemDetailSheet';
 import { MenuItemGridCard } from '@/components/restaurant/MenuItemGridCard';
 import { RestaurantReviewsPanel } from '@/components/review/RestaurantReviewsPanel';
 import { authTheme } from '@/constants/auth-theme';
@@ -129,6 +130,7 @@ export function RestaurantDetailScreen() {
   const [menuQuery, setMenuQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [vegOnly, setVegOnly] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(
     null
   );
@@ -380,11 +382,7 @@ export function RestaurantDetailScreen() {
   };
 
   const openItem = (item: MenuItem) => {
-    // @ts-ignore
-    router.push({
-      pathname: '/restaurants/[restaurantId]/items/[itemId]',
-      params: { restaurantId: id, itemId: item.id },
-    });
+    setSelectedItem(item);
   };
 
   const addItem = (item: MenuItem) => {
@@ -804,6 +802,14 @@ export function RestaurantDetailScreen() {
         <View style={{ height: insets.bottom + 88 }} />
       </ScrollView>
       <CartFloatingBar />
+      <MenuItemDetailSheet
+        visible={!!selectedItem}
+        item={selectedItem}
+        restaurantId={id}
+        restaurantName={restaurant.data?.name || 'Restaurant'}
+        restaurantImageUrl={restaurant.data?.logoUrl || restaurant.data?.imageUrl}
+        onClose={() => setSelectedItem(null)}
+      />
     </SafeAreaView>
   );
 }
