@@ -14,6 +14,7 @@ export const fonts = {
   uiSemi: 'DMSans_600SemiBold',
   uiBold: 'DMSans_700Bold',
   script: 'Pacifico_400Regular',
+  bubbly: 'FredokaOne_400Regular',
 } as const;
 
 export const type = {

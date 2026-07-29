@@ -4,6 +4,7 @@
   "main": "expo-router/entry",
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
+    "@expo-google-fonts/fredoka-one": "^0.2.3",
     "@expo-google-fonts/lilita-one": "^0.4.1",
     "@expo-google-fonts/pacifico": "^0.4.1",
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",

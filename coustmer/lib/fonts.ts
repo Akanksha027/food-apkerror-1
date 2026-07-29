@@ -5,6 +5,7 @@ import {
   DMSans_700Bold,
 } from '@expo-google-fonts/dm-sans';
 import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
+import { FredokaOne_400Regular } from '@expo-google-fonts/fredoka-one';
 import {
   PlusJakartaSans_400Regular,
   PlusJakartaSans_500Medium,
@@ -26,5 +27,6 @@ export function useAppFonts() {
     DMSans_600SemiBold,
     DMSans_700Bold,
     Pacifico_400Regular,
+    FredokaOne_400Regular,
   });
 }
