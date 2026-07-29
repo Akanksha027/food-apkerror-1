@@ -28,17 +28,11 @@
         "expo-build-properties",
         {
           "android": {
-            "compileSdkVersion": 36,
-            "targetSdkVersion": 36,
             "minSdkVersion": 24,
-            "buildToolsVersion": "35.0.1",
-            "ndkVersion": "27.1.12297006",
-            "usesCleartextTraffic": true,
-            "extraMavenRepos": []
+            "usesCleartextTraffic": true
           }
         }
-      ],
-      "./withMinSdkVersion.js"
+      ]
     ],
     "ios": {
       "supportsTablet": true,
