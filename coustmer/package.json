@@ -70,7 +70,8 @@
     "seed:menus": "node ../scripts/seed-restaurant-menus.mjs",
     "seed:menus:dry": "node ../scripts/seed-restaurant-menus.mjs --dry-run",
     "backfill:images": "node ../scripts/backfill-menu-images.mjs",
-    "backfill:images:dry": "node ../scripts/backfill-menu-images.mjs --dry-run"
+    "backfill:images:dry": "node ../scripts/backfill-menu-images.mjs --dry-run",
+    "lint": "expo lint"
   },
   "private": true
 }
