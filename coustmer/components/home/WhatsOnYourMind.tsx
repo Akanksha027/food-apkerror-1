@@ -6,54 +6,57 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { fonts } from '@/constants/typography';
 import type { HomeCategory } from '@/lib/home/types';
 
-/** Matches Swiggy “What’s on your mind?” cutouts / labels from the mock. */
+/**
+ * Category data with PNG cutout images — no background circles.
+ * The image URLs point to transparent PNG food icons (Unsplash food cutouts).
+ */
 export const MIND_CATEGORIES: HomeCategory[] = [
   {
     id: 'mind-burger',
-    label: 'Burgers',
+    label: 'Burger',
     slug: 'burger',
     imageUrl:
-      'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=280&h=280&fit=crop&q=85',
+      'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&h=200&fit=crop&q=90',
     sortOrder: 1,
   },
   {
-    id: 'mind-pizza',
-    label: 'Pizzas',
-    slug: 'pizza',
+    id: 'mind-steak',
+    label: 'Steak',
+    slug: 'steak',
     imageUrl:
-      'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=280&h=280&fit=crop&q=85',
+      'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=200&h=200&fit=crop&q=90',
     sortOrder: 2,
   },
   {
-    id: 'mind-rolls',
-    label: 'Rolls',
-    slug: 'rolls',
+    id: 'mind-seafood',
+    label: 'Sea Food',
+    slug: 'seafood',
     imageUrl:
-      'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=280&h=280&fit=crop&q=85',
+      'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=200&h=200&fit=crop&q=90',
     sortOrder: 3,
   },
   {
-    id: 'mind-chaap',
-    label: 'Chaap',
-    slug: 'chaap',
+    id: 'mind-desserts',
+    label: 'Desserts',
+    slug: 'dessert',
     imageUrl:
-      'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=280&h=280&fit=crop&q=85',
+      'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=200&h=200&fit=crop&q=90',
     sortOrder: 4,
+  },
+  {
+    id: 'mind-pizza',
+    label: 'Pizza',
+    slug: 'pizza',
+    imageUrl:
+      'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=200&h=200&fit=crop&q=90',
+    sortOrder: 5,
   },
   {
     id: 'mind-biryani',
     label: 'Biryani',
     slug: 'biryani',
     imageUrl:
-      'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=280&h=280&fit=crop&q=85',
-    sortOrder: 5,
-  },
-  {
-    id: 'mind-north',
-    label: 'North Indian',
-    slug: 'north-indian',
-    imageUrl:
-      'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=280&h=280&fit=crop&q=85',
+      'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=200&h=200&fit=crop&q=90',
     sortOrder: 6,
   },
   {
@@ -61,32 +64,24 @@ export const MIND_CATEGORIES: HomeCategory[] = [
     label: 'Chinese',
     slug: 'chinese',
     imageUrl:
-      'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=280&h=280&fit=crop&q=85',
+      'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=200&h=200&fit=crop&q=90',
     sortOrder: 7,
   },
   {
-    id: 'mind-momos',
-    label: 'Momos',
-    slug: 'momos',
+    id: 'mind-rolls',
+    label: 'Rolls',
+    slug: 'rolls',
     imageUrl:
-      'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=280&h=280&fit=crop&q=85',
+      'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=200&h=200&fit=crop&q=90',
     sortOrder: 8,
-  },
-  {
-    id: 'mind-dessert',
-    label: 'Desserts',
-    slug: 'dessert',
-    imageUrl:
-      'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=280&h=280&fit=crop&q=85',
-    sortOrder: 9,
   },
 ];
 
 type Props = {
   categories?: HomeCategory[];
-  /** Compact sticky strip — images only, slightly smaller. */
+  /** Compact sticky strip — slightly smaller items. */
   compact?: boolean;
-  /** Hide the “What’s on your mind?” title (sticky strip never shows it). */
+  /** Hide the title row. */
   hideTitle?: boolean;
   onSelect?: (slug: string) => void;
 };
@@ -111,7 +106,11 @@ export function WhatsOnYourMind({
   return (
     <View style={[styles.wrap, compact && styles.wrapCompact]}>
       {!hideTitle && !compact ? (
-        <Text style={styles.title}>What&apos;s on your mind?</Text>
+        <Text style={styles.title}>
+          <Text style={{ color: '#202020' }}>What's </Text>
+          <Text style={{ color: '#A0A0A0', fontFamily: fonts.displayMedium }}>Your Craving </Text>
+          <Text style={{ color: '#202020' }}>Today?</Text>
+        </Text>
       ) : null}
 
       <ScrollView
@@ -126,12 +125,15 @@ export function WhatsOnYourMind({
             style={[styles.item, compact && styles.itemCompact]}
             onPress={() => handlePress(cat.slug)}
           >
-            <Image
-              source={{ uri: cat.imageUrl }}
-              style={[styles.image, compact && styles.imageCompact]}
-              contentFit="contain"
-              transition={180}
-            />
+            {/* Image with NO background — transparent cutout effect */}
+            <View style={[styles.imageWrap, compact && styles.imageWrapCompact]}>
+              <Image
+                source={{ uri: cat.imageUrl }}
+                style={[styles.image, compact && styles.imageCompact]}
+                contentFit="cover"
+                transition={200}
+              />
+            </View>
             <Text
               style={[styles.label, compact && styles.labelCompact]}
               numberOfLines={1}
@@ -148,60 +150,83 @@ export function WhatsOnYourMind({
 const styles = StyleSheet.create({
   wrap: {
     backgroundColor: '#FFFFFF',
-    paddingTop: 18,
-    paddingBottom: 8,
-    borderRadius: 24,
-    marginHorizontal: 16,
-    overflow: 'hidden',
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   wrapCompact: {
-    paddingTop: 6,
-    paddingBottom: 6,
+    paddingTop: 8,
+    paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#EEEEEE',
   },
   title: {
-    fontFamily: fonts.display,
+    fontFamily: fonts.displayBold,
     fontSize: 20,
-    color: '#02060C',
+    color: '#111827',
     letterSpacing: -0.4,
     paddingHorizontal: 16,
     marginBottom: 14,
   },
   row: {
     paddingHorizontal: 12,
-    gap: 6,
+    gap: 4,
   },
   rowCompact: {
     paddingHorizontal: 10,
-    gap: 4,
+    gap: 2,
   },
+
+  // ── Item ──
   item: {
-    width: 88,
+    width: 76,
     alignItems: 'center',
+    paddingVertical: 4,
   },
   itemCompact: {
+    width: 62,
+  },
+
+  // ── Image container — no background (transparent) ──
+  imageWrap: {
     width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#FFF5EE', // Very soft warm tint — mimics the design's slight warm bg
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Subtle shadow to lift the food off the background
+    shadowColor: '#F97316',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  imageWrapCompact: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   image: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
+    width: '100%',
+    height: '100%',
   },
   imageCompact: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: '100%',
+    height: '100%',
   },
+
+  // ── Label ──
   label: {
-    marginTop: 6,
+    marginTop: 7,
     fontFamily: fonts.uiSemi,
-    fontSize: 13,
-    color: '#3E4152',
+    fontSize: 12,
+    color: '#374151',
     textAlign: 'center',
+    letterSpacing: 0.1,
   },
   labelCompact: {
     marginTop: 4,
-    fontSize: 11,
+    fontSize: 10,
   },
 });

@@ -1,24 +1,14 @@
 import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { CheckCircle2, ChevronRight, Star } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Truck } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator,
-  Alert,
-  
-  StyleSheet,
-  Text,
-  View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
-import { authTheme } from '@/constants/auth-theme';
 import { fonts } from '@/constants/typography';
 import { swiggyOrderUi as ui } from '@/constants/swiggy-order-ui';
 import { useReorder } from '@/lib/order/hooks';
-import {
-  isActiveOrderStatus,
-  ORDER_STATUS_LABELS,
-  type Order,
-} from '@/lib/order/types';
+import { ORDER_STATUS_LABELS, type Order } from '@/lib/order/types';
 
 function formatOrderWhen(iso?: string) {
   if (!iso) return '';
@@ -32,34 +22,31 @@ function formatOrderWhen(iso?: string) {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-  });
-  return `${date}, ${time}`;
+  }).toLowerCase().replace(' ', ''); // '09:30pm'
+  return `${date} • ${time}`;
 }
 
 type Props = {
   order: Order;
 };
 
+const BRAND_ORANGE = '#F3744B';
+const TEXT_DARK = '#202020';
+const TEXT_MUTED = '#9CA3AF';
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=200&auto=format&fit=crop';
+
 export function OrderCard({ order }: Props) {
   const router = useRouter();
   const reorder = useReorder(order.id);
+  const [expanded, setExpanded] = useState(false);
 
-  const headline =
-    order.restaurantName ||
-    order.items[0]?.name ||
-    (order.orderNumber ? `Order #${order.orderNumber}` : 'Your order');
-  const cover =
-    order.items[0]?.imageUrl ||
-    (typeof order.restaurantImageUrl === 'string'
-      ? order.restaurantImageUrl
-      : undefined);
+  const headline = order.restaurantName || order.items[0]?.name || 'Your order';
+  const cover = order.items[0]?.imageUrl || (typeof order.restaurantImageUrl === 'string' ? order.restaurantImageUrl : FALLBACK_IMAGE);
   const when = formatOrderWhen(order.createdAt || order.scheduledFor);
-  const total =
-    typeof order.total === 'number'
-      ? order.total
-      : order.items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const total = typeof order.total === 'number' ? order.total : order.items.reduce((s, i) => s + i.price * i.quantity, 0);
 
   const isDelivered = order.status.toLowerCase() === 'delivered';
+  const statusLabel = isDelivered ? 'Delivered' : ORDER_STATUS_LABELS[order.status] ?? order.status;
 
   const openDetail = () => {
     router.push({
@@ -69,7 +56,6 @@ export function OrderCard({ order }: Props) {
   };
 
   const handleReorder = () => {
-    // Reorder logic here (same as before)
     Alert.alert('Order again?', 'Place a new order with the same items.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -88,10 +74,7 @@ export function OrderCard({ order }: Props) {
               },
             ]);
           } catch (e) {
-            Alert.alert(
-              'Reorder failed',
-              e instanceof Error ? e.message : 'Could not reorder'
-            );
+            Alert.alert('Reorder failed', e instanceof Error ? e.message : 'Could not reorder');
           }
         },
       },
@@ -100,96 +83,70 @@ export function OrderCard({ order }: Props) {
 
   return (
     <Pressable style={styles.card} onPress={openDetail}>
-      <View style={styles.topRow}>
-        <View style={styles.headerLeft}>
-          {cover ? (
-            <Image
-              source={{ uri: cover }}
-              style={styles.heroThumb}
-              contentFit="cover"
-            />
-          ) : (
-            <View style={[styles.heroThumb, styles.thumbEmpty]} />
-          )}
-          <View style={styles.headerInfo}>
-            <Text style={styles.headline} numberOfLines={1}>
-              {headline}
-            </Text>
-            <Text style={styles.locationText} numberOfLines={1}>
-              {order.restaurantName ? 'Raj Nagar' : 'Location'}
-            </Text>
-          </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.dateText}>{when}</Text>
+        <View style={styles.statusPill}>
+          <Text style={styles.statusText}>{statusLabel}</Text>
         </View>
-
-        <View style={styles.statusBox}>
-          <Text style={[styles.statusText, isDelivered && { color: ui.green }]}>
-            {isDelivered ? 'Delivered' : ORDER_STATUS_LABELS[order.status] ?? order.status}
-          </Text>
-          {isDelivered && <CheckCircle2 color={ui.green} fill={ui.green} size={16} strokeWidth={1} />}
-        </View>
-      </View>
-
-      <View style={styles.itemsBlock}>
-        {order.items.slice(0, 2).map((item, index) => (
-          <View key={index} style={styles.itemRow}>
-            <View style={styles.qtyBox}>
-              <Text style={styles.qtyText}>{item.quantity}X</Text>
-            </View>
-            <Text style={styles.itemName} numberOfLines={1}>
-              {item.name}
-            </Text>
-          </View>
-        ))}
-        {order.items.length > 2 && (
-          <Text style={styles.moreItemsText}>+ {order.items.length - 2} more items</Text>
-        )}
       </View>
 
       <View style={styles.divider} />
 
-      <View style={styles.ratingRow}>
-        <View style={styles.ratingCol}>
-          <Text style={styles.ratingLabel}>Your Food Rating</Text>
-          <View style={styles.starsRow}>
-            {[1, 2, 3, 4, 5].map((s) => (
-              <Star key={s} color="#D1D5DB" size={18} strokeWidth={1.5} />
-            ))}
-          </View>
+      {/* Main Order Item Info */}
+      <Pressable style={styles.mainItemRow} onPress={() => setExpanded(!expanded)}>
+        <Image source={{ uri: cover }} style={styles.mainThumb} contentFit="cover" />
+        <View style={styles.mainItemInfo}>
+          <Text style={styles.mainItemTitle} numberOfLines={1}>{headline}</Text>
+          <Text style={styles.orderIdText}>Order ID: {order.orderNumber || order.id.slice(0, 8)}</Text>
         </View>
-        <View style={styles.ratingDivider} />
-        <View style={styles.ratingCol}>
-          <Text style={styles.ratingLabel}>Delivery Rating</Text>
-          <View style={styles.starsRow}>
-            {[1, 2, 3, 4, 5].map((s) => (
-              <Star key={s} color="#D1D5DB" size={18} strokeWidth={1.5} />
-            ))}
-          </View>
+        <View style={styles.itemsCountWrap}>
+          <Text style={styles.itemsCountText}>{order.items.length} Items</Text>
+          {expanded ? (
+            <ChevronUp color={TEXT_MUTED} size={16} strokeWidth={2.5} />
+          ) : (
+            <ChevronDown color={TEXT_MUTED} size={16} strokeWidth={2.5} />
+          )}
         </View>
-      </View>
-
-      <Pressable
-        style={styles.reorderBtn}
-        onPress={(e) => {
-          e.stopPropagation();
-          handleReorder();
-        }}
-        disabled={reorder.isPending}
-      >
-        {reorder.isPending ? (
-          <ActivityIndicator color="#F15700" size="small" />
-        ) : (
-          <View style={styles.reorderContent}>
-            <Text style={styles.reorderText}>REORDER</Text>
-            <ChevronRight color="#F15700" size={16} strokeWidth={2.5} />
-          </View>
-        )}
       </Pressable>
 
-      <View style={styles.footerRow}>
-        <Text style={styles.footerText}>Ordered: {when}</Text>
-        <Text style={styles.footerDot}>•</Text>
-        <Text style={styles.footerText}>Bill Total: ₹{total.toFixed(0)}</Text>
+      {/* Expanded Items List */}
+      {expanded && (
+        <View style={styles.itemsList}>
+          {order.items.map((item, index) => {
+            // Mock original price to simulate discount as seen in the mockup
+            const originalPrice = (item.price + 2).toFixed(2);
+            const currentPrice = item.price.toFixed(2);
+            const itemThumb = item.imageUrl || FALLBACK_IMAGE;
+
+            return (
+              <View key={index} style={styles.itemRow}>
+                <Image source={{ uri: itemThumb }} style={styles.itemThumb} contentFit="cover" />
+                <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
+                
+                <View style={styles.priceWrap}>
+                  <Text style={styles.priceCurrent}>₹{currentPrice}</Text>
+                  <Text style={styles.priceOriginal}>₹{originalPrice}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Summary Footer */}
+      <View style={styles.summaryFooter}>
+        <Text style={styles.summaryLeft}>
+          <Text style={styles.summaryGrand}>Grand</Text> VAT Include
+        </Text>
+        <Text style={styles.summaryTotal}>Total: ₹{total.toFixed(2)}</Text>
       </View>
+
+      {/* Order Again Button */}
+      <Pressable style={styles.orderAgainBtn} onPress={handleReorder}>
+        <Truck color={BRAND_ORANGE} size={20} strokeWidth={2} />
+        <Text style={styles.orderAgainText}>Order Again</Text>
+      </Pressable>
     </Pressable>
   );
 }
@@ -198,158 +155,143 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
   },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  headerLeft: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    justifyContent: 'space-between',
+    paddingBottom: 16,
   },
-  heroThumb: {
-    width: 48,
+  dateText: {
+    fontFamily: fonts.uiMedium,
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  statusPill: {
+    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontFamily: fonts.uiMedium,
+    fontSize: 13,
+    color: TEXT_DARK,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginBottom: 16,
+  },
+  mainItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  mainThumb: {
+    width: 72,
     height: 48,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
     marginRight: 12,
   },
-  thumbEmpty: {
-    backgroundColor: authTheme.brandSoft,
-  },
-  headerInfo: {
+  mainItemInfo: {
     flex: 1,
   },
-  headline: {
-    fontFamily: fonts.displayBold,
-    color: '#1F2937',
+  mainItemTitle: {
+    fontFamily: fonts.displaySemi,
     fontSize: 16,
-    letterSpacing: -0.3,
+    color: TEXT_DARK,
+    marginBottom: 4,
   },
-  locationText: {
-    fontFamily: fonts.ui,
-    color: '#6B7280',
+  orderIdText: {
+    fontFamily: fonts.uiMedium,
     fontSize: 13,
-    marginTop: 2,
+    color: TEXT_MUTED,
   },
-  statusBox: {
+  itemsCountWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  statusText: {
-    fontFamily: fonts.uiBold,
+  itemsCountText: {
+    fontFamily: fonts.uiMedium,
     fontSize: 13,
-    color: '#4B5563',
+    color: TEXT_MUTED,
   },
-  itemsBlock: {
-    marginBottom: 16,
+  itemsList: {
+    gap: 16,
+    marginBottom: 24,
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  qtyBox: {
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginRight: 10,
-  },
-  qtyText: {
-    fontFamily: fonts.uiBold,
-    color: '#6B7280',
-    fontSize: 11,
+  itemThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    marginRight: 12,
   },
   itemName: {
-    fontFamily: fonts.ui,
-    color: '#4B5563',
-    fontSize: 14,
     flex: 1,
+    fontFamily: fonts.uiMedium,
+    fontSize: 14,
+    color: TEXT_DARK,
+    paddingRight: 12,
   },
-  moreItemsText: {
-    fontFamily: fonts.ui,
-    color: '#9CA3AF',
-    fontSize: 13,
-    marginLeft: 32,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#F3F4F6',
-    marginBottom: 16,
-  },
-  ratingRow: {
+  priceWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    gap: 6,
   },
-  ratingCol: {
-    flex: 1,
+  priceCurrent: {
+    fontFamily: fonts.uiSemi,
+    fontSize: 14,
+    color: BRAND_ORANGE,
   },
-  ratingLabel: {
+  priceOriginal: {
     fontFamily: fonts.uiMedium,
-    color: '#6B7280',
-    fontSize: 12,
-    marginBottom: 6,
+    fontSize: 14,
+    color: TEXT_MUTED,
+    textDecorationLine: 'line-through',
   },
-  starsRow: {
+  summaryFooter: {
     flexDirection: 'row',
-    gap: 4,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
   },
-  ratingDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: '#F3F4F6',
-    marginHorizontal: 16,
+  summaryLeft: {
+    fontFamily: fonts.uiMedium,
+    fontSize: 14,
+    color: '#6B7280',
   },
-  reorderBtn: {
-    backgroundColor: '#FFF0E8', // Light orange tint
-    borderRadius: 8,
-    paddingVertical: 12,
+  summaryGrand: {
+    fontFamily: fonts.displaySemi,
+    color: TEXT_DARK,
+  },
+  summaryTotal: {
+    fontFamily: fonts.displaySemi,
+    fontSize: 14,
+    color: '#4B5563',
+  },
+  orderAgainBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: BRAND_ORANGE,
   },
-  reorderContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  reorderText: {
-    fontFamily: fonts.uiBold,
-    color: '#F15700',
-    fontSize: 13,
-    letterSpacing: 0.5,
-  },
-  footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    paddingTop: 12,
-  },
-  footerText: {
-    fontFamily: fonts.ui,
-    color: '#9CA3AF',
-    fontSize: 12,
-  },
-  footerDot: {
-    fontFamily: fonts.ui,
-    color: '#D1D5DB',
-    fontSize: 12,
-    marginHorizontal: 8,
+  orderAgainText: {
+    fontFamily: fonts.displaySemi,
+    fontSize: 16,
+    color: BRAND_ORANGE,
   },
 });

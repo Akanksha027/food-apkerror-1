@@ -32,59 +32,88 @@ export function SwiggyHomeChrome({
 }: Props) {
   const router = useRouter();
 
+  const locationText = isDetectingLocation
+    ? 'Detecting…'
+    : deliverySubtitle
+      ? deliverySubtitle
+      : deliveryTitle;
+
   return (
-    <View style={[styles.container, { paddingTop: topInset + 12 }]}>
+    <View style={[styles.container, { paddingTop: topInset }]}>
+      {/* Background hero image */}
       <Image
-        source={{ uri: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?q=80&w=1000&auto=format&fit=crop' }}
+        source={{
+          uri: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1200&auto=format&fit=crop',
+        }}
         style={StyleSheet.absoluteFill}
         contentFit="cover"
       />
+
+      {/* Dark overlay gradient */}
       <LinearGradient
-        colors={['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.95)']}
+        colors={['rgba(0,0,0,0.72)', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.88)']}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Top Bar */}
+      {/* ── Top bar ──────────────────────────────────── */}
       <View style={styles.topBar}>
-        <SmoothPressable style={styles.iconButton} onPress={() => router.push('/profile')}>
-          <Menu color="#FFFFFF" size={24} strokeWidth={2.5} />
+        {/* Menu / Hamburger */}
+        <SmoothPressable
+          style={styles.iconCircle}
+          onPress={() => router.push('/profile')}
+        >
+          <Menu color="#FFFFFF" size={20} strokeWidth={2.2} />
         </SmoothPressable>
 
+        {/* Delivery location */}
         <Pressable style={styles.locationWrap} onPress={onLocationPress}>
           <Text style={styles.locationLabel}>Delivery location</Text>
-          <View style={styles.locationTitleRow}>
-            <MapPin color="#FF5A41" size={16} strokeWidth={3} />
-            <Text style={styles.locationTitle} numberOfLines={1}>
-              {isDetectingLocation ? 'Detecting…' : (deliverySubtitle ? deliverySubtitle : deliveryTitle)}
+          <View style={styles.locationRow}>
+            <MapPin color="#F97316" size={14} strokeWidth={3} />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {locationText}
             </Text>
           </View>
         </Pressable>
 
-        <SmoothPressable style={styles.iconButton} onPress={() => router.push('/notifications')}>
-          <Bell color="#FFFFFF" size={24} strokeWidth={2.5} />
+        {/* Bell notification */}
+        <SmoothPressable
+          style={styles.iconCircle}
+          onPress={() => router.push('/notifications')}
+        >
+          <Bell color="#FFFFFF" size={20} strokeWidth={2.2} />
         </SmoothPressable>
       </View>
 
-      {/* Middle Promo Text */}
+      {/* ── Hero promo ───────────────────────────────── */}
       <View style={styles.promoWrap}>
-        <View style={styles.promoTitleRow}>
+        {/* Big percentage row */}
+        <View style={styles.promoAmountRow}>
           <Text style={styles.promoPercent}>15%</Text>
-          <View style={styles.promoTitleCol}>
+          <View style={styles.promoWords}>
             <Text style={styles.promoExtra}>EXTRA</Text>
             <Text style={styles.promoDiscount}>DISCOUNT</Text>
           </View>
         </View>
-        <Text style={styles.promoSubtitle}>Get your first order{'\n'}delivery free!</Text>
+        <Text style={styles.promoSub}>
+          Get your first order{'\n'}delivery free!
+        </Text>
       </View>
 
-      {/* Search Bar Row */}
+      {/* ── Search bar ───────────────────────────────── */}
       <View style={styles.searchRow}>
-        <Pressable style={styles.searchBox} onPress={() => router.push('/search')}>
-          <Search color="#9CA3AF" size={20} strokeWidth={2.5} />
-          <Text style={styles.searchPlaceholder}>Search by name & restaurant</Text>
+        <Pressable
+          style={styles.searchBox}
+          onPress={() => router.push('/search')}
+        >
+          <Search color="#9CA3AF" size={18} strokeWidth={2.2} />
+          <Text style={styles.searchPlaceholder}>
+            Search by name &amp; restaurant
+          </Text>
         </Pressable>
-        <SmoothPressable style={styles.mapButton}>
-          <MapIcon color="#FF5A41" size={22} strokeWidth={2.5} />
+
+        <SmoothPressable style={styles.mapCircle}>
+          <MapIcon color="#F97316" size={20} strokeWidth={2.2} />
         </SmoothPressable>
       </View>
     </View>
@@ -93,115 +122,127 @@ export function SwiggyHomeChrome({
 
 const styles = StyleSheet.create({
   container: {
-    paddingBottom: 24,
+    backgroundColor: '#111',
+    paddingBottom: 32,
+    // Large rounded bottom corners
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
     overflow: 'hidden',
-    backgroundColor: '#111',
   },
+
+  // ── Top bar ──
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    zIndex: 2,
+    paddingTop: 12,
+    paddingBottom: 0,
+    gap: 8,
   },
-  iconButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  iconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   locationWrap: {
-    alignItems: 'center',
     flex: 1,
-    paddingHorizontal: 12,
+    alignItems: 'center',
   },
   locationLabel: {
-    color: '#9CA3AF',
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
     fontFamily: fonts.uiMedium,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  locationTitleRow: {
+  locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
-  locationTitle: {
+  locationText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: fonts.displayBold,
+    maxWidth: 200,
   },
+
+  // ── Promo block ──
   promoWrap: {
     alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 40,
-    zIndex: 2,
+    marginTop: 28,
+    marginBottom: 28,
+    paddingHorizontal: 16,
   },
-  promoTitleRow: {
+  promoAmountRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   promoPercent: {
-    color: '#FF5A41',
-    fontSize: 64,
+    color: '#F97316',
+    fontSize: 60,
     fontFamily: fonts.display,
     letterSpacing: -2,
-    lineHeight: 70,
+    lineHeight: 66,
   },
-  promoTitleCol: {
+  promoWords: {
     justifyContent: 'center',
+    gap: 0,
   },
   promoExtra: {
     color: '#FFFFFF',
-    fontSize: 20,
-    fontFamily: fonts.displayBold,
-    letterSpacing: 1,
+    fontSize: 22,
+    fontFamily: fonts.display,
+    letterSpacing: 1.5,
+    lineHeight: 26,
   },
   promoDiscount: {
     color: '#FFFFFF',
-    fontSize: 20,
-    fontFamily: fonts.displayBold,
-    letterSpacing: 1,
-  },
-  promoSubtitle: {
-    color: '#F3F4F6',
-    fontSize: 18,
-    fontFamily: fonts.uiMedium,
-    textAlign: 'center',
-    marginTop: 8,
+    fontSize: 22,
+    fontFamily: fonts.display,
+    letterSpacing: 1.5,
     lineHeight: 26,
   },
+  promoSub: {
+    color: '#F3F4F6',
+    fontSize: 17,
+    fontFamily: fonts.uiMedium,
+    textAlign: 'center',
+    marginTop: 10,
+    lineHeight: 24,
+  },
+
+  // ── Search ──
   searchRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    gap: 12,
-    zIndex: 2,
+    gap: 10,
+    alignItems: 'center',
+    marginTop: 14, // Shifting search bar down slightly
   },
   searchBox: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 999,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    height: 56,
-    gap: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    height: 52,
+    gap: 10,
   },
   searchPlaceholder: {
-    color: '#9CA3AF',
-    fontSize: 15,
-    fontFamily: fonts.uiMedium,
     flex: 1,
+    color: '#9CA3AF',
+    fontSize: 14,
+    fontFamily: fonts.uiMedium,
   },
-  mapButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  mapCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',

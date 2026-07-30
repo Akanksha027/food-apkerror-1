@@ -72,11 +72,11 @@ export function ExploreRestaurantCard({
     typeof restaurant.distance === 'number' && restaurant.distance > 0
       ? `${restaurant.distance.toFixed(1)} km`
       : null;
-      
-  const costText = restaurant.costForTwo 
-    ? `₹${restaurant.costForTwo} for two` 
-    : restaurant.priceForTwo 
-      ? `₹${restaurant.priceForTwo} for two` 
+
+  const costText = restaurant.costForTwo
+    ? `₹${restaurant.costForTwo} for two`
+    : restaurant.priceForTwo
+      ? `₹${restaurant.priceForTwo} for two`
       : '₹200 for two';
 
   return (
@@ -138,19 +138,15 @@ export function ExploreRestaurantCard({
 
           <View style={styles.details}>
             <View style={styles.tagsRow}>
-              <View style={styles.tagItem}>
-                <Text style={styles.boltTextBold}>Bolt</Text>
-                <Zap color="#E16120" size={12} fill="#E16120" />
-                <Text style={styles.boltTextLight}> Food in 10-15 min</Text>
-              </View>
-              
+
+
               {restaurant.isPureVeg && (
                 <View style={styles.tagItem}>
                   <VegMarkIcon size={12} />
                   <Text style={styles.vegText}> Pure Veg</Text>
                 </View>
               )}
-              
+
               {/* Optional badge placeholder */}
               {typeof restaurant.badge === 'string' && (
                 <View style={styles.tagItem}>
@@ -222,8 +218,8 @@ const styles = StyleSheet.create({
     // iOS Shadow
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4, 
-    shadowRadius: 14, 
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
     // Android Shadow
     elevation: 14,
   },
@@ -270,7 +266,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   offerIconWrap: {
-    backgroundColor: '#F04F23', // Orange circle
+    backgroundColor: '#F97316', // Orange accent
     borderRadius: 12,
     padding: 4,
     justifyContent: 'center',
@@ -367,7 +363,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#1BA672',
+    backgroundColor: '#F97316',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 6,

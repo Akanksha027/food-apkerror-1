@@ -398,7 +398,7 @@ export function OrderTrackingScreen() {
       )}
 
       {/* Top Half: Map Area */}
-      <Animated.View style={[styles.mapContainer, animatedMapContainerStyle]}>
+      <Animated.View style={[styles.mapContainer, { height: '55%' }]}>
         <WebView
           style={styles.map}
           source={{ html: generateMapHtml(routeCoords, restLat, restLng, custLat, custLng, o?.restaurantName || 'Restaurant', googleMapsApiKey) }}
@@ -439,116 +439,57 @@ export function OrderTrackingScreen() {
           </Pressable>
         </View>
 
-        {/* Overlay Order Card */}
-        <View style={styles.orderCardWrapper}>
-          <View style={styles.orderCard}>
-            <View style={styles.orderCardHeader}>
-              <View>
-
-                <Text style={styles.orderCardTitle}>Order Placed!</Text>
-                <Text style={{ color: '#6B7280', fontSize: 13, marginTop: 4 }}>
-                  Food is being prepared at the restaurant
-                </Text>
-              </View>
-              <View style={styles.etaBadge}>
-                <Text style={styles.etaBadgeNum}>
-                  {distanceInfo ? distanceInfo.time.replace(' mins', '') : (t?.etaMinutes || 20)}
-                </Text>
-                <Text style={styles.etaBadgeText}>mins</Text>
-              </View>
-            </View>
-
-            <View style={styles.timelineRow}>
-              <View style={styles.timelineGraphic}>
-                <View style={styles.timelineDotSmall} />
-                <View style={styles.timelineLine} />
-                <View style={styles.timelineDotSmall} />
-              </View>
-              <View style={styles.timelineContent}>
-                <Text style={styles.timelineRestaurant}>{o?.restaurantName || 'The Waffle Co.'}</Text>
-                <View style={styles.timelineAddressRow}>
-                  <Edit2 color="#1C1C1C" size={12} style={{ marginTop: 2, marginRight: 6 }} />
-                  <Text style={styles.timelineAddress} numberOfLines={2}>
-                    To {o?.deliveryAddress?.label || 'House'} {distanceInfo ? `• ${distanceInfo.dist}` : ''} | {o?.deliveryAddress?.formattedAddress || 'Anand dham flats Ashok nagar b block market Ghaziabad'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-            <Pressable
-              style={styles.addressBtn}
-              onPress={() => router.push(`/orders/${orderId}`)}
-            >
-              <Text style={styles.addressBtnText}>Address & instructions</Text>
-              <ChevronRight color="#AC0F45" size={16} />
-            </Pressable>
-          </View>
-        </View>
       </Animated.View>
 
-      {/* Bottom Content Scroll */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.bottomScroll}>
-
-        {/* WhatsApp Banner */}
-        <View style={styles.whatsappBanner}>
-          <View style={styles.waIconBox}>
-            <MessageCircle color="#25D366" size={24} />
+      {/* Bottom Sheet */}
+      <View style={styles.bottomSheetContainer}>
+          <View style={styles.dragHandle} />
+          
+          <Text style={styles.deliveryStatusTitle}>Delivery Status</Text>
+          <Text style={styles.deliveryStatusSub}>Food on the way</Text>
+          
+          <View style={styles.scooterImageContainer}>
+            <Image 
+              source={require('../../public/scooter.png')} 
+              style={styles.scooterImage} 
+              resizeMode="contain" 
+            />
           </View>
-          <View style={styles.waContent}>
-            <Text style={styles.waSubText}>Order placed successfully</Text>
-            <Text style={styles.waMainText}>You have ordered it and we will deliver it soon</Text>
+          
+          <View style={styles.trackerContainer}>
+             <View style={styles.trackerBarBg} />
+             <View style={[styles.trackerBarFill, { width: '68%' }]} />
+             
+             <View style={styles.trackerNodes}>
+               <View style={styles.trackerNodeCol}>
+                 <View style={styles.trackerDotActive}>
+                   <View style={styles.trackerDotInner} />
+                 </View>
+                 <Text style={styles.trackerText}>Order{'\n'}Received</Text>
+               </View>
+               <View style={styles.trackerNodeCol}>
+                 <View style={styles.trackerDotActive}>
+                   <View style={styles.trackerDotInner} />
+                 </View>
+                 <Text style={styles.trackerText}>Headed{'\n'}to pickup</Text>
+               </View>
+               <View style={styles.trackerNodeCol}>
+                 <View style={styles.trackerDotActiveLargeBg}>
+                   <View style={styles.trackerDotActiveLarge} />
+                 </View>
+                 <Text style={styles.trackerText}>Food's on{'\n'}the way</Text>
+               </View>
+               <View style={styles.trackerNodeCol}>
+                 <View style={styles.trackerDotInactive} />
+                 <Text style={styles.trackerTextInactive}>Arriving{'\n'}soon</Text>
+               </View>
+             </View>
           </View>
-          <ChevronRight color="#888" size={20} />
-        </View>
 
-        {/* Ad Banner (Placeholder for Amex) */}
-        <View style={styles.adBanner}>
-          <View style={styles.adLeft}>
-            <Text style={styles.adTitle}>Distinctly yours every day</Text>
-            <View style={styles.adDivider} />
-            <Text style={styles.adSubtitle}>Benefits worth</Text>
-            <Text style={styles.adAmount}>up to ₹80,000</Text>
-            <View style={styles.adCardMock}>
-              <Text style={styles.adCardMockText}>American Express®</Text>
-              <Text style={styles.adCardMockSub}>Platinum Reserve™ Credit Card</Text>
-            </View>
-          </View>
-          <View style={styles.adRight}>
-            <View style={styles.adImageMock}>
-              <Text style={styles.adImageText}>🛶 Kayaking Image</Text>
-            </View>
-            <Pressable style={styles.adCloseBtn}>
-              <X color="#FFF" size={12} />
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.whileYouWait}>
-          <Text style={styles.whileYouWaitText}>WHILE YOU WAIT</Text>
-          <View style={styles.whileYouWaitLine} />
-        </View>
-
-        <View style={{ height: 100 }} />
-      </ScrollView>
-
-      {/* Scratch Card Popup (Floating) */}
-      {showScratchCard && (
-        <View style={styles.scratchPopup}>
-          <Pressable
-            style={{ position: 'absolute', top: -12, right: -12, backgroundColor: '#FFFFFF', padding: 6, borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 4, zIndex: 10 }}
-            onPress={() => setShowScratchCard(false)}
-          >
-            <X color="#1C1C1C" size={16} />
-          </Pressable>
-          <View style={styles.scratchCardRed}>
-            <Gift color="#FFF" size={32} />
-            <Text style={styles.scratchCardText}>--- SCRATCH HERE ---</Text>
-          </View>
-          <Text style={styles.scratchTitle}>SCRATCH CARD</Text>
-          <Text style={styles.scratchSubtitle}>Reveal a reward</Text>
-        </View>
-      )}
+          <Text style={styles.helpText}>
+            Need help? <Text style={{ fontWeight: '700', color: '#1C1C1C' }}>Chat with pepper</Text>
+          </Text>
+      </View>
 
     </View>
   );
@@ -682,278 +623,146 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '500',
   },
-  orderCardWrapper: {
-    position: 'absolute',
-    bottom: 12,
-    left: 16,
-    right: 16,
-    zIndex: 10,
-  },
-  orderCard: {
+  bottomSheetContainer: {
+    flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 16,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 32,
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 20,
+    zIndex: 100,
   },
-  orderCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  orderCardTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#1C1C1C',
-  },
-  etaBadge: {
-    backgroundColor: '#00A160',
-    borderRadius: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-  },
-  etaBadgeNum: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  etaBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  timelineRow: {
-    flexDirection: 'row',
-    marginTop: 16,
-  },
-  timelineGraphic: {
-    alignItems: 'center',
-    marginRight: 12,
-    paddingTop: 6,
-  },
-  timelineDotSmall: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#D1D5DB',
-  },
-  timelineLine: {
-    width: 1,
-    height: 24,
+  dragHandle: {
+    width: 40,
+    height: 4,
     backgroundColor: '#E5E7EB',
-    marginVertical: 4,
-  },
-  timelineContent: {
-    flex: 1,
-  },
-  timelineRestaurant: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333333',
-  },
-  timelineAddressRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: 6,
-  },
-  timelineAddress: {
-    fontSize: 13,
-    color: '#6B7280',
-    flex: 1,
-    lineHeight: 18,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#F3F4F6',
-    marginVertical: 16,
-  },
-  addressBtn: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  addressBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1C1C1C',
-  },
-  bottomScroll: {
-    paddingTop: 40,
-    paddingHorizontal: 16,
-    paddingBottom: 40,
-  },
-  whatsappBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 16,
+    borderRadius: 2,
     marginBottom: 16,
   },
-  waIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: '#DCFCE7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  waContent: {
-    flex: 1,
-  },
-  waSubText: {
-    fontSize: 12,
-    color: '#6B7280',
+  deliveryStatusTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1C1C1C',
     marginBottom: 2,
   },
-  waMainText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1C1C1C',
+  deliveryStatusSub: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    marginBottom: 8,
   },
-  adBanner: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginBottom: 24,
-  },
-  adLeft: {
-    flex: 1,
-    padding: 16,
-  },
-  adTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#4B5563',
-  },
-  adDivider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 8,
-  },
-  adSubtitle: {
-    fontSize: 14,
-    color: '#4B5563',
-  },
-  adAmount: {
-    fontSize: 22,
-    fontWeight: '300',
-    color: '#1C1C1C',
-    marginBottom: 12,
-  },
-  adCardMock: {
-    backgroundColor: '#1F2937',
-    borderRadius: 8,
-    padding: 12,
+  scooterImageContainer: {
+    height: 160,
     width: '100%',
-  },
-  adCardMockText: { color: '#FFF', fontSize: 10, fontWeight: '700' },
-  adCardMockSub: { color: '#9CA3AF', fontSize: 8, marginTop: 4 },
-  adRight: {
-    width: '40%',
-    backgroundColor: '#93C5FD',
-    position: 'relative',
-  },
-  adImageMock: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    marginVertical: 4,
   },
-  adImageText: {
-    color: '#1E3A8A',
-    fontSize: 10,
-    fontWeight: '700',
-    textAlign: 'center',
+  scooterImage: {
+    width: 220,
+    height: 160,
   },
-  adCloseBtn: {
+  trackerContainer: {
+    width: '100%',
+    marginTop: 8,
+    marginBottom: 24,
+    position: 'relative',
+    paddingHorizontal: 8,
+  },
+  trackerBarBg: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 14,
+    left: 24,
+    right: 24,
+    height: 20,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+  },
+  trackerBarFill: {
+    position: 'absolute',
+    top: 14,
+    left: 24,
+    height: 20,
+    backgroundColor: '#FF7D44',
+    borderRadius: 10,
+  },
+  trackerNodes: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  trackerNodeCol: {
+    alignItems: 'center',
+    width: 70,
+  },
+  trackerDotActive: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: '#FF7D44',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  whileYouWait: {
-    alignItems: 'center',
-    marginVertical: 16,
-    position: 'relative',
-  },
-  whileYouWaitText: {
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 2,
-    color: '#1C1C1C',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
-    zIndex: 2,
-  },
-  whileYouWaitLine: {
-    position: 'absolute',
-    top: '50%',
-    left: 40,
-    right: 40,
-    height: 1,
-    backgroundColor: '#D1D5DB',
-    zIndex: 1,
-  },
-  scratchPopup: {
-    position: 'absolute',
-    bottom: 24,
-    right: 16,
-    backgroundColor: '#2A1A1A',
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-    width: 140,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  scratchCardRed: {
-    backgroundColor: '#DC2626',
-    width: 100,
-    height: 100,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    shadowColor: '#DC2626',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-  },
-  scratchCardText: {
-    color: '#FCA5A5',
-    fontSize: 8,
-    fontWeight: '700',
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
     marginTop: 12,
   },
-  scratchTitle: {
-    color: '#FCA5A5',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+  trackerDotInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
   },
-  scratchSubtitle: {
-    color: '#FFFFFF',
+  trackerDotActiveLargeBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 125, 68, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trackerDotActiveLarge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FF7D44',
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+  },
+  trackerDotInactive: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#E5E7EB',
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+    marginTop: 12,
+  },
+  trackerText: {
     fontSize: 10,
+    color: '#1C1C1C',
+    textAlign: 'center',
+    marginTop: 6,
+    fontWeight: '600',
+    lineHeight: 12,
+  },
+  trackerTextInactive: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: 6,
     fontWeight: '500',
-    marginTop: 2,
+    lineHeight: 12,
+  },
+
+  helpText: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginBottom: 8,
   },
 });

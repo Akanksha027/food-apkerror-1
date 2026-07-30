@@ -1,61 +1,29 @@
 import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Check, HelpCircle, Minus, Plus, Share2, X } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
-import { Alert,
+import { Heart, Minus, Plus, Share2, X, ChevronRight } from 'lucide-react-native';
+import { useState } from 'react';
+import {
   Modal,
-  Platform,
-  
   ScrollView,
-  Share,
   StyleSheet,
   Text,
-  View } from 'react-native';
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import { VegBadge } from '@/components/restaurant/MenuBadges';
-import { authTheme } from '@/constants/auth-theme';
 import { addMenuItemToCart } from '@/lib/order/add-to-cart';
-import { getMenuItemRating } from '@/lib/restaurant/menu-rating';
-import { MenuItem } from '@/lib/restaurant/types';
+import type { MenuItem } from '@/lib/restaurant/types';
 import { playHapticFeedback } from '@/lib/utils/haptics';
 import { useCartStore } from '@/store/cart-store';
-
-function caloriesFor(item: MenuItem): string | null {
-  const raw = item.calories ?? item.calorie ?? item.cal;
-  if (typeof raw === 'number' && raw > 0) return `${Math.round(raw)}Cal.`;
-  if (typeof raw === 'string' && raw.trim()) {
-    return raw.toLowerCase().includes('cal') ? raw : `${raw}Cal.`;
-  }
-  const tags = Array.isArray(item.tags) ? item.tags : [];
-  const calTag = tags.find((t) => String(t).startsWith('cal:'));
-  if (calTag) {
-    const n = String(calTag).split(':')[1];
-    if (n) return `${n}Cal.`;
-  }
-  return null;
-}
-
-function likedBadge(item: MenuItem, rating: number | null): string | null {
-  const tags = Array.isArray(item.tags) ? item.tags : [];
-  if (tags.some((t) => /most.?liked|bestseller|popular/i.test(String(t)))) {
-    return '#1 Most liked';
-  }
-  if (rating != null && rating >= 4.5) return '#1 Most liked';
-  if (item.categoryName?.toLowerCase().includes('recommend')) {
-    return 'Recommended';
-  }
-  return rating != null ? `★ ${rating.toFixed(1)} rated` : null;
-}
 
 type MenuItemDetailSheetProps = {
   item: MenuItem | null;
   restaurantId: string;
   restaurantName: string;
   restaurantImageUrl?: string;
-  visible: boolean;
+  visible?: boolean;
   onClose: () => void;
 };
 
@@ -64,13 +32,16 @@ export function MenuItemDetailSheet({
   restaurantId,
   restaurantName,
   restaurantImageUrl,
-  visible,
+  visible = true,
   onClose,
 }: MenuItemDetailSheetProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const [favorited, setFavorited] = useState(false);
 
-  const cartQuantity = useCartStore(
+  const [selectedSize, setSelectedSize] = useState('15 cm ( Half )');
+
+  const quantity = useCartStore(
     (s) =>
       s.items.find((i) => i.id === item?.id || i.menuItemId === item?.id)
         ?.quantity || 0
@@ -78,171 +49,158 @@ export function MenuItemDetailSheet({
   const increment = useCartStore((s) => s.increment);
   const decrement = useCartStore((s) => s.decrement);
 
-  const rating = item ? getMenuItemRating(item) : null;
-  const badge = item ? likedBadge(item, rating) : null;
-  const cal = item ? caloriesFor(item) : null;
-
-  const unitPrice = item?.price ?? 0;
-
-  const handleShare = async () => {
+  const handleAdd = () => {
     if (!item) return;
-    try {
-      await Share.share({
-        message: `Check out ${item.name} at ${restaurantName}!`,
+    playHapticFeedback();
+
+    if (quantity === 0) {
+      addMenuItemToCart(item, {
+        id: restaurantId,
+        name: restaurantName,
+        imageUrl: restaurantImageUrl,
       });
-    } catch {
-      // dismissed
+    } else {
+      increment(item.id);
     }
   };
 
-  const handleAdd = () => {
-    if (!item || item.isAvailable === false) return;
+  const handleDecrement = () => {
+    if (!item) return;
     playHapticFeedback();
-
-    const cartItem: MenuItem = {
-      ...item,
-      price: unitPrice,
-      specialInstructions: item.specialInstructions,
-    };
-
-    addMenuItemToCart(cartItem, {
-      id: restaurantId,
-      name: restaurantName,
-      imageUrl: restaurantImageUrl,
-    });
+    decrement(item.id);
   };
 
   if (!item) return null;
 
+  const unitPrice = item.price ?? 0;
+
   return (
     <Modal
       visible={visible}
-      transparent
+      transparent={true}
       animationType="slide"
       statusBarTranslucent={true}
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <View style={[styles.sheetContainer, { marginTop: insets.top + 120 }]}>
 
-        <View style={styles.sheet}>
-          {/* Floating Close Button */}
-          <Pressable style={styles.closeBtn} onPress={onClose}>
-            <X color="#FFFFFF" size={24} />
-          </Pressable>
+          {/* Floating close button */}
+          <View style={styles.closeBtnWrap}>
+            <Pressable style={styles.closeBtn} onPress={onClose}>
+              <X color="#202020" size={20} strokeWidth={2.5} />
+            </Pressable>
+          </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-            {/* Header Image */}
-            <View style={styles.hero}>
-              {item.imageUrl ? (
-                <Image
-                  source={{ uri: item.imageUrl }}
-                  style={styles.heroImage}
-                  contentFit="cover"
-                />
-              ) : (
-                <LinearGradient colors={['#FFF7ED', '#FFEDD5']} style={styles.heroImage} />
-              )}
-            </View>
-            {/* Out of Stock overlay on hero image */}
-            {item.isAvailable === false && (
-              <View style={styles.outOfStockOverlay}>
-                <View style={styles.outOfStockBadge}>
-                  <Text style={styles.outOfStockText}>Out of Stock</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Content Body */}
-            <View style={styles.body}>
-              {badge ? (
-                <View style={styles.likedPill}>
-                  <Text style={styles.likedText}>{badge}</Text>
-                </View>
-              ) : null}
-
-              <View style={styles.titleRow}>
-                <VegBadge isVeg={item.isVeg} />
-                <Text style={styles.name}>{item.name}</Text>
-              </View>
-
-              {cal ? <Text style={styles.calories}>{cal}</Text> : null}
-
-              <Text style={styles.price}>₹{item.price.toFixed(0)}</Text>
-
-              {item.description ? (
-                <Text style={styles.description}>{item.description}</Text>
-              ) : null}
-
-              {item.isAvailable === false ? (
-                <View style={styles.unavailableRow}>
-                  <Text style={styles.unavailableText}>⚠️ Currently unavailable</Text>
-                  <Text style={styles.unavailableHint}>This item is temporarily out of stock and cannot be ordered right now.</Text>
-                </View>
-              ) : null}
-            </View>
-          </ScrollView>
-
-          {/* Footer actions */}
-          {item.isAvailable !== false ? (
-            cartQuantity > 0 ? (
-              <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-                <View style={{ flexDirection: 'row', gap: 12, flex: 1 }}>
-                  <View style={[styles.qtyWrap, { flex: 1, justifyContent: 'space-between', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: authTheme.brand }]}>
-                    <Pressable
-                      style={styles.qtyBtn}
-                      onPress={() => {
-                        playHapticFeedback();
-                        decrement(item.id);
-                        if (cartQuantity === 1) onClose();
-                      }}
-                      hitSlop={8}
-                    >
-                      <Minus color={authTheme.brand} size={20} strokeWidth={2.6} />
-                    </Pressable>
-                    <Text style={[styles.qtyValue, { color: authTheme.brand, fontSize: 18 }]}>{cartQuantity}</Text>
-                    <Pressable
-                      style={styles.qtyBtn}
-                      onPress={() => {
-                        playHapticFeedback();
-                        increment(item.id);
-                      }}
-                      hitSlop={8}
-                    >
-                      <Plus color={authTheme.brand} size={20} strokeWidth={2.6} />
-                    </Pressable>
-                  </View>
-                  <Pressable
-                    style={[styles.addBtn, { flex: 1, backgroundColor: '#111827' }]}
-                    onPress={() => {
-                      onClose();
-                      router.push('/cart');
-                    }}
-                  >
-                    <Text style={styles.addBtnText}>View Cart</Text>
-                  </Pressable>
-                </View>
-              </View>
-            ) : (
-              <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-                <View style={{ flex: 1, justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827' }}>
-                    ₹{unitPrice.toFixed(0)}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: '#6B7280', fontWeight: '500' }}>Item Total</Text>
-                </View>
-                <Pressable style={[styles.addBtn, { flex: 1.5 }]} onPress={handleAdd}>
-                  <Text style={styles.addBtnText}>ADD ITEM</Text>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            bounces={false}
+          >
+            {/* Hero Image */}
+            <View style={styles.heroWrap}>
+              <Image
+                source={{ uri: item.imageUrl || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=600&auto=format&fit=crop' }}
+                style={styles.heroImg}
+                contentFit="cover"
+              />
+              <View style={styles.heroActions}>
+                <Pressable style={styles.iconCircle}>
+                  <Share2 color="#E87431" size={18} strokeWidth={2.5} />
+                </Pressable>
+                <Pressable
+                  style={styles.iconCircle}
+                  onPress={() => setFavorited(!favorited)}
+                >
+                  <Heart
+                    color="#E87431"
+                    size={18}
+                    strokeWidth={2.5}
+                    fill={favorited ? '#E87431' : 'transparent'}
+                  />
                 </Pressable>
               </View>
-            )
-          ) : (
-            <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-              <View style={[styles.addBtn, styles.addBtnDisabled, { flex: 1 }]}>
-                <Text style={[styles.addBtnText, { color: '#9CA3AF' }]}>OUT OF STOCK</Text>
-              </View>
             </View>
-          )}
+
+            {/* Details */}
+            <View style={styles.detailsBlock}>
+              <View style={styles.titleRow}>
+                <Text style={styles.title}>{item.name}</Text>
+                <VegBadge isVeg={item.isVeg} />
+              </View>
+
+              <Text style={styles.description}>
+                {item.description || 'Serving size: 15cm - 33 g protein / 678 kcal / 299 g, 30cm - 66 g protein / 1356 kcal / 598 g. Double the paneer, with real mozz cheese. Indulge in hot cheesy paneer melt loaded with paneer, tangy tandoori sauce, fresh veggies and cheese slice. Allergens - contains cereals containing gluten, milk, soy.'}
+              </Text>
+
+              <Text style={styles.priceText}>₹{unitPrice}</Text>
+            </View>
+
+            {/* Size Options Mock */}
+            <View style={styles.optionsCard}>
+              <Text style={styles.optionsTitle}>Size</Text>
+
+              <Pressable
+                style={styles.optionRow}
+                onPress={() => setSelectedSize('15 cm ( Half )')}
+              >
+                <View style={styles.radioContainer}>
+                  <View style={[styles.radioOuter, selectedSize === '15 cm ( Half )' && styles.radioOuterSelected]}>
+                    {selectedSize === '15 cm ( Half )' && <View style={styles.radioInner} />}
+                  </View>
+                  <Text style={styles.optionName}>15 cm ( Half )</Text>
+                </View>
+                <Text style={styles.optionPrice}>₹{unitPrice}</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.optionRow}
+                onPress={() => setSelectedSize('30 cm ( Full )')}
+              >
+                <View style={styles.radioContainer}>
+                  <View style={[styles.radioOuter, selectedSize === '30 cm ( Full )' && styles.radioOuterSelected]}>
+                    {selectedSize === '30 cm ( Full )' && <View style={styles.radioInner} />}
+                  </View>
+                  <Text style={styles.optionName}>30 cm ( Full )</Text>
+                </View>
+                <Text style={styles.optionPrice}>₹{unitPrice * 2}</Text>
+              </Pressable>
+            </View>
+
+          </ScrollView>
+
+          {/* Bottom Bar */}
+          <View style={[styles.bottomBarWrap, { paddingBottom: 12 }]}>
+            {quantity === 0 ? (
+              <Pressable style={styles.addToCartPillCentered} onPress={handleAdd}>
+                <Text style={styles.addToCartText}>Add to cart</Text>
+              </Pressable>
+            ) : (
+              <View style={styles.addToCartPill}>
+                <View style={styles.stepperWrap}>
+                  <Pressable onPress={handleDecrement} style={styles.stepperBtn} hitSlop={10}>
+                    <Minus color="#202020" size={16} strokeWidth={2.5} />
+                  </Pressable>
+                  <Text style={styles.stepperVal}>{quantity}</Text>
+                  <Pressable onPress={handleAdd} style={styles.stepperBtn} hitSlop={10}>
+                    <Plus color="#202020" size={16} strokeWidth={2.5} />
+                  </Pressable>
+                </View>
+
+                <Pressable
+                  style={styles.viewCartRight}
+                  onPress={() => {
+                    onClose();
+                    router.push('/cart');
+                  }}
+                >
+                  <Text style={styles.addToCartText}>View Cart</Text>
+                  <ChevronRight color="#FFFFFF" size={20} style={{ marginLeft: 4 }} />
+                </Pressable>
+              </View>
+            )}
+          </View>
+
         </View>
       </View>
     </Modal>
@@ -252,241 +210,217 @@ export function MenuItemDetailSheet({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
-  backdrop: {
-    ...StyleSheet.absoluteFill,
+  sheetContainer: {
+    flex: 1,
+    backgroundColor: '#EEEEEE',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    position: 'relative',
   },
-  sheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    maxHeight: '80%',
-    overflow: 'hidden',
+  closeBtnWrap: {
+    position: 'absolute',
+    top: -64,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 20,
   },
   closeBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E5E5E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  scrollContent: {
+    paddingTop: 40,
+    paddingHorizontal: 20,
+    paddingBottom: 120,
+  },
+  heroWrap: {
+    width: '100%',
+    height: 260,
+    borderRadius: 24,
+    overflow: 'hidden',
+    position: 'relative',
+    marginBottom: 20,
+  },
+  heroImg: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+  },
+  heroActions: {
     position: 'absolute',
     top: 16,
     right: 16,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  iconCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
-    zIndex: 100,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  hero: {
-    height: 260,
-    backgroundColor: '#F3F4F6',
-  },
-  heroImage: {
-    ...StyleSheet.absoluteFill,
-  },
-  body: {
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 24,
-  },
-  likedPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    marginBottom: 10,
-  },
-  likedText: {
-    color: '#4B5563',
-    fontSize: 12,
-    fontWeight: '700',
+  detailsBlock: {
+    marginBottom: 24,
   },
   titleRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 8,
+    marginBottom: 12,
   },
-  name: {
+  title: {
     flex: 1,
-    color: '#111827',
     fontSize: 24,
     fontWeight: '800',
-    lineHeight: 30,
-    letterSpacing: -0.3,
-  },
-  calories: {
-    marginTop: 6,
-    color: '#9CA3AF',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  price: {
-    marginTop: 8,
-    color: '#111827',
-    fontSize: 18,
-    fontWeight: '800',
+    color: '#202020',
+    paddingRight: 16,
   },
   description: {
-    marginTop: 12,
-    color: '#9CA3AF',
-    fontSize: 14,
-    lineHeight: 21,
-    fontWeight: '400',
-  },
-  unavailable: {
-    marginTop: 10,
-    color: authTheme.error,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  addonsHeader: {
-    marginTop: 24,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingBottom: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E5E7EB',
-  },
-  addonsTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  addonsHint: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 4,
-  },
-  optionalPill: {
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  optionalText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 13,
     color: '#6B7280',
+    lineHeight: 18,
+    marginBottom: 16,
   },
-  addonList: {
-    marginTop: 8,
+  priceText: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#202020',
   },
-  addonRow: {
+  optionsCard: {
+    backgroundColor: '#E5E5E5',
+    borderRadius: 24,
+    padding: 20,
+  },
+  optionsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#202020',
+    marginBottom: 16,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  radioContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
   },
-  checkbox: {
+  radioOuter: {
     width: 20,
     height: 20,
-    borderRadius: 4,
+    borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#D1D5DB',
-    alignItems: 'center',
+    borderColor: '#9CA3AF',
     justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
-  checkboxOn: {
-    backgroundColor: authTheme.brand,
-    borderColor: authTheme.brand,
+  radioOuterSelected: {
+    borderColor: '#E87431',
   },
-  addonName: {
-    flex: 1,
-    fontSize: 15,
-    color: '#111827',
-    fontWeight: '600',
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#E87431',
   },
-  addonPrice: {
-    fontSize: 14,
-    color: '#6B7280',
+  optionName: {
+    fontSize: 16,
+    color: '#202020',
     fontWeight: '500',
   },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    gap: 16,
-  },
-  qtyWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 14,
-    paddingHorizontal: 8,
-    height: 48,
-  },
-  qtyBtn: {
-    padding: 10,
-  },
-  qtyValue: {
+  optionPrice: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#111827',
-    width: 28,
-    textAlign: 'center',
+    color: '#202020',
+    fontWeight: '700',
   },
-  addBtn: {
-    flex: 1,
-    backgroundColor: authTheme.brand,
-    height: 48,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addBtnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  addBtnDisabled: {
-    backgroundColor: '#F3F4F6',
-  },
-  outOfStockOverlay: {
+  bottomBarWrap: {
     position: 'absolute',
+    bottom: 0,
     left: 0,
     right: 0,
-    top: 0,
-    height: 260,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    backgroundColor: '#EEEEEE',
+  },
+  addToCartPillCentered: {
+    backgroundColor: '#E87431',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 30,
+    paddingVertical: 18,
+    shadowColor: '#E87431',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  outOfStockBadge: {
-    backgroundColor: '#EF4444',
-    paddingHorizontal: 20,
+  addToCartPill: {
+    backgroundColor: '#E87431',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 30,
+    paddingLeft: 8,
+    paddingRight: 16,
     paddingVertical: 8,
-    borderRadius: 999,
+    shadowColor: '#E87431',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  outOfStockText: {
+  viewCartRight: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingVertical: 10,
+  },
+  addToCartText: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  unavailableRow: {
-    marginTop: 12,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-  },
-  unavailableText: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#DC2626',
-    marginBottom: 4,
   },
-  unavailableHint: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#991B1B',
-    lineHeight: 17,
+  stepperWrap: {
+    backgroundColor: '#E5E5E5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minWidth: 100,
+  },
+  stepperBtn: {
+    padding: 2,
+  },
+  stepperVal: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#202020',
   },
 });

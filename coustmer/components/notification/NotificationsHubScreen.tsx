@@ -17,7 +17,7 @@ import { ActivityIndicator,
   View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { LinearGradient } from 'expo-linear-gradient';
+
 import { ScreenHeader } from '@/components/common/ScreenHeader';
 import {
   ErrorView,
@@ -144,9 +144,8 @@ export function NotificationsHubScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={['#FFFFFF', '#F8FAFC', '#F1F5F9']}
-      style={[styles.safe, { paddingTop: Math.max(insets.top, 16) }]}
+    <View
+      style={[styles.safe, { paddingTop: Math.max(insets.top, 32) }]}
     >
       <View style={styles.container}>
         <ScreenHeader
@@ -232,11 +231,11 @@ export function NotificationsHubScreen() {
           />
         ) : notifications.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconCircle}>
+            <View style={styles.emptyIconWrap}>
               {filter === 'unread' ? (
-                <BellOff color={authTheme.brand} size={48} strokeWidth={1.5} />
+                <BellOff color={authTheme.brand} size={32} strokeWidth={2} />
               ) : (
-                <Bell color={authTheme.brand} size={48} strokeWidth={1.5} />
+                <Bell color={authTheme.brand} size={32} strokeWidth={2} />
               )}
             </View>
             <Text style={styles.emptyTitle}>
@@ -277,70 +276,64 @@ export function NotificationsHubScreen() {
           />
         )}
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: authTheme.bg,
+    backgroundColor: '#FFFFFF',
   },
   container: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingHorizontal: 16,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   headerBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E5E5E5',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    marginLeft: 8,
   },
   segmentedControl: {
     flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
-    borderRadius: 12,
+    backgroundColor: '#EDF1F5',
     padding: 4,
-    marginBottom: 20,
-    marginTop: 12,
+    borderRadius: 12,
+    marginTop: 16,
+    marginBottom: 24,
   },
   segmentBtn: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   segmentBtnActive: {
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
     elevation: 2,
   },
   segmentText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#6B7280',
   },
   segmentTextActive: {
-    color: '#0F172A',
+    color: '#202020',
     fontWeight: '700',
   },
   list: {
@@ -358,35 +351,23 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingBottom: 80,
+    paddingHorizontal: 40,
+    marginTop: 40,
   },
-  emptyIconCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-    shadowColor: authTheme.brand,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 4,
+  emptyIconWrap: {
+    marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#202020',
     marginBottom: 8,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#64748B',
+    fontSize: 13,
+    color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
   },
 });

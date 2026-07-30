@@ -32,7 +32,9 @@
             "usesCleartextTraffic": true
           }
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-video"
     ],
     "ios": {
       "supportsTablet": true,

@@ -1,22 +1,9 @@
 import { Pressable } from '@/components/common/Pressable';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Minus, Plus, Star } from 'lucide-react-native';
-import { useEffect } from 'react';
+import { Heart, Minus, Plus } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  Easing,
-  interpolateColor,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
 
-import { PriceTag, VegBadge } from '@/components/restaurant/MenuBadges';
-import { authTheme } from '@/constants/auth-theme';
-import { getMenuItemRating } from '@/lib/restaurant/menu-rating';
+import { VegBadge } from '@/components/restaurant/MenuBadges';
 import type { MenuItem } from '@/lib/restaurant/types';
 import { playHapticFeedback } from '@/lib/utils/haptics';
 import { useCartStore } from '@/store/cart-store';
@@ -25,282 +12,191 @@ type Props = {
   item: MenuItem;
   onPress?: () => void;
   onAdd?: () => void;
-  /** Soft highlight when opened from search deep-link. */
   highlighted?: boolean;
 };
 
-export function MenuItemRow({ item, onPress, onAdd, highlighted }: Props) {
-  const rating = getMenuItemRating(item);
-  const highlight = useSharedValue(0);
-  
+export function MenuItemRow({ item, onPress, onAdd }: Props) {
   const quantity = useCartStore(
     (s) =>
-      s.items.find(
-        (i) => i.id === item.id || i.menuItemId === item.id
-      )?.quantity || 0
+      s.items.find((i) => i.id === item.id || i.menuItemId === item.id)
+        ?.quantity || 0
   );
   const increment = useCartStore((s) => s.increment);
   const decrement = useCartStore((s) => s.decrement);
 
-  useEffect(() => {
-    if (highlighted) {
-      highlight.value = 0;
-      highlight.value = withSequence(
-        withTiming(1, {
-          duration: 420,
-          easing: Easing.out(Easing.cubic),
-        }),
-        withDelay(
-          2400,
-          withTiming(0, {
-            duration: 700,
-            easing: Easing.inOut(Easing.quad),
-          })
-        )
-      );
+  const handleAdd = (e: any) => {
+    e.stopPropagation?.();
+    playHapticFeedback();
+    if (quantity === 0 && onAdd) {
+      onAdd();
     } else {
-      highlight.value = withTiming(0, {
-        duration: 280,
-        easing: Easing.out(Easing.quad),
-      });
+      increment(item.id);
     }
-  }, [highlighted, highlight]);
+  };
 
-  const highlightStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      highlight.value,
-      [0, 1],
-      ['transparent', 'rgba(255, 90, 65, 0.08)']
-    ),
-    borderColor: interpolateColor(
-      highlight.value,
-      [0, 1],
-      ['transparent', 'rgba(255, 90, 65, 0.28)']
-    ),
-    borderWidth: highlight.value > 0.01 ? 1 : 0,
-    transform: [
-      {
-        scale: 1 + highlight.value * 0.012,
-      },
-    ],
-    marginHorizontal: -8 * highlight.value,
-    paddingHorizontal: 8 * highlight.value,
-    borderRadius: 12 * highlight.value,
-  }));
+  const handleDecrement = (e: any) => {
+    e.stopPropagation?.();
+    playHapticFeedback();
+    decrement(item.id);
+  };
 
+  const currentPrice = item.price;
+  
   return (
-    <Animated.View style={highlightStyle}>
-      <Pressable style={styles.row} onPress={onPress}>
-        <View style={styles.textWrap}>
-          <View style={styles.titleRow}>
-            <VegBadge isVeg={item.isVeg} />
-            <Text style={styles.name} numberOfLines={2}>
-              {item.name}
-            </Text>
-          </View>
-          <View style={styles.metaRow}>
-            <PriceTag price={item.price} />
-            {rating != null ? (
-              <View style={styles.ratingPill}>
-                <Star color="#FFFFFF" fill="#FFFFFF" size={10} />
-                <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
-              </View>
-            ) : null}
-          </View>
-          {item.description ? (
-            <Text style={styles.desc} numberOfLines={2}>
-              {item.description}
-            </Text>
-          ) : null}
-          {!item.isAvailable ? (
-            <Text style={styles.unavailable}>Currently unavailable</Text>
-          ) : null}
+    <Pressable style={styles.card} onPress={onPress}>
+      <View style={styles.leftCol}>
+        <View style={styles.vegRow}>
+          <VegBadge isVeg={item.isVeg} />
         </View>
+        <Text style={styles.name} numberOfLines={2}>
+          {item.name}
+        </Text>
+        <Text style={styles.desc} numberOfLines={3}>
+          {item.description || 'Serving size: 15cm - 33 g protein / 678 kcal / 299 g, 30cm - 66 g protein...more'}
+        </Text>
+        <Text style={styles.price}>₹{currentPrice}</Text>
+      </View>
 
+      <View style={styles.rightCol}>
         <View style={styles.imageWrap}>
-          {item.imageUrl ? (
-            <Image
-              source={{ uri: item.imageUrl }}
-              style={styles.image}
-              contentFit="cover"
-              recyclingKey={item.id}
-              transition={200}
-            />
-          ) : (
-            <LinearGradient
-              colors={['#FFF7ED', '#FFEDD5']}
-              style={styles.imagePlaceholder}
-            />
-          )}
-          {item.isAvailable ? (
-            quantity > 0 ? (
-              <View style={styles.stepperWrap}>
-                <Pressable
-                  style={styles.stepperBtn}
-                  hitSlop={8}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    playHapticFeedback();
-                    decrement(item.id);
-                  }}
-                >
-                  <Minus color={authTheme.brand} size={14} strokeWidth={3} />
+          <Image
+            source={{ uri: item.imageUrl || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=200&auto=format&fit=crop' }}
+            style={styles.image}
+            contentFit="cover"
+          />
+          <Pressable style={styles.heartBtn}>
+            <Heart color="#F3744B" size={16} strokeWidth={2} />
+          </Pressable>
+          <View style={styles.addBtnWrap}>
+            {quantity > 0 ? (
+              <View style={styles.stepperContainer}>
+                <Pressable onPress={handleDecrement} hitSlop={8} style={styles.stepperBtn}>
+                  <Minus color="#FFFFFF" size={14} strokeWidth={3} />
                 </Pressable>
-                <Text style={styles.stepperValue}>{quantity}</Text>
-                <Pressable
-                  style={styles.stepperBtn}
-                  hitSlop={8}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    playHapticFeedback();
-                    increment(item.id);
-                  }}
-                >
-                  <Plus color={authTheme.brand} size={14} strokeWidth={3} />
+                <Text style={styles.stepperText}>{quantity}</Text>
+                <Pressable onPress={handleAdd} hitSlop={8} style={styles.stepperBtn}>
+                  <Plus color="#FFFFFF" size={14} strokeWidth={3} />
                 </Pressable>
               </View>
             ) : (
-              <Pressable
-                style={styles.addButton}
-                onPress={(e) => {
-                  e.stopPropagation?.();
-                  playHapticFeedback();
-                  onAdd?.();
-                }}
-              >
-                <Text style={styles.addLabel}>ADD</Text>
-                <Plus color={authTheme.brand} size={14} />
+              <Pressable style={styles.addButton} onPress={handleAdd}>
+                <Text style={styles.addButtonText}>+ ADD</Text>
               </Pressable>
-            )
-          ) : null}
+            )}
+          </View>
         </View>
-      </Pressable>
-    </Animated.View>
+      </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
     flexDirection: 'row',
-    gap: 14,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: authTheme.cardBorder,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginHorizontal: 20,
   },
-  textWrap: {
+  leftCol: {
     flex: 1,
-    gap: 6,
+    paddingRight: 16,
+    justifyContent: 'flex-start',
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
+  vegRow: {
+    marginBottom: 6,
   },
   name: {
-    flex: 1,
-    color: authTheme.text,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-    lineHeight: 20,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  ratingPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#16A34A',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  ratingText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
+    color: '#202020',
+    marginBottom: 6,
   },
   desc: {
-    color: authTheme.textMuted,
     fontSize: 12,
-    lineHeight: 17,
+    color: '#9CA3AF',
+    lineHeight: 16,
+    marginBottom: 12,
   },
-  unavailable: {
-    color: authTheme.error,
-    fontSize: 12,
-    fontWeight: '600',
+  price: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#202020',
+  },
+  rightCol: {
+    width: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   imageWrap: {
-    width: 128,
-    height: 108,
-    borderRadius: 14,
-    overflow: 'visible',
-    backgroundColor: authTheme.input,
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
   },
   image: {
     width: '100%',
     height: '100%',
-    borderRadius: 14,
-    overflow: 'hidden',
+    borderRadius: 12,
   },
-  imagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 14,
-  },
-  addButton: {
+  heartBtn: {
     position: 'absolute',
-    bottom: -10,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    top: 6,
+    right: 6,
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: authTheme.brand,
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
   },
-  addLabel: {
-    color: authTheme.brand,
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  stepperWrap: {
+  addBtnWrap: {
     position: 'absolute',
-    bottom: -10,
+    bottom: -14,
     alignSelf: 'center',
+    shadowColor: '#F3744B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  addButton: {
+    backgroundColor: '#F3744B',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  stepperContainer: {
+    backgroundColor: '#F3744B',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    width: 82,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: authTheme.brand,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 20,
+    width: 80,
   },
   stepperBtn: {
     padding: 2,
   },
-  stepperValue: {
-    color: authTheme.brand,
+  stepperText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
     fontSize: 14,
-    fontWeight: '800',
   },
 });

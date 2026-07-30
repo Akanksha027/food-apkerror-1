@@ -20,15 +20,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorView, LoadingView } from '@/components/common/StateViews';
 import { SaveAddressLabelModal } from '@/components/address/SaveAddressLabelModal';
 import { PopularRestaurantsSection } from '@/components/home/PopularRestaurantsSection';
-import { TopRatedNearYou } from '@/components/home/TopRatedNearYou';
-import { HomeFilterChips } from '@/components/home/HomeFilterChips';
-import { AutoScrollingDeals } from '@/components/home/AutoScrollingDeals';
+import { FeaturedRestaurants } from '@/components/home/FeaturedRestaurants';
+import { CategoriesSection, CategoryPillStrip } from '@/components/home/CategoriesSection';
+import { OrderAgainSection } from '@/components/home/OrderAgainSection';
+
 import { SwiggyHomeChrome } from '@/components/home/SwiggyHomeChrome';
 import { VegModeModal } from '@/components/home/VegModeModal';
-import {
-  MIND_CATEGORIES,
-  WhatsOnYourMind,
-} from '@/components/home/WhatsOnYourMind';
 import { DeliveryLocationPicker } from '@/components/location/DeliveryLocationPicker';
 import { InitialLocationSheet } from '@/components/location/InitialLocationSheet';
 import { OnboardingPrompt } from '@/components/customer/OnboardingPrompt';
@@ -71,6 +68,7 @@ import {
 } from '@/store/veg-preference-store';
 
 const HOME_BG = '#FFFFFF';
+const ORANGE = '#F97316';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -155,12 +153,7 @@ export default function HomeScreen() {
   const greeting =
     user?.firstName?.trim() || user?.email?.split('@')[0] || 'foodie';
 
-  const mindCategories = useMemo(() => {
-    const fromApi = (discovery.data?.categories ?? []).filter(
-      (c) => c.slug !== 'all' && c.imageUrl
-    );
-    return fromApi.length >= 4 ? fromApi : MIND_CATEGORIES;
-  }, [discovery.data?.categories]);
+
 
   const feed = useInfiniteRestaurants(
     {
@@ -244,17 +237,16 @@ export default function HomeScreen() {
   });
 
   useAnimatedReaction(
-    () => pinAt.value > 0 && scrollY.value >= pinAt.value - insets.top,
+    () => scrollY.value >= 120,
     (isPinned, prev) => {
       if (isPinned !== prev) {
         runOnJS(setMindPinned)(!!isPinned);
       }
-    },
-    [insets.top]
+    }
   );
 
   const pinOverlayStyle = useAnimatedStyle(() => {
-    const show = pinAt.value > 0 && scrollY.value >= pinAt.value - insets.top;
+    const show = scrollY.value >= 120;
     return { opacity: show ? 1 : 0 };
   });
 
@@ -487,58 +479,59 @@ export default function HomeScreen() {
    */
   const listHeader = (
     <View>
+      {/* Hero chrome — measure its height for sticky pinning */}
       <View
         onLayout={(e) => {
           pinAt.value = e.nativeEvent.layout.height;
         }}
       >
         {chrome}
-
-        {restaurants.length > 0 ? (
-          <TopRatedNearYou 
-            restaurants={restaurants.slice(0, 10)} 
-            favoriteIds={favoriteIds}
-            onToggleFavorite={toggleFavorite}
-          />
-        ) : null}
-
-        <Text style={styles.mindTitle}>What&apos;s on your mind?</Text>
-
-        {!city && !isDetectingLocation ? (
-          <View style={[styles.paddedBlock, styles.hintCard]}>
-            <Text style={styles.hintText}>
-              Set your delivery location above to see restaurants in your city.
-            </Text>
-          </View>
-        ) : null}
-
-        {feed.isError ? (
-          <View style={[styles.paddedBlock, styles.errorWrap]}>
-            <ErrorView
-              message={
-                feed.error instanceof Error
-                  ? feed.error.message
-                  : 'Could not load restaurants'
-              }
-              onRetry={() => feed.refetch()}
-            />
-          </View>
-        ) : null}
       </View>
 
-      <Animated.View
-        style={inlineMindStyle}
-        pointerEvents={mindPinned ? 'none' : 'auto'}
-      >
-        <WhatsOnYourMind categories={mindCategories} hideTitle />
-      </Animated.View>
 
-      <AutoScrollingDeals deals={deals.data || []} />
 
-      <HomeFilterChips
-        activeFilter={activeFilter}
-        onFilterPress={onFilterPress}
-      />
+
+
+
+
+      {/* Categories Section */}
+      <CategoriesSection restaurants={restaurants.slice(0, 10)} />
+
+      {/* Featured Restaurants horizontal scroll (Hot Deals) */}
+      {restaurants.length > 0 ? (
+        <View>
+          <Text style={{ fontFamily: fonts.displayBold, fontSize: 22, color: '#202020', paddingHorizontal: 16, marginBottom: 4, marginTop: 4 }}>
+            Hot Deals %
+          </Text>
+          <FeaturedRestaurants
+            restaurants={restaurants.slice(0, 10)}
+          />
+        </View>
+      ) : null}
+
+      {!city && !isDetectingLocation ? (
+        <View style={[styles.paddedBlock, styles.hintCard]}>
+          <Text style={styles.hintText}>
+            Set your delivery location above to see restaurants in your city.
+          </Text>
+        </View>
+      ) : null}
+
+      {feed.isError ? (
+        <View style={[styles.paddedBlock, styles.errorWrap]}>
+          <ErrorView
+            message={
+              feed.error instanceof Error
+                ? feed.error.message
+                : 'Could not load restaurants'
+            }
+            onRetry={() => feed.refetch()}
+          />
+        </View>
+      ) : null}
+
+      {/* Order Again Section */}
+      <OrderAgainSection />
 
       <CustomerRecommendations />
 
@@ -584,8 +577,8 @@ export default function HomeScreen() {
       <StatusBar style="dark" />
 
       <Animated.FlatList
-        data={[] as { key: string }[]}
-        keyExtractor={(item) => item.key}
+        data={restaurants}
+        keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={false}
         scrollEventThrottle={16}
@@ -628,16 +621,18 @@ export default function HomeScreen() {
         renderItem={() => null}
       />
 
-      {/* Sticky mind items only (title does NOT stick) */}
+
+
+      {/* Sticky compact category strip when scrolled past */}
       <Animated.View
         style={[
           styles.pinOverlay,
-          { paddingTop: insets.top },
+          { paddingTop: insets.top, paddingBottom: 0 },
           pinOverlayStyle,
         ]}
         pointerEvents={mindPinned ? 'auto' : 'none'}
       >
-        <WhatsOnYourMind categories={mindCategories} compact hideTitle />
+        <CategoryPillStrip style={{ paddingHorizontal: 16 }} />
       </Animated.View>
 
       {locationPicker}
@@ -662,15 +657,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: HOME_BG,
-  },
-  mindTitle: {
-    fontFamily: fonts.display,
-    fontSize: 20,
-    color: '#02060C',
-    letterSpacing: -0.4,
-    paddingHorizontal: 16,
-    marginTop: 18,
-    marginBottom: 4,
   },
   pinOverlay: {
     position: 'absolute',

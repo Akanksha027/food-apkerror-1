@@ -11,32 +11,46 @@ import {
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { authTheme } from '@/constants/auth-theme';
+import { fonts } from '@/constants/typography';
 import { useCartStore } from '@/store/cart-store';
 
 /** Space to leave above the floating tab bar on root tab screens. */
-export const APP_BOTTOM_NAV_INSET = 98;
+export const APP_BOTTOM_NAV_INSET = 80;
 
-const ICON_IDLE = '#9CA3AF';
-const ICON_ACTIVE = authTheme.brand;
+const ORANGE = '#F97316';
+const IDLE_COLOR = '#9CA3AF';
+const ACTIVE_COLOR = '#111827';
 
-type SideTab = {
-  key: 'home' | 'saved' | 'orders' | 'profile';
+type Tab = {
+  key: string;
   label: string;
   href: Href;
   match: (pathname: string) => boolean;
   Icon: typeof Home;
-  filledWhenActive?: boolean;
 };
 
-const SIDE_TABS: SideTab[] = [
+const TABS: Tab[] = [
   {
     key: 'home',
     label: 'Home',
     href: '/home',
     match: (p) => p === '/home' || p.endsWith('/home'),
     Icon: Home,
-    filledWhenActive: true,
+  },
+  {
+    key: 'saved',
+    label: 'Saved',
+    href: '/favorites',
+    match: (p) => p === '/favorites' || p.endsWith('/favorites'),
+    Icon: Heart,
+  },
+  // CENTER: Cart handled separately
+  {
+    key: 'orders',
+    label: 'Orders',
+    href: '/orders',
+    match: (p) => p.startsWith('/orders'),
+    Icon: ClipboardList,
   },
   {
     key: 'profile',
@@ -44,7 +58,6 @@ const SIDE_TABS: SideTab[] = [
     href: '/profile',
     match: (p) => p === '/profile' || p.endsWith('/profile'),
     Icon: UserRound,
-    filledWhenActive: true,
   },
 ];
 
@@ -62,9 +75,11 @@ function isRestaurantsPath(pathname: string) {
 
 export function isAppTabRoot(pathname: string): boolean {
   const path = pathname.split('?')[0] ?? pathname;
-  if (isFavoritesPath(path) || isCartPath(path)) return false;
+  if (isCartPath(path)) return false;
   return (
-    isRestaurantsPath(path) || SIDE_TABS.some((tab) => tab.match(path))
+    isRestaurantsPath(path) ||
+    isFavoritesPath(path) ||
+    TABS.some((tab) => tab.match(path))
   );
 }
 
@@ -80,53 +95,66 @@ export function AppBottomNav() {
   if (!onTabRoot) return null;
 
   const cartActive = isCartPath(path);
-  const leftTabs = SIDE_TABS.slice(0, 1);
-  const rightTabs = SIDE_TABS.slice(1);
 
-  const go = (href: Href, alreadyActive: boolean) => {
-    if (alreadyActive) return;
+  const go = (href: Href) => {
     router.replace(href);
   };
 
-  const renderSideTab = (tab: SideTab) => {
-    const active = tab.match(path);
-    const Icon = tab.Icon;
+  // Left 2 tabs: Home, Saved
+  const leftTabs = TABS.slice(0, 2);
+  // Right 2 tabs: Orders, Profile
+  const rightTabs = TABS.slice(2);
 
-    return (
-      <Pressable
-        key={tab.key}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: active }}
-        accessibilityLabel={tab.label}
-        hitSlop={8}
-        onPress={() => go(tab.href, active)}
-        style={styles.sideTab}
-      >
-        <Icon
-          color={active ? ICON_ACTIVE : ICON_IDLE}
-          size={22}
-          strokeWidth={active ? 2.4 : 1.9}
-          fill={active && tab.filledWhenActive ? ICON_ACTIVE : 'transparent'}
-        />
-        <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tab.label}</Text>
-      </Pressable>
-    );
-  };
-
-  const bar = (
-    <View style={styles.barOuter}>
+  return (
+    <View
+      pointerEvents="box-none"
+      style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 8) }]}
+    >
       <View style={styles.bar}>
-        <View style={styles.sideGroup}>{leftTabs.map(renderSideTab)}</View>
+        {/* ── Left tabs ── */}
+        {leftTabs.map((tab) => {
+          const active = tab.match(path);
+          const Icon = tab.Icon;
+          return (
+            <Pressable
+              key={tab.key}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={tab.label}
+              onPress={() => go(tab.href)}
+              style={styles.tab}
+            >
+              <Icon
+                color={active ? ORANGE : IDLE_COLOR}
+                size={22}
+                strokeWidth={active ? 2.4 : 1.8}
+                fill={active && tab.key === 'home' ? ORANGE : 'transparent'}
+              />
+              <Text
+                style={[
+                  styles.tabLabel,
+                  active && styles.tabLabelActive,
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </Pressable>
+          );
+        })}
 
+        {/* ── Center Cart button ── */}
         <View style={styles.centerSlot}>
           <Pressable
             accessibilityRole="tab"
-            accessibilityState={{ selected: cartActive }}
             accessibilityLabel="Cart"
-            onPress={() => go('/cart', cartActive)}
-            style={[styles.centerBtn, cartActive && styles.centerBtnActive]}
+            onPress={() => go('/cart')}
+            style={[styles.cartBtn, cartActive && styles.cartBtnActive]}
           >
-            <ShoppingBag color={ICON_ACTIVE} size={22} strokeWidth={2.25} />
+            <ShoppingBag
+              color="#FFFFFF"
+              size={24}
+              strokeWidth={2.2}
+            />
             {cartCount > 0 ? (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
@@ -135,20 +163,47 @@ export function AppBottomNav() {
               </View>
             ) : null}
           </Pressable>
-          <Text style={[styles.tabLabel, cartActive && styles.tabLabelActive]}>Cart</Text>
+          <Text
+            style={[
+              styles.tabLabel,
+              cartActive && styles.tabLabelActive,
+              styles.cartLabel,
+            ]}
+          >
+            Cart
+          </Text>
         </View>
 
-        <View style={styles.sideGroup}>{rightTabs.map(renderSideTab)}</View>
+        {/* ── Right tabs ── */}
+        {rightTabs.map((tab) => {
+          const active = tab.match(path);
+          const Icon = tab.Icon;
+          return (
+            <Pressable
+              key={tab.key}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={tab.label}
+              onPress={() => go(tab.href)}
+              style={styles.tab}
+            >
+              <Icon
+                color={active ? ORANGE : IDLE_COLOR}
+                size={22}
+                strokeWidth={active ? 2.4 : 1.8}
+              />
+              <Text
+                style={[
+                  styles.tabLabel,
+                  active && styles.tabLabelActive,
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
-    </View>
-  );
-
-  return (
-    <View
-      pointerEvents="box-none"
-      style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 10) }]}
-    >
-      {bar}
     </View>
   );
 }
@@ -160,71 +215,74 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 50,
-    alignItems: 'center',
-  },
-  barOuter: {
-    width: 240,
-    maxWidth: '75%',
   },
   bar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-evenly',
+    justifyContent: 'space-around',
     backgroundColor: '#FFFFFF',
-    borderRadius: 36,
-    paddingHorizontal: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
+    paddingHorizontal: 8,
     paddingTop: 10,
-    paddingBottom: 10,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 14,
+    paddingBottom: 6,
+    // iOS shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 16,
   },
-  sideGroup: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
+
+  // ── Regular tab ──
+  tab: {
     flex: 1,
-  },
-  sideTab: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 56,
-    paddingVertical: 2,
-    gap: 4,
-  },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: ICON_IDLE,
-  },
-  tabLabelActive: {
-    color: ICON_ACTIVE,
-    fontWeight: '800',
-  },
-  centerSlot: {
-    width: 66,
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 4,
-    marginTop: -28,
+    paddingBottom: 2,
+    minWidth: 52,
   },
-  centerBtn: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: '#FFFFFF',
+  tabLabel: {
+    fontSize: 11,
+    fontFamily: fonts.uiMedium,
+    color: IDLE_COLOR,
+  },
+  tabLabelActive: {
+    color: ORANGE,
+    fontFamily: fonts.uiBold,
+  },
+
+  // ── Center cart ──
+  centerSlot: {
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+    paddingBottom: 2,
+    minWidth: 64,
+  },
+  cartBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: ORANGE,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: authTheme.brand,
+    marginBottom: 0,
+    marginTop: -22, // Lifts the cart button above the nav bar
+    // Shadow
+    shadowColor: ORANGE,
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 10,
   },
-  centerBtnActive: {
-    backgroundColor: '#F9FAFB',
-    transform: [{ scale: 1.03 }],
+  cartBtnActive: {
+    backgroundColor: '#EA580C',
+    transform: [{ scale: 0.96 }],
+  },
+  cartLabel: {
+    color: IDLE_COLOR,
   },
   badge: {
     position: 'absolute',
@@ -233,7 +291,7 @@ const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: authTheme.brandLight,
+    backgroundColor: '#EF4444',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
@@ -243,6 +301,6 @@ const styles = StyleSheet.create({
   badgeText: {
     color: '#FFFFFF',
     fontSize: 9,
-    fontWeight: '900',
+    fontFamily: fonts.uiBold,
   },
 });

@@ -45,7 +45,7 @@ export function CustomerRecommendations() {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: 4,
   },
   header: {
     flexDirection: 'row',

@@ -4,17 +4,17 @@
  * + DM Sans (UI) are the closest open matches recommended for Swiggy clones.
  */
 export const fonts = {
-  display: 'PlusJakartaSans_800ExtraBold',
-  displayBold: 'PlusJakartaSans_700Bold',
-  displaySemi: 'PlusJakartaSans_600SemiBold',
-  displayMedium: 'PlusJakartaSans_500Medium',
-  displayRegular: 'PlusJakartaSans_400Regular',
-  ui: 'DMSans_400Regular',
-  uiMedium: 'DMSans_500Medium',
-  uiSemi: 'DMSans_600SemiBold',
-  uiBold: 'DMSans_700Bold',
-  script: 'Pacifico_400Regular',
-  bubbly: 'FredokaOne_400Regular',
+  display: 'Satoshi-Black',
+  displayBold: 'Satoshi-Bold',
+  displaySemi: 'Satoshi-Medium',
+  displayMedium: 'Satoshi-Medium',
+  displayRegular: 'Satoshi-Regular',
+  ui: 'Satoshi-Regular',
+  uiMedium: 'Satoshi-Medium',
+  uiSemi: 'Satoshi-Medium',
+  uiBold: 'Satoshi-Bold',
+  script: 'Satoshi-Regular',
+  bubbly: 'Satoshi-Bold',
 } as const;
 
 export const type = {

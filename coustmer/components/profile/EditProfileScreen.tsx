@@ -3,7 +3,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { Camera, Trash2, User } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator,  StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { AuthInput } from '@/components/auth/AuthInput';
 import { ProfileFormLayout } from '@/components/profile/ProfileFormLayout';
@@ -29,6 +30,7 @@ export function EditProfileScreen() {
   const [gender, setGender] = useState<string>('male');
   const [language, setLanguage] = useState('en');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [banner, setBanner] = useState<{
     message: string;
     type: 'error' | 'success';
@@ -182,12 +184,35 @@ export function EditProfileScreen() {
         value={displayName}
         onChangeText={setDisplayName}
       />
-      <AuthInput
-        label="Date of birth"
-        value={dateOfBirth}
-        onChangeText={setDateOfBirth}
-        placeholder="YYYY-MM-DD"
-      />
+      <Pressable onPress={() => {
+        Keyboard.dismiss();
+        setShowDatePicker(true);
+      }}>
+        <View pointerEvents="none">
+          <AuthInput
+            label="Date of birth"
+            value={dateOfBirth}
+            placeholder="YYYY-MM-DD"
+            editable={false}
+          />
+        </View>
+      </Pressable>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={dateOfBirth ? new Date(dateOfBirth) : new Date()}
+          mode="date"
+          display="default"
+          onChange={(event, date) => {
+            if (Platform.OS !== 'ios' || event.type === 'set') {
+              setShowDatePicker(false);
+            }
+            if (date) {
+              setDateOfBirth(date.toISOString().slice(0, 10));
+            }
+          }}
+        />
+      )}
       <AuthInput
         label="Language"
         value={language}
