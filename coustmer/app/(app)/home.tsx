@@ -337,6 +337,9 @@ export default function HomeScreen() {
     );
     if (initialCity) applied.city = initialCity;
 
+    // Apply immediately so UI updates instantly without waiting for reverse geocoding
+    applyLocal(applied);
+
     try {
       const resolved = await resolvePlaceFromCoords({
         lat: result.lat,

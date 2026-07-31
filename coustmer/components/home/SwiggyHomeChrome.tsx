@@ -66,7 +66,7 @@ export function SwiggyHomeChrome({
         </SmoothPressable>
 
         {/* Delivery location */}
-        <Pressable style={styles.locationWrap} onPress={onLocationPress}>
+        <SmoothPressable style={styles.locationWrap} onPress={onLocationPress} pressScale={0.96}>
           <Text style={styles.locationLabel}>Delivery location</Text>
           <View style={styles.locationRow}>
             <MapPin color="#F97316" size={14} strokeWidth={3} />
@@ -74,7 +74,7 @@ export function SwiggyHomeChrome({
               {locationText}
             </Text>
           </View>
-        </Pressable>
+        </SmoothPressable>
 
         {/* Bell notification */}
         <SmoothPressable

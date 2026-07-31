@@ -888,10 +888,9 @@ export function DeliveryLocationPicker({
     >
       {viewMode === 'browse' ? (
         <Animated.View
-          entering={FadeIn.duration(220)}
           style={[styles.browseRoot, { paddingTop: insets.top + 6 }]}
         >
-          <Animated.View entering={FadeInDown.duration(280).springify().damping(18)}>
+          <Animated.View>
             <View style={styles.headerRow}>
               <SmoothPressable onPress={onClose} style={styles.backBtn} hitSlop={10} pressScale={0.9}>
                 <ArrowLeft color="#02060C" size={22} strokeWidth={2.2} />
@@ -900,7 +899,7 @@ export function DeliveryLocationPicker({
             </View>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(40).duration(280).springify().damping(18)}>
+          <Animated.View>
             <View style={styles.searchBar}>
               <TextInput
                 value={search}
@@ -989,7 +988,6 @@ export function DeliveryLocationPicker({
               showsVerticalScrollIndicator={false}
             >
               <Animated.View
-                entering={FadeInDown.delay(80).duration(300).springify().damping(18)}
                 style={styles.actionRow}
               >
                 <SmoothPressable
@@ -1039,7 +1037,7 @@ export function DeliveryLocationPicker({
 
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-              <Animated.View entering={FadeInDown.delay(120).duration(300).springify().damping(18)}>
+              <Animated.View>
                 <Text style={styles.sectionLabel}>SAVED ADDRESSES</Text>
 
                 <View style={styles.savedCard}>

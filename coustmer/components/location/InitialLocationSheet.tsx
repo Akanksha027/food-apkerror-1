@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   banner: {
-    backgroundColor: '#6193E6',
+    backgroundColor: '#F97316',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   grantText: {
     fontFamily: fonts.uiBold,
     fontSize: 13,
-    color: '#5180E2',
+    color: '#F97316',
     letterSpacing: 0.5,
   },
   sheet: {
